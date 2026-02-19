@@ -5,6 +5,7 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const { createClient } = require('@supabase/supabase-js');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,8 +20,9 @@ const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
 // Supabase Configuration
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY; // ✅ Use anon key (publishable)
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; // Only for user creation
+const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 
 app.use(bodyParser.json());
 
@@ -50,6 +52,7 @@ console.log('Phone Number ID:', PHONE_NUMBER_ID ? '✅' : '❌');
 console.log('Supabase URL:', SUPABASE_URL ? '✅' : '❌');
 console.log('Supabase Anon Key:', SUPABASE_ANON_KEY ? '✅' : '❌');
 console.log('Supabase Service Key:', SUPABASE_SERVICE_KEY ? '✅' : '❌');
+console.log('JWT Secret:', SUPABASE_JWT_SECRET ? '✅' : '❌');
 console.log('='.repeat(60) + '\n');
 
 // ============================================================================
@@ -134,71 +137,24 @@ async function seedDefaultCategories(profileId) {
 }
 
 /**
- * CRITICAL: Get user-scoped Supabase client
- * This uses Supabase Auth to create a proper session
+ * Get user-scoped Supabase client
+ * Signs a JWT with whatsapp_number as sub — matches your RLS policy
+ * Uses anon key so RLS is enforced
  */
-async function getUserSupabaseClient(whatsappNumber) {
-  // Sign in as the user using Supabase Auth
-  // This generates a proper JWT with correct claims
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: `${whatsappNumber}@ryumedha.local`, // Virtual email
-    password: whatsappNumber // Use phone as password (or hash it)
-  });
-  
-  if (error) {
-    // User doesn't exist in auth, create them
-    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-      email: `${whatsappNumber}@ryumedha.local`,
-      password: whatsappNumber,
-      options: {
-        data: {
-          whatsapp_number: whatsappNumber
-        }
-      }
-    });
-    
-    if (signUpError) {
-      console.error('❌ Auth error:', signUpError);
-      throw signUpError;
-    }
-    
-    // Return client with new session
-    return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${signUpData.session.access_token}`
-        }
-      }
-    });
-  }
-  
-  // Return client with session
+function getUserSupabase(whatsappNumber) {
+  const token = jwt.sign(
+    {
+      sub: whatsappNumber,
+      role: 'authenticated',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 // 24 hours
+    },
+    SUPABASE_JWT_SECRET
+  );
+
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
-      headers: {
-        Authorization: `Bearer ${data.session.access_token}`
-      }
-    }
-  });
-}
-
-// ============================================================================
-// SIMPLIFIED APPROACH: Direct RLS with Phone Number
-// ============================================================================
-
-/**
- * BETTER APPROACH: Use custom RLS function
- * Set phone number directly in request context
- */
-function getUserSupabase(whatsappNumber, userId) {
-  // Create client with custom headers
-  // RLS function will extract phone from custom header
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: {
-      headers: {
-        'X-User-Phone': whatsappNumber,
-        'X-User-Id': userId
-      }
+      headers: { Authorization: `Bearer ${token}` }
     }
   });
 }
@@ -211,15 +167,16 @@ function getUserSupabase(whatsappNumber, userId) {
  * Handle "add subject" command
  */
 async function handleAddSubject(user, subjectName) {
-  // Use admin client with RLS-aware insert
-  const { data: category } = await supabaseAdmin
+  const userSupabase = getUserSupabase(user.whatsapp_number);
+
+  const { data: category } = await userSupabase
     .from('subject_categories')
     .select('id')
     .eq('profile_id', user.id)
     .eq('name', 'Academics')
     .single();
   
-  const { data: subject, error } = await supabaseAdmin
+  const { data: subject, error } = await userSupabase
     .from('subjects')
     .insert([{
       profile_id: user.id,
@@ -236,8 +193,7 @@ async function handleAddSubject(user, subjectName) {
     return `❌ Couldn't add subject. Try again later.`;
   }
   
-  // Count total subjects
-  const { count } = await supabaseAdmin
+  const { count } = await userSupabase
     .from('subjects')
     .select('*', { count: 'exact', head: true })
     .eq('profile_id', user.id);
@@ -246,10 +202,45 @@ async function handleAddSubject(user, subjectName) {
 }
 
 /**
+ * Handle "delete subject" command
+ */
+async function handleDeleteSubject(user, subjectName) {
+  const userSupabase = getUserSupabase(user.whatsapp_number);
+
+  const { data: category } = await userSupabase
+    .from('subject_categories')
+    .select('id')
+    .eq('profile_id', user.id)
+    .eq('name', 'Academics')
+    .single();
+  
+  const { data: subject, error } = await userSupabase
+    .from('subjects')
+    .delete()
+    .eq('profile_id', user.id)
+    .eq('name', subjectName)
+    .single();
+  
+  if (error) {
+    console.error('❌ Error deleting subject:', error);
+    return `❌ Couldn't delete subject. Try again later.`;
+  }
+  
+  const { count } = await userSupabase
+    .from('subjects')
+    .select('*', { count: 'exact', head: true })
+    .eq('profile_id', user.id);
+  
+  return `✅ Deleted "${subjectName}"!\n\nYou now have ${count} subject${count !== 1 ? 's' : ''}.`;
+}
+
+/**
  * Handle "list subjects" command
  */
 async function handleListSubjects(user) {
-  const { data: subjects, error } = await supabaseAdmin
+  const userSupabase = getUserSupabase(user.whatsapp_number);
+
+  const { data: subjects, error } = await userSupabase
     .from('subjects')
     .select('*')
     .eq('profile_id', user.id)
@@ -274,8 +265,9 @@ async function handleListSubjects(user) {
  * Handle "attended <subject>" command
  */
 async function handleAttendance(user, subjectName) {
-  // Find subject by name (case insensitive, partial match)
-  const { data: subjects } = await supabaseAdmin
+  const userSupabase = getUserSupabase(user.whatsapp_number);
+
+  const { data: subjects } = await userSupabase
     .from('subjects')
     .select('*')
     .eq('profile_id', user.id)
@@ -289,8 +281,7 @@ async function handleAttendance(user, subjectName) {
   const subject = subjects[0];
   const today = new Date().toISOString().split('T')[0];
   
-  // Check if already marked today
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await userSupabase
     .from('attendance_logs')
     .select('*')
     .eq('profile_id', user.id)
@@ -302,8 +293,7 @@ async function handleAttendance(user, subjectName) {
     return `ℹ️ Already marked attendance for ${subject.name} today!`;
   }
   
-  // Mark attendance
-  const { error } = await supabaseAdmin
+  const { error } = await userSupabase
     .from('attendance_logs')
     .insert([{
       profile_id: user.id,
@@ -317,8 +307,7 @@ async function handleAttendance(user, subjectName) {
     return `❌ Error marking attendance. Try again.`;
   }
   
-  // Get updated stats
-  const { data: logs } = await supabaseAdmin
+  const { data: logs } = await userSupabase
     .from('attendance_logs')
     .select('status')
     .eq('profile_id', user.id)
@@ -340,7 +329,9 @@ async function handleAttendance(user, subjectName) {
  * Handle "missed <subject>" command
  */
 async function handleMissed(user, subjectName) {
-  const { data: subjects } = await supabaseAdmin
+  const userSupabase = getUserSupabase(user.whatsapp_number);
+
+  const { data: subjects } = await userSupabase
     .from('subjects')
     .select('*')
     .eq('profile_id', user.id)
@@ -354,8 +345,7 @@ async function handleMissed(user, subjectName) {
   const subject = subjects[0];
   const today = new Date().toISOString().split('T')[0];
   
-  // Check if already marked
-  const { data: existing } = await supabaseAdmin
+  const { data: existing } = await userSupabase
     .from('attendance_logs')
     .select('*')
     .eq('profile_id', user.id)
@@ -367,8 +357,7 @@ async function handleMissed(user, subjectName) {
     return `ℹ️ Already marked for ${subject.name} today!`;
   }
   
-  // Mark as absent
-  const { error } = await supabaseAdmin
+  const { error } = await userSupabase
     .from('attendance_logs')
     .insert([{
       profile_id: user.id,
@@ -382,8 +371,7 @@ async function handleMissed(user, subjectName) {
     return `❌ Error marking absence.`;
   }
   
-  // Get stats
-  const { data: logs } = await supabaseAdmin
+  const { data: logs } = await userSupabase
     .from('attendance_logs')
     .select('status')
     .eq('profile_id', user.id)
@@ -393,16 +381,10 @@ async function handleMissed(user, subjectName) {
     const present = logs.filter(l => l.status === 'present').length;
     const total = logs.filter(l => l.status !== 'cancelled').length;
     const percentage = total > 0 ? (present / total) * 100 : 0;
-    
-    const needed = percentage < 75 ? 
-      Math.ceil((0.75 * total - present) / 0.25) : 0;
+    const needed = percentage < 75 ? Math.ceil((0.75 * total - present) / 0.25) : 0;
     
     let response = `⚠️ Marked absent\n\n${subject.name}: ${present}/${total} (${percentage.toFixed(1)}%)`;
-    
-    if (needed > 0) {
-      response += `\n\n💡 Attend next ${needed} lectures to reach 75%`;
-    }
-    
+    if (needed > 0) response += `\n\n💡 Attend next ${needed} lectures to reach 75%`;
     return response;
   }
   
@@ -413,7 +395,9 @@ async function handleMissed(user, subjectName) {
  * Handle "stats" command
  */
 async function handleStats(user) {
-  const { data: subjects } = await supabaseAdmin
+  const userSupabase = getUserSupabase(user.whatsapp_number);
+
+  const { data: subjects } = await userSupabase
     .from('subjects')
     .select('id, name')
     .eq('profile_id', user.id)
@@ -427,7 +411,7 @@ async function handleStats(user) {
   let hasData = false;
   
   for (const subject of subjects) {
-    const { data: logs } = await supabaseAdmin
+    const { data: logs } = await userSupabase
       .from('attendance_logs')
       .select('status')
       .eq('profile_id', user.id)
@@ -439,7 +423,6 @@ async function handleStats(user) {
       const total = logs.filter(l => l.status !== 'cancelled').length;
       const percentage = total > 0 ? (present / total) * 100 : 0;
       const emoji = percentage >= 75 ? '✅' : percentage >= 60 ? '⚠️' : '🔴';
-      
       response += `${emoji} ${subject.name}: ${present}/${total} (${percentage.toFixed(1)}%)\n`;
     }
   }
@@ -475,6 +458,7 @@ Commands:
 • add subject Contract Law
 • attended contract law
 • missed jurisprudence
+• delete subject Contract Law
 • stats
 
 Dashboard for more features! 🚀`;
@@ -503,6 +487,12 @@ async function processMessage(from, text) {
     if (lowerText.startsWith('add subject ')) {
       const subjectName = text.substring(12).trim();
       return await handleAddSubject(user, subjectName);
+    }
+
+        // Delete subject
+    if (lowerText.startsWith('delete subject ')) {
+      const subjectName = text.substring(15).trim();
+      return await handleDeleteSubject(user, subjectName);
     }
     
     // List subjects

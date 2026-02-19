@@ -746,6 +746,10 @@ $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION seed_default_categories IS 'Seeds default categories when new user signs up';
 
+
+ALTER TABLE otp_codes ADD COLUMN attempts INTEGER DEFAULT 0;
+ALTER TABLE otp_codes ADD COLUMN last_sent_at TIMESTAMPTZ DEFAULT NOW();
+
 -- ============================================================================
 -- STEP 11: SEED SAMPLE UNIVERSITIES & PROGRAMS (OPTIONAL)
 -- ============================================================================
