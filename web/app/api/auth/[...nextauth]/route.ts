@@ -17,49 +17,60 @@ export const authOptions: NextAuthOptions = {
         otp: { label: 'OTP', type: 'text' },
       },
       async authorize(credentials) {
-        const { phone_number, otp } = credentials ?? {}
-
-        if (!phone_number || !otp) {
-          throw new Error('Phone number and OTP are required')
-        }
-
-        // Normalize phone number (remove spaces) to match what request-otp does
-        const cleanPhone = phone_number.replace(/\s/g, '')
-
-        // Delegate verification to the Supabase edge function
-        // (SERVICE_ROLE_KEY and JWT_SECRET live only in the edge runtime)
-        const res = await fetch(VERIFY_EDGE_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          },
-          body: JSON.stringify({ phone_number: cleanPhone, otp }),
-        })
-
-        const text = await res.text()
-        console.log('[NextAuth] Edge Function Status:', res.status)
-        console.log('[NextAuth] Edge Function Response:', text)
-
-        let data
         try {
-          data = JSON.parse(text)
-        } catch {
-          throw new Error(`Invalid JSON from Edge Function: ${text.substring(0, 100)}`)
-        }
+          const { phone_number, otp } = credentials ?? {}
 
-        if (!res.ok || !data.success) {
-          console.error('[NextAuth] Verification failed:', data)
-          throw new Error(data.error ?? 'Verification failed')
-        }
+          if (!phone_number || !otp) {
+            throw new Error('Phone number and OTP are required')
+          }
 
-        return {
-          id: data.profile.id,
-          name: data.profile.display_name,
-          email: data.profile.email ?? null,
-          phone: phone_number,
-          supabaseToken: data.token,
+          // Guard against missing env var (fail fast with clear message)
+          if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+            throw new Error('Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL is not set')
+          }
+
+          // Normalize phone number (remove spaces) to match what request-otp does
+          const cleanPhone = phone_number.replace(/\s/g, '')
+
+          // Delegate verification to the Supabase edge function
+          // (SERVICE_ROLE_KEY and JWT_SECRET live only in the edge runtime)
+          const res = await fetch(VERIFY_EDGE_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            },
+            body: JSON.stringify({ phone_number: cleanPhone, otp }),
+          })
+
+          const text = await res.text()
+          console.log('[NextAuth] Edge Function Status:', res.status)
+          console.log('[NextAuth] Edge Function Response:', text)
+
+          let data
+          try {
+            data = JSON.parse(text)
+          } catch {
+            throw new Error(`Edge Function returned invalid JSON: ${text.substring(0, 200)}`)
+          }
+
+          if (!res.ok || !data.success) {
+            console.error('[NextAuth] Verification failed:', data)
+            throw new Error(data.error ?? 'Verification failed')
+          }
+
+          return {
+            id: data.profile.id,
+            name: data.profile.display_name,
+            email: data.profile.email ?? null,
+            phone: phone_number,
+            supabaseToken: data.token,
+          }
+        } catch (err: any) {
+          // Re-throw so the message is preserved in result.error on the client
+          // Without this, NextAuth turns ANY exception into error=Configuration
+          throw new Error(err.message ?? 'Authentication failed')
         }
       },
     }),

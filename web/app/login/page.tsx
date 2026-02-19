@@ -171,16 +171,15 @@ function LoginPageInner() {
                       </Alert>
                     )}
 
-                      <Button
-                        type="submit"
-                        disabled={loading} // Only disable when loading
-                        className="w-full h-11 font-bold"
-                        onClick={() => console.log('Button clicked, phone:', phone)}
-                      >
-                        {loading
-                          ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending OTP…</>
-                          : 'Send OTP'}
-                      </Button>
+                    <Button
+                      type="submit"
+                      disabled={loading || !/^\+\d{7,15}$/.test(phone.trim())}
+                      className="w-full h-11 font-bold"
+                    >
+                      {loading
+                        ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending OTP…</>
+                        : 'Send OTP'}
+                    </Button>
 
                     <p className="text-center text-xs text-muted-foreground pt-1">
                       First time?{' '}
