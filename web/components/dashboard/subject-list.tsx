@@ -1,11 +1,10 @@
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { BookOpen } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { BookOpen } from 'lucide-react'
 
 interface Subject {
   id: string
   name: string
-  color_hex?: string
+  color_hex?: string | null
 }
 
 interface SubjectListProps {
@@ -16,9 +15,12 @@ export function SubjectList({ subjects }: SubjectListProps) {
   if (subjects.length === 0) {
     return (
       <Card>
-        <CardContent className="pt-6 text-center text-muted-foreground">
-          <p>No subjects found.</p>
-          <p className="text-xs">Add subjects via the WhatsApp bot.</p>
+        <CardContent className="py-10 flex flex-col items-center gap-2 text-muted-foreground">
+          <BookOpen className="h-8 w-8 opacity-30" />
+          <p className="font-medium">No subjects yet</p>
+          <p className="text-xs text-center">
+            Add subjects via the WhatsApp bot to see them here.
+          </p>
         </CardContent>
       </Card>
     )
@@ -27,25 +29,24 @@ export function SubjectList({ subjects }: SubjectListProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-bold flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-primary" />
-          Your Subjects
+        <CardTitle className="text-base font-bold flex items-center gap-2">
+          <BookOpen className="h-4 w-4 text-primary" />
+          Active Subjects
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-2">
+      <CardContent className="grid gap-1.5">
         {subjects.map((sub) => (
-            <div 
-              key={sub.id} 
-              className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-3 h-3 rounded-full shadow-sm" 
-                  style={{ backgroundColor: sub.color_hex || '#8b5cf6' }} 
-                />
-                <span className="font-semibold">{sub.name}</span>
-              </div>
-            </div>
+          <div
+            key={sub.id}
+            className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors"
+          >
+            {/* Subject accent dot — user-defined color stored per-row in DB */}
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0"
+              style={{ backgroundColor: sub.color_hex ?? 'hsl(var(--primary))' }}
+            />
+            <span className="text-sm font-medium">{sub.name}</span>
+          </div>
         ))}
       </CardContent>
     </Card>
