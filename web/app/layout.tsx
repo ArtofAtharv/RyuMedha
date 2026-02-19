@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,18 +41,28 @@ export const metadata: Metadata = {
   },
 };
 
-
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: next-themes + our data-theme script both mutate
+    // the html element before React hydrates — this suppresses the mismatch warning
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        {/* Restore color theme from localStorage before first paint — no flash */}
+        <Script id="color-theme-init" strategy="beforeInteractive">{`
+          try {
+            var t = localStorage.getItem('ryumedha-color-theme');
+            if (t && t !== 'neutral') {
+              document.documentElement.setAttribute('data-theme', t);
+            }
+          } catch(e) {}
+        `}</Script>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
