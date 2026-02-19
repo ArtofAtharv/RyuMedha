@@ -23,6 +23,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Phone number and OTP are required')
         }
 
+        // Normalize phone number (remove spaces) to match what request-otp does
+        const cleanPhone = phone_number.replace(/\s/g, '')
+
         // Delegate verification to the Supabase edge function
         // (SERVICE_ROLE_KEY and JWT_SECRET live only in the edge runtime)
         const res = await fetch(VERIFY_EDGE_URL, {
@@ -32,7 +35,7 @@ export const authOptions: NextAuthOptions = {
             Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
           },
-          body: JSON.stringify({ phone_number, otp }),
+          body: JSON.stringify({ phone_number: cleanPhone, otp }),
         })
 
         const text = await res.text()

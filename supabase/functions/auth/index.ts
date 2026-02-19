@@ -41,19 +41,25 @@ serve(async (req) => {
       if (!phone_number || typeof phone_number !== 'string') {
         return json({ success: false, error: 'phone_number is required' }, 400)
       }
-      if (!phone_number.startsWith('+')) {
+      
+      const cleanPhone = phone_number.replace(/\s/g, '')
+
+      if (!cleanPhone.startsWith('+')) {
         return json({ success: false, error: 'phone_number must include country code' }, 400)
       }
+      
+      console.log(`Checking registration for: '${cleanPhone}' (received: '${phone_number}')`)
 
       // Check if user is registered
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
-        .eq('whatsapp_number', phone_number)
+        .eq('whatsapp_number', cleanPhone)
         .single()
 
       if (!profile) {
-        return json({ success: true, status: 'not_registered' })
+        console.log(`User not found: ${cleanPhone}`)
+        return json({ success: true, status: 'not_registered', searchedFor: cleanPhone })
       }
 
       // Rate limiting: max 3 sends per 10 minutes
@@ -61,7 +67,7 @@ serve(async (req) => {
       const { data: existing } = await supabase
         .from('otp_codes')
         .select('attempts, last_sent_at')
-        .eq('whatsapp_number', phone_number)
+        .eq('whatsapp_number', cleanPhone)
         .single()
 
       const inWindow = existing && existing.last_sent_at > TEN_MINUTES_AGO
@@ -77,7 +83,7 @@ serve(async (req) => {
       const { error: upsertError } = await supabase
         .from('otp_codes')
         .upsert({
-          whatsapp_number: phone_number,
+          whatsapp_number: cleanPhone,
           code: otp,
           expires_at: expiresAt,
           used: false,
@@ -94,6 +100,9 @@ serve(async (req) => {
       const PHONE_NUMBER_ID = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID')!
       const WHATSAPP_TOKEN = Deno.env.get('WHATSAPP_TOKEN')!
 
+      // NOTE: WhatsApp API might want 'to' without '+' or with '+'. 
+      // Usually it accepts + for E.164. We will use cleanPhone.
+      
       const waRes = await fetch(
         `https://graph.facebook.com/v20.0/${PHONE_NUMBER_ID}/messages`,
         {
@@ -104,7 +113,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             messaging_product: 'whatsapp',
-            to: phone_number,
+            to: cleanPhone,
             type: 'text',
             text: {
               body: `🔐 Your RyuMedha login code: *${otp}*\n\nExpires in 5 minutes.`,
@@ -128,11 +137,14 @@ serve(async (req) => {
       const MAX_ATTEMPTS = 5
 
       if (!phone_number || !otp) return json({ success: false, error: 'Missing phone/otp' }, 400)
+      
+      const cleanPhone = phone_number.replace(/\s/g, '')
+      console.log(`Verifying OTP for: '${cleanPhone}' (received: '${phone_number}')`)
 
       const { data: record, error: fetchErr } = await supabase
         .from('otp_codes')
         .select('code, expires_at, used, attempts')
-        .eq('whatsapp_number', phone_number)
+        .eq('whatsapp_number', cleanPhone)
         .single()
 
       if (fetchErr || !record) return json({ success: false, error: 'No OTP found' }, 400)
@@ -146,18 +158,18 @@ serve(async (req) => {
         await supabase
           .from('otp_codes')
           .update({ attempts: newAttempts })
-          .eq('whatsapp_number', phone_number)
+          .eq('whatsapp_number', cleanPhone)
         return json({ success: false, error: `Incorrect OTP. ${MAX_ATTEMPTS - newAttempts} attempts left.` }, 400)
       }
 
       // Mark used
-      await supabase.from('otp_codes').update({ used: true }).eq('whatsapp_number', phone_number)
+      await supabase.from('otp_codes').update({ used: true }).eq('whatsapp_number', cleanPhone)
 
       // Get profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('id, display_name, email')
-        .eq('whatsapp_number', phone_number)
+        .eq('whatsapp_number', cleanPhone)
         .single()
 
       if (!profile) return json({ success: false, error: 'User profile not found' }, 400)
@@ -178,7 +190,7 @@ serve(async (req) => {
       const token = await create(
         { alg: 'HS256', typ: 'JWT' },
         {
-          sub: phone_number,
+          sub: cleanPhone,
           role: 'authenticated',
           iat: getNumericDate(0),
           exp: getNumericDate(7 * 24 * 60 * 60),
@@ -189,7 +201,7 @@ serve(async (req) => {
       return json({
         success: true,
         token,
-        phone_number,
+        phone_number: cleanPhone,
         profile,
       })
     }

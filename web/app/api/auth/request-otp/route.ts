@@ -27,6 +27,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid phone number length' }, { status: 400 })
     }
 
+    // Normalize for Edge Function
+    const cleanPhone = `+${digits}`
+
     // Call edge function
     // Use ANON KEY — the function itself has service role access internally to write to DB
     const res = await fetch(EDGE_FN_URL, {
@@ -35,7 +38,7 @@ export async function POST(req: NextRequest) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ phone_number }),
+      body: JSON.stringify({ phone_number: cleanPhone }),
     })
 
     const data = await res.json()
@@ -50,7 +53,9 @@ export async function POST(req: NextRequest) {
     // Surface 'not_registered' status to client
     if (data?.status === 'not_registered') {
       return NextResponse.json(
-        { error: 'This number is not registered. Send "hi" to our WhatsApp bot first.' },
+        { 
+          error: `This number (${data.searchedFor || cleanPhone}) is not registered. Send "hi" to our WhatsApp bot first.` 
+        },
         { status: 404 }
       )
     }
