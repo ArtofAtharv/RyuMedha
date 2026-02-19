@@ -909,3 +909,19 @@ DELETE FROM profiles WHERE whatsapp_number = '+919876543210';
 -- 5. Test end-to-end flow: WhatsApp signup → Web login → Create subject → Track time
 
 -- For questions or issues, refer to documentation or test queries above
+
+
+/* Delete all users and empty the table
+
+TRUNCATE TABLE message_queue CASCADE;
+TRUNCATE TABLE bot_sessions CASCADE;
+TRUNCATE TABLE otp_codes CASCADE;
+TRUNCATE TABLE tasks CASCADE;
+TRUNCATE TABLE study_timers CASCADE;
+TRUNCATE TABLE grades CASCADE;
+TRUNCATE TABLE attendance_logs CASCADE;
+TRUNCATE TABLE subjects CASCADE;
+TRUNCATE TABLE subject_categories CASCADE;
+TRUNCATE TABLE profiles CASCADE;
+
+*/

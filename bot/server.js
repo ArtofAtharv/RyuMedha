@@ -66,19 +66,19 @@ console.log('='.repeat(60) + '\n');
  */
 async function getOrCreateUser(whatsappNumber) {
   console.log(`\n👤 Getting/Creating user: ${whatsappNumber}`);
-  
+
   // First, check if user exists (using admin client)
   const { data: existingUser, error: fetchError } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('whatsapp_number', whatsappNumber)
     .single();
-  
+
   if (existingUser) {
     console.log('✅ User exists:', existingUser.display_name);
     return existingUser;
   }
-  
+
   // User doesn't exist, create new one (using admin client to bypass RLS)
   console.log('🆕 Creating new user...');
   const { data: newUser, error: createError } = await supabaseAdmin
@@ -92,15 +92,15 @@ async function getOrCreateUser(whatsappNumber) {
     }])
     .select()
     .single();
-  
+
   if (createError) {
     console.error('❌ Error creating user:', createError);
     throw createError;
   }
-  
+
   // Seed default categories (using admin client)
   await seedDefaultCategories(newUser.id);
-  
+
   console.log('✅ New user created:', newUser.id, newUser.display_name);
   return newUser;
 }
@@ -117,18 +117,18 @@ async function seedDefaultCategories(profileId) {
     { name: 'Coding & Tech', color_hex: '#f59e0b' },
     { name: 'Hobbies', color_hex: '#6366f1' }
   ];
-  
+
   const categoriesToInsert = defaultCategories.map(cat => ({
     profile_id: profileId,
     name: cat.name,
     color_hex: cat.color_hex,
     is_default: true
   }));
-  
+
   const { error } = await supabaseAdmin
     .from('subject_categories')
     .insert(categoriesToInsert);
-  
+
   if (error) {
     console.error('⚠️ Error seeding categories:', error);
   } else {
@@ -175,7 +175,7 @@ async function handleAddSubject(user, subjectName) {
     .eq('profile_id', user.id)
     .eq('name', 'Academics')
     .single();
-  
+
   const { data: subject, error } = await userSupabase
     .from('subjects')
     .insert([{
@@ -187,17 +187,17 @@ async function handleAddSubject(user, subjectName) {
     }])
     .select()
     .single();
-  
+
   if (error) {
     console.error('❌ Error adding subject:', error);
     return `❌ Couldn't add subject. Try again later.`;
   }
-  
+
   const { count } = await userSupabase
     .from('subjects')
     .select('*', { count: 'exact', head: true })
     .eq('profile_id', user.id);
-  
+
   return `✅ Added "${subjectName}"!\n\nYou now have ${count} subject${count !== 1 ? 's' : ''}.`;
 }
 
@@ -213,24 +213,24 @@ async function handleDeleteSubject(user, subjectName) {
     .eq('profile_id', user.id)
     .eq('name', 'Academics')
     .single();
-  
+
   const { data: subject, error } = await userSupabase
     .from('subjects')
     .delete()
     .eq('profile_id', user.id)
     .eq('name', subjectName)
     .single();
-  
+
   if (error) {
     console.error('❌ Error deleting subject:', error);
     return `❌ Couldn't delete subject. Try again later.`;
   }
-  
+
   const { count } = await userSupabase
     .from('subjects')
     .select('*', { count: 'exact', head: true })
     .eq('profile_id', user.id);
-  
+
   return `✅ Deleted "${subjectName}"!\n\nYou now have ${count} subject${count !== 1 ? 's' : ''}.`;
 }
 
@@ -246,18 +246,18 @@ async function handleListSubjects(user) {
     .eq('profile_id', user.id)
     .eq('is_active', true)
     .order('created_at', { ascending: false });
-  
+
   if (error || !subjects || subjects.length === 0) {
     return `📚 You don't have any subjects yet!\n\nAdd one by sending:\nadd subject Contract Law`;
   }
-  
+
   let response = '📚 Your Subjects:\n\n';
   subjects.forEach((subject, index) => {
     response += `${index + 1}. ${subject.name}\n`;
   });
-  
+
   response += `\n💡 Mark attendance: "attended contract law"`;
-  
+
   return response;
 }
 
@@ -273,14 +273,20 @@ async function handleAttendance(user, subjectName) {
     .eq('profile_id', user.id)
     .eq('is_active', true)
     .ilike('name', `%${subjectName}%`);
-  
+
   if (!subjects || subjects.length === 0) {
     return `❌ Subject "${subjectName}" not found.\n\nList subjects: send "subjects"`;
   }
-  
+
   const subject = subjects[0];
-  const today = new Date().toISOString().split('T')[0];
-  
+  // Use IST for date
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+
   const { data: existing } = await userSupabase
     .from('attendance_logs')
     .select('*')
@@ -288,11 +294,11 @@ async function handleAttendance(user, subjectName) {
     .eq('subject_id', subject.id)
     .eq('lecture_date', today)
     .single();
-  
+
   if (existing) {
     return `ℹ️ Already marked attendance for ${subject.name} today!`;
   }
-  
+
   const { error } = await userSupabase
     .from('attendance_logs')
     .insert([{
@@ -301,27 +307,27 @@ async function handleAttendance(user, subjectName) {
       lecture_date: today,
       status: 'present'
     }]);
-  
+
   if (error) {
     console.error('❌ Error marking attendance:', error);
     return `❌ Error marking attendance. Try again.`;
   }
-  
+
   const { data: logs } = await userSupabase
     .from('attendance_logs')
     .select('status')
     .eq('profile_id', user.id)
     .eq('subject_id', subject.id);
-  
+
   if (logs) {
     const present = logs.filter(l => l.status === 'present').length;
     const total = logs.filter(l => l.status !== 'cancelled').length;
     const percentage = total > 0 ? (present / total) * 100 : 0;
     const emoji = percentage >= 75 ? '✅' : percentage >= 60 ? '⚠️' : '🔴';
-    
+
     return `${emoji} Marked!\n\n${subject.name}: ${present}/${total} (${percentage.toFixed(1)}%)`;
   }
-  
+
   return `✅ Attendance marked for ${subject.name}!`;
 }
 
@@ -337,14 +343,20 @@ async function handleMissed(user, subjectName) {
     .eq('profile_id', user.id)
     .eq('is_active', true)
     .ilike('name', `%${subjectName}%`);
-  
+
   if (!subjects || subjects.length === 0) {
     return `❌ Subject "${subjectName}" not found.`;
   }
-  
+
   const subject = subjects[0];
-  const today = new Date().toISOString().split('T')[0];
-  
+  // Use IST for date
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+
   const { data: existing } = await userSupabase
     .from('attendance_logs')
     .select('*')
@@ -352,11 +364,11 @@ async function handleMissed(user, subjectName) {
     .eq('subject_id', subject.id)
     .eq('lecture_date', today)
     .single();
-  
+
   if (existing) {
     return `ℹ️ Already marked for ${subject.name} today!`;
   }
-  
+
   const { error } = await userSupabase
     .from('attendance_logs')
     .insert([{
@@ -365,29 +377,29 @@ async function handleMissed(user, subjectName) {
       lecture_date: today,
       status: 'absent'
     }]);
-  
+
   if (error) {
     console.error('❌ Error:', error);
     return `❌ Error marking absence.`;
   }
-  
+
   const { data: logs } = await userSupabase
     .from('attendance_logs')
     .select('status')
     .eq('profile_id', user.id)
     .eq('subject_id', subject.id);
-  
+
   if (logs) {
     const present = logs.filter(l => l.status === 'present').length;
     const total = logs.filter(l => l.status !== 'cancelled').length;
     const percentage = total > 0 ? (present / total) * 100 : 0;
     const needed = percentage < 75 ? Math.ceil((0.75 * total - present) / 0.25) : 0;
-    
+
     let response = `⚠️ Marked absent\n\n${subject.name}: ${present}/${total} (${percentage.toFixed(1)}%)`;
     if (needed > 0) response += `\n\n💡 Attend next ${needed} lectures to reach 75%`;
     return response;
   }
-  
+
   return `⚠️ Marked absent for ${subject.name}`;
 }
 
@@ -402,21 +414,21 @@ async function handleStats(user) {
     .select('id, name')
     .eq('profile_id', user.id)
     .eq('is_active', true);
-  
+
   if (!subjects || subjects.length === 0) {
     return `📊 No subjects yet!\n\nAdd one: "add subject Contract Law"`;
   }
-  
+
   let response = '📊 Your Attendance:\n\n';
   let hasData = false;
-  
+
   for (const subject of subjects) {
     const { data: logs } = await userSupabase
       .from('attendance_logs')
       .select('status')
       .eq('profile_id', user.id)
       .eq('subject_id', subject.id);
-    
+
     if (logs && logs.length > 0) {
       hasData = true;
       const present = logs.filter(l => l.status === 'present').length;
@@ -426,11 +438,11 @@ async function handleStats(user) {
       response += `${emoji} ${subject.name}: ${present}/${total} (${percentage.toFixed(1)}%)\n`;
     }
   }
-  
+
   if (!hasData) {
     return `📊 No attendance data yet!\n\nMark attendance: "attended contract law"`;
   }
-  
+
   return response;
 }
 
@@ -470,56 +482,56 @@ Dashboard for more features! 🚀`;
 
 async function processMessage(from, text) {
   console.log(`\n📄 Processing: "${text}"`);
-  
+
   try {
     // Get or create user
     const user = await getOrCreateUser(from);
-    
+
     // Parse command
     const lowerText = text.toLowerCase().trim();
-    
+
     // Help
     if (lowerText === 'help' || lowerText === 'hi' || lowerText === 'hello' || lowerText === 'start') {
       return handleHelp();
     }
-    
+
     // Add subject
     if (lowerText.startsWith('add subject ')) {
       const subjectName = text.substring(12).trim();
       return await handleAddSubject(user, subjectName);
     }
 
-        // Delete subject
+    // Delete subject
     if (lowerText.startsWith('delete subject ')) {
       const subjectName = text.substring(15).trim();
       return await handleDeleteSubject(user, subjectName);
     }
-    
+
     // List subjects
     if (lowerText === 'subjects' || lowerText === 'list') {
       return await handleListSubjects(user);
     }
-    
+
     // Attended
     if (lowerText.startsWith('attended ')) {
       const subjectName = text.substring(9).trim();
       return await handleAttendance(user, subjectName);
     }
-    
+
     // Missed
     if (lowerText.startsWith('missed ')) {
       const subjectName = text.substring(7).trim();
       return await handleMissed(user, subjectName);
     }
-    
+
     // Stats
     if (lowerText === 'stats' || lowerText === 'attendance') {
       return await handleStats(user);
     }
-    
+
     // Unknown command
     return `🤔 I didn't understand that.\n\nSend "help" to see what I can do!`;
-    
+
   } catch (error) {
     console.error('❌ Error processing message:', error);
     return `❌ Something went wrong. Please try again.\n\nIf this persists, contact support.`;
@@ -531,8 +543,8 @@ async function processMessage(from, text) {
 // ============================================================================
 
 app.get('/', (req, res) => {
-  res.json({ 
-    status: 'online', 
+  res.json({
+    status: 'online',
     service: 'Ryuma WhatsApp Bot',
     uptime: process.uptime()
   });
@@ -572,7 +584,17 @@ app.post('/webhook', async (req, res) => {
       console.log(`💬 Message: ${text}`);
 
       if (text) {
-        const response = await processMessage(from, text);
+        // Normalize phone number to E.164 (add +)
+        const formattedFrom = from.startsWith('+') ? from : `+${from}`;
+        const response = await processMessage(formattedFrom, text);
+
+        // Reply to the original number (WhatsApp API handles formatting, but usually expects just digits for 'to')
+        // actually, utilizing the formattedFrom is safer for DB, but sending BACK might need the original.
+        // The sendMessage function takes 'to'. Let's see what sendMessage does.
+        // It POSTs to `to`. WhatsApp API usually accepts both, but let's stick to using formattedFrom for DB logic
+        // and keep 'from' for sending if needed, OR just use formattedFrom everywhere if Supabase uses it.
+        // processMessage uses formattedFrom to getOrCreateUser.
+
         await sendMessage(from, response);
       }
     }

@@ -1,0 +1,14 @@
+{
+    "name": "supabase-scripts",
+    "version": "1.0.0",
+    "description": "",
+    "scripts": {
+        "supabase": "npx supabase"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "supabase": "^2.15.8"
+    }
+}
