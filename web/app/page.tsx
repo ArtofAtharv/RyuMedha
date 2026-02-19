@@ -7,12 +7,15 @@ export default function LandingPage() {
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center text-center px-6 py-20">
         
+        <h1 className="text-5xl md:text-7xl font-black tracking-tight max-w-4xl bg-gradient-to-br from-zinc-900 via-zinc-700 to-zinc-400 dark:from-white dark:via-zinc-200 dark:to-zinc-500 bg-clip-text text-transparent pb-2 animate-in slide-in-from-bottom-10 duration-700">
+          Stay organised with.
+        </h1>
         <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-6 max-w-4xl bg-gradient-to-br from-zinc-900 via-zinc-700 to-zinc-400 dark:from-white dark:via-zinc-200 dark:to-zinc-500 bg-clip-text text-transparent pb-2 animate-in slide-in-from-bottom-10 duration-700">
-          Master your academic life. With Ryu Medha.
+          Ryu Medha.
         </h1>
         
         <p className="text-lg md:text-xl text-zinc-500 dark:text-zinc-400 max-w-2xl mb-12 leading-relaxed animate-in slide-in-from-bottom-10 duration-700 delay-100">
-          The all-in-one tracker for students. Manage subjects, track attendance, calculate grades, and stay organized. Local-first, cloud-synced, and privacy-focused.
+          The all-in-one tracker to Manage hobbies, track attendance, calculate grades, and stay organized.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 animate-in slide-in-from-bottom-10 duration-700 delay-200">
@@ -51,7 +54,7 @@ export default function LandingPage() {
       </main>
       
       <footer className="py-8 text-center text-zinc-400 text-xs">
-        <p>© 2026 Academics Tracker. Built for students.</p>
+        <p>© 2026 Ryumedha. Flow of Intelligence.</p>
       </footer>
     </div>
   );

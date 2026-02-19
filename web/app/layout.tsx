@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     description: "Track your academic progress with ease.",
     images: [
       {
-        url: "https://ryumedha.in/icon.png",
+        url: "https://ryumedha.vercel.app/icon.png",
         width: 630,
         height: 630,
         alt: "Ryu Medha - Academics Tracker",
