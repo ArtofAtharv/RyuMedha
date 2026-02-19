@@ -185,7 +185,7 @@ function LoginPageInner() {
                     <p className="text-center text-xs text-muted-foreground pt-1">
                       First time?{' '}
                       <a
-                        href="https://wa.me/message/RYUMEDHABOT"
+                        href="https://wa.me/"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-semibold text-primary hover:opacity-80 transition-opacity"
