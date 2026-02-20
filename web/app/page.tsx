@@ -2,6 +2,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ThemeSelector } from "@/components/theme-selector";
 import Link from "next/link";
 import { HiArrowRight, HiLightningBolt, HiShieldCheck, HiChartBar } from "react-icons/hi";
+import { TypingAnimation } from "@/components/ui/typing-animation"
 
 export default function LandingPage() {
   return (
@@ -17,10 +18,10 @@ export default function LandingPage() {
             <span className="font-black tracking-tight text-sm">Ryu Medha</span>
           </div>
           {/* Top bar — theme controls */}
-      <div className="flex justify-end items-center gap-2 p-4">
-        <ThemeSelector />
-        <ThemeToggle />
-      </div>
+          <div className="flex justify-end items-center gap-2 p-4">
+            <ThemeSelector />
+            <ThemeToggle />
+          </div>
         </div>
       </nav>
 
@@ -34,7 +35,14 @@ export default function LandingPage() {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black tracking-tight max-w-4xl leading-[1.05] animate-in slide-in-from-bottom-8 duration-700">
-          <span className="text-foreground">Stay organised</span>
+          <span className="text-foreground">Stay <TypingAnimation
+            words={["Organised", "Focused"]}
+            typeSpeed={50}
+            deleteSpeed={150}
+            pauseDelay={1000}
+            loop
+            cursorStyle="underscore"
+          /></span>
           <br />
           <span className="text-primary">with Ryu Medha.</span>
         </h1>
@@ -63,18 +71,18 @@ export default function LandingPage() {
         <div id="features" className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-28 max-w-5xl mx-auto w-full text-left">
           <FeatureCard
             icon={<HiLightningBolt />}
-            title="Instant Sync"
-            description="Changes save to your device instantly and sync to the cloud in the background. Works offline."
+            title="Whatsapp Integration"
+            description="No more juggling apps. Interact with Ryu Medha directly through WhatsApp — the tools you need, where you already are."
           />
           <FeatureCard
             icon={<HiChartBar />}
-            title="Grade Tracking"
+            title="Performance Tracking"
             description="Visualize your performance. Calculate CGPA, track assignments, and never miss a deadline."
           />
           <FeatureCard
             icon={<HiShieldCheck />}
-            title="Privacy First"
-            description="Your data lives on your device. We only sync what's necessary. You are in control."
+            title="Unlock Your Potential"
+            description="Track your progress, set goals, and unlock your best self with personalized insights and weekly reports."
           />
         </div>
       </main>
