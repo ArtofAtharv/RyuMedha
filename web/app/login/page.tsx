@@ -107,12 +107,6 @@ function LoginPageInner() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Top bar — theme controls */}
-      <div className="flex justify-end items-center gap-2 p-4">
-        <ThemeSelector />
-        <ThemeToggle />
-      </div>
-
       {/* Page content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-12">
         {/* Subtle background radial */}
@@ -184,7 +178,7 @@ function LoginPageInner() {
                     <p className="text-center text-xs text-muted-foreground pt-1">
                       First time?{' '}
                       <a
-                        href="https://wa.me/"
+                        href="https://wa.me/message/P4QSZGK7MV2PL1"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="font-semibold text-primary hover:opacity-80 transition-opacity"

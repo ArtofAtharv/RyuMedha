@@ -491,7 +491,7 @@ async function processMessage(from, text) {
     const lowerText = text.toLowerCase().trim();
 
     // Help
-    if (lowerText === 'help' || lowerText === 'hi' || lowerText === 'hello' || lowerText === 'start') {
+    if (lowerText.includes('help') || lowerText.includes('hi') || lowerText.includes('hello') || lowerText.includes('hey') || lowerText.includes('start')) {
       return handleHelp();
     }
 

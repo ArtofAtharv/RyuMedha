@@ -1,3 +1,5 @@
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ThemeSelector } from "@/components/theme-selector";
 import Link from "next/link";
 import { HiArrowRight, HiLightningBolt, HiShieldCheck, HiChartBar } from "react-icons/hi";
 
@@ -14,12 +16,11 @@ export default function LandingPage() {
             </div>
             <span className="font-black tracking-tight text-sm">Ryu Medha</span>
           </div>
-          <Link
-            href="/login"
-            className="text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Sign in →
-          </Link>
+          {/* Top bar — theme controls */}
+      <div className="flex justify-end items-center gap-2 p-4">
+        <ThemeSelector />
+        <ThemeToggle />
+      </div>
         </div>
       </nav>
 
@@ -30,12 +31,6 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute left-1/2 top-1/4 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
           <div className="absolute right-0 bottom-0 h-[300px] w-[300px] rounded-full bg-primary/5 blur-2xl" />
-        </div>
-
-        {/* Badge */}
-        <div className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border border-border bg-card text-xs font-semibold text-muted-foreground shadow-sm animate-in fade-in duration-500">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          Academic year 2025–26
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black tracking-tight max-w-4xl leading-[1.05] animate-in slide-in-from-bottom-8 duration-700">
