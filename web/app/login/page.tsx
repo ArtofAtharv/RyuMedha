@@ -111,7 +111,7 @@ function LoginPageInner() {
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-12">
         {/* Subtle background radial */}
         <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-          <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
+          <div className="absolute left-1/2 top-1/3 h-125 w-125 -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
         </div>
 
         <div className="w-full max-w-sm space-y-6">
@@ -226,7 +226,7 @@ function LoginPageInner() {
                           disabled={loading || expired}
                           autoFocus
                         >
-                          <InputOTPGroup>
+                          <InputOTPGroup className="grid grid-cols-6 gap-2">
                             <InputOTPSlot index={0} />
                             <InputOTPSlot index={1} />
                             <InputOTPSlot index={2} />
