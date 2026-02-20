@@ -6,19 +6,23 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from '@/lib/utils'
 
 interface AttendanceCardProps {
+  subjectId?: string
   subjectName: string
   present: number
   absent: number
   percentage: number
   accentColor?: string
+  onLog?: (subjectId: string, action: 'present'|'absent'|'undo_present'|'undo_absent') => void
 }
 
 export function AttendanceCard({
+  subjectId,
   subjectName,
   present,
   absent,
   percentage,
   accentColor,
+  onLog,
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)
   const [progress, setProgress] = useState(0)
@@ -61,7 +65,6 @@ export function AttendanceCard({
           />
         </div>
 
-        {/* Stats row */}
         <div className="flex justify-between text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -72,6 +75,48 @@ export function AttendanceCard({
             {absent} absent
           </span>
         </div>
+
+        {onLog && subjectId && (
+          <div className="flex gap-2 pt-2 border-t mt-2">
+            
+            {/* Present Controls */}
+            <div className="flex flex-1 rounded overflow-hidden">
+              <button
+                onClick={() => onLog(subjectId, 'present')}
+                className="flex-1 py-1 text-[11px] uppercase tracking-wider font-bold bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+                title="Mark Present"
+              >
+                + Present
+              </button>
+              <button
+                onClick={() => onLog(subjectId, 'undo_present')}
+                className="px-2 py-1 text-xs font-bold bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors border-l border-green-500/10"
+                title="Undo Present (Rectify Mistake)"
+              >
+                -
+              </button>
+            </div>
+
+            {/* Absent Controls */}
+            <div className="flex flex-1 rounded overflow-hidden">
+              <button
+                onClick={() => onLog(subjectId, 'absent')}
+                className="flex-1 py-1 text-[11px] uppercase tracking-wider font-bold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                title="Mark Absent"
+              >
+                + Absent
+              </button>
+              <button
+                onClick={() => onLog(subjectId, 'undo_absent')}
+                className="px-2 py-1 text-xs font-bold bg-red-500/20 text-red-600 hover:bg-red-500/30 transition-colors border-l border-red-500/10"
+                title="Undo Absent (Rectify Mistake)"
+              >
+                -
+              </button>
+            </div>
+
+          </div>
+        )}
       </CardContent>
     </Card>
   )
