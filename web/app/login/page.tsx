@@ -293,7 +293,7 @@ function LoginPageInner() {
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">
-            <Link href="/" className="hover:text-foreground transition-colors">
+            <Link href="/" className="text-foreground hover:text-primary transition-colors">
               ← Back to home
             </Link>
           </p>

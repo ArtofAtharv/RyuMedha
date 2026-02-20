@@ -1,5 +1,6 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ThemeSelector } from "@/components/theme-selector";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import Link from "next/link";
 import { HiArrowRight, HiLightningBolt, HiShieldCheck, HiChartBar } from "react-icons/hi";
 import { TypingAnimation } from "@/components/ui/typing-animation"
@@ -7,23 +8,6 @@ import { TypingAnimation } from "@/components/ui/typing-animation"
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-
-      {/* ── Nav ────────────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center text-primary-foreground text-xs font-black shadow-md shadow-primary/30">
-              R
-            </div>
-            <span className="font-black tracking-tight text-sm">Ryu Medha</span>
-          </div>
-          {/* Top bar — theme controls */}
-          <div className="flex justify-end items-center gap-2 p-4">
-            <ThemeSelector />
-            <ThemeToggle />
-          </div>
-        </div>
-      </nav>
 
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col items-center justify-center text-center px-6 py-24 relative overflow-hidden">
@@ -87,10 +71,6 @@ export default function LandingPage() {
         </div>
       </main>
 
-      {/* ── Footer ─────────────────────────────────────────────────────────── */}
-      <footer className="py-8 text-center border-t border-border">
-        <p className="text-xs text-muted-foreground">© 2026 Ryu Medha — Flow of Intelligence.</p>
-      </footer>
     </div>
   );
 }

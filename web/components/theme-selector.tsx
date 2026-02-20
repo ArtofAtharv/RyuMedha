@@ -51,9 +51,9 @@ export function ThemeSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" aria-label="Color theme">
+        <Button variant="outline" size="sm" className="gap-2 h-[2.2rem] sm:px-4" aria-label="Color theme">
           <span className={`h-3.5 w-3.5 rounded-full ${current.color}`} />
-          <span className="hidden sm:inline">{current.label}</span>
+          <span className="inline text-xs rounded-md">{current.label}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-44">
