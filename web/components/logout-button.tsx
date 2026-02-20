@@ -7,13 +7,12 @@ import { Button } from '@/components/ui/button'
 export function LogoutButton() {
   return (
     <Button
-      variant="ghost"
-      size="sm"
-      className="text-muted-foreground hover:text-destructive gap-2"
+      variant="outline"
+      size="default"
+      className="hover:text-destructive focus:text-destructive"
       onClick={() => signOut({ callbackUrl: '/login' })}
     >
       <LogOut className="h-4 w-4" />
-      Sign out
     </Button>
   )
 }

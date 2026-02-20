@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Moon, Sun } from "lucide-react"
 import { flushSync } from "react-dom"
+import { Button } from '@/components/ui/button'
 
 import { cn } from "@/lib/utils"
 
@@ -71,14 +72,16 @@ export const AnimatedThemeToggler = ({
   }, [isDark, duration])
 
   return (
-    <button
+    <Button
+      variant="outline"
+      size="default"
       ref={buttonRef}
       onClick={toggleTheme}
-      className={cn("p-2 rounded-md hover:bg-accent border border-border", className)}
+      className={cn(className)}
       {...props}
     >
-      {isDark ? <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100" /> : <Moon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100" />}
+      {isDark ? <Sun className="h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" /> : <Moon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />}
       <span className="sr-only">Toggle theme</span>
-    </button>
+    </Button>
   )
 }
