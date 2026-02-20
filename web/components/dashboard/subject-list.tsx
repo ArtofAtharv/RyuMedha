@@ -28,13 +28,13 @@ export function SubjectList({ subjects }: SubjectListProps) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader>
         <CardTitle className="text-base font-bold flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-primary" />
           Active Subjects
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-1.5">
+      <CardContent className="grid">
         {subjects.map((sub) => (
           <div
             key={sub.id}
@@ -42,8 +42,7 @@ export function SubjectList({ subjects }: SubjectListProps) {
           >
             {/* Subject accent dot — user-defined color stored per-row in DB */}
             <span
-              className="w-2.5 h-2.5 rounded-full shrink-0"
-              style={{ backgroundColor: sub.color_hex ?? 'hsl(var(--primary))' }}
+              className="w-2.5 h-2.5 rounded-full shrink-0 bg-primary"
             />
             <span className="text-sm font-medium">{sub.name}</span>
           </div>

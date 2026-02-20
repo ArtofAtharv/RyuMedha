@@ -54,11 +54,10 @@ export function AttendanceCard({
 
       <CardContent className="space-y-3">
         {/* Progress bar */}
-        <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+        <div className="h-2 w-full rounded-full overflow-hidden">
           <Progress
             value={progress}
-            className="h-full bg-current"
-            style={{ backgroundColor: accentColor }}
+            className="h-full bg-muted transition-all duration-500"
           />
         </div>
 

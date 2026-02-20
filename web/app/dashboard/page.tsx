@@ -70,9 +70,11 @@ export default async function DashboardPage() {
         {/* Summary stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Card>
-            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Subjects</CardTitle>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <span className="flex items-center space-x-2">
               <BookOpen className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-muted-foreground">Subjects</CardTitle>
+              </span>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-black">{subjectsData?.length ?? 0}</p>
@@ -81,9 +83,11 @@ export default async function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <span className="flex items-center space-x-2">
+                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium text-muted-foreground">Classes Attended</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+              </span>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-black">{totalPresent}</p>
@@ -92,9 +96,11 @@ export default async function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <span className="flex items-center space-x-2">
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium text-muted-foreground">Overall Attendance</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </span>
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-black">
