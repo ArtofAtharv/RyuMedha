@@ -1,6 +1,3 @@
-import { ThemeToggle } from "@/components/theme-toggle";
-import { ThemeSelector } from "@/components/theme-selector";
-import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import Link from "next/link";
 import { HiArrowRight, HiLightningBolt, HiShieldCheck, HiChartBar } from "react-icons/hi";
 import { TypingAnimation } from "@/components/ui/typing-animation"

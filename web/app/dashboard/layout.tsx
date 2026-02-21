@@ -14,7 +14,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       <DashboardNav />
 
       {/* Main Content Area */}
-      <div className="flex-1">
+      <div className="flex-1 pb-24 md:pb-0">
         {children}
       </div>
     </div>

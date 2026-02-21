@@ -4,13 +4,15 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "motion/react"
 
+import { LayoutDashboard, User, BookOpen, CheckSquare, Clock, GraduationCap } from "lucide-react"
+
 const tabs = [
-  { label: "Overview", href: "/dashboard" },
-  { label: "Profile", href: "/dashboard/profile" },
-  { label: "Subjects", href: "/dashboard/subjects" },
-  { label: "Tasks", href: "/dashboard/tasks" },
-  { label: "Timers", href: "/dashboard/timers" },
-  { label: "Grades", href: "/dashboard/grades" },
+  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Profile", href: "/dashboard/profile", icon: User },
+  { label: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+  { label: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
+  { label: "Timers", href: "/dashboard/timers", icon: Clock },
+  { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
 ]
 
 export function DashboardNav() {
@@ -24,15 +26,15 @@ export function DashboardNav() {
   )?.href
 
   return (
-    <div className="pt-6 pb-2 px-4 flex justify-center w-full sticky top-0 z-40 bg-background/80 backdrop-blur-md">
-      <nav className="bg-card border shadow-sm rounded-full p-1.5 flex items-center overflow-x-auto gap-1 max-w-full scrollbar-none">
+    <div className="fixed bottom-0 left-0 w-full md:sticky md:top-[36px] z-40 md:pt-6 md:pb-2 md:px-4 flex justify-center pointer-events-none md:pointer-events-auto">
+      <nav className="pointer-events-auto w-full sm:max-w-md md:max-w-full md:w-auto bg-card/80 dark:bg-card/60 backdrop-blur-xl border border-border/50 shadow-2xl md:shadow-sm rounded-t-4xl md:rounded-full p-2 md:p-1.5 flex items-center justify-around md:justify-center overflow-x-auto gap-1 scrollbar-none">
         {tabs.map((tab) => {
           const isActive = activeHref === tab.href
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+              className={`relative flex items-center justify-center md:px-4 w-12 h-12 md:w-auto md:h-auto md:py-2 flex-shrink-0 md:flex-none rounded-full text-sm font-medium transition-all md:whitespace-nowrap ${
                 isActive
                   ? "text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -49,7 +51,11 @@ export function DashboardNav() {
                   }}
                 />
               )}
-              <span className="relative z-10">{tab.label}</span>
+              {/* Mobile Icon */}
+              <tab.icon className={`relative z-10 w-6 h-6 md:hidden ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
+              
+              {/* Desktop Text */}
+              <span className="relative z-10 hidden md:block">{tab.label}</span>
             </Link>
           )
         })}

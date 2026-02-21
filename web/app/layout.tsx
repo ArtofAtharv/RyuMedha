@@ -53,7 +53,7 @@ export default function RootLayout({
     // the html element before React hydrates — this suppresses the mismatch warning
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[80px] md:pb-0`}
         suppressHydrationWarning
       >
         {/* Restore color theme from localStorage before first paint — no flash */}
