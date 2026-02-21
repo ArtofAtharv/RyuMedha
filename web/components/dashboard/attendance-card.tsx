@@ -1,6 +1,6 @@
 "use client"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { CheckCircle2, XCircle, User, FolderOpen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { getAccentGradient, getBarGradient } from '@/lib/gradient'
@@ -12,6 +12,8 @@ interface AttendanceCardProps {
   absent: number
   percentage: number
   accentColor?: string
+  instructorName?: string
+  label?: string
   onLog?: (subjectId: string, action: 'present'|'absent'|'undo_present'|'undo_absent') => void
 }
 
@@ -22,6 +24,8 @@ export function AttendanceCard({
   absent,
   percentage,
   accentColor,
+  instructorName,
+  label,
   onLog,
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)
@@ -51,13 +55,34 @@ export function AttendanceCard({
       />
 
       <CardHeader className="pb-2 flex-row items-center space-y-0">
-        <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base font-bold leading-tight line-clamp-2">
-            {subjectName}
-          </CardTitle>
-          <span className={cn('text-xl font-black', healthClass)}>
-            {pct}%
-          </span>
+        <div className="flex flex-col w-full gap-1">
+          <div className="flex items-start justify-between gap-2 w-full">
+            <CardTitle className="text-base font-bold leading-tight line-clamp-2">
+              {subjectName}
+            </CardTitle>
+            <span className={cn('text-xl font-black shrink-0', healthClass)}>
+              {pct}%
+            </span>
+          </div>
+          
+          {/* Meta Row: Instructor & Label if present */}
+          {(instructorName || label) && (
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mt-0.5">
+              {instructorName && (
+                <span className="flex items-center gap-1 opacity-80 shrink-0">
+                  <User className="h-3 w-3" />
+                  <span className="truncate max-w-[120px]">{instructorName}</span>
+                </span>
+              )}
+              {instructorName && label && <span className="opacity-30">•</span>}
+              {label && (
+                <span className="flex items-center gap-1 opacity-80 shrink-0 truncate">
+                  <FolderOpen className="h-3 w-3" />
+                  <span className="truncate">{label}</span>
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </CardHeader>
 

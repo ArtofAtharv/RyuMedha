@@ -15,6 +15,8 @@ import { hexToGradient } from "@/lib/gradient"
 import Link from "next/link"
 import { AnimatePresence, motion } from "motion/react"
 
+import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
+
 export default function SubjectsPage() {
   const [session, setSession] = useState<any>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
@@ -515,76 +517,5 @@ export default function SubjectsPage() {
 function AlertTriangle({className}: {className?: string}) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-  )
-}
-
-/* ─── Shared Subject Grid Card Component ─── */
-function SubjectGridCard({ subject, category, onEdit, onDelete }: { subject: any, category?: any, onEdit: () => void, onDelete: () => void }) {
-  return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 shadow-sm bg-card flex flex-col h-full">
-      {/* Top Subtle Gradient Bar */}
-      <div className="h-1.5 w-full absolute top-0 left-0" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
-      
-      <CardContent className="p-5 pt-6 flex flex-col flex-1">
-        <div className="flex justify-between items-start mb-4">
-          {/* Badge / Code */}
-          <div>
-            <div 
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider uppercase inline-flex items-center gap-1.5"
-              style={{
-                backgroundColor: `${subject.color_hex || '#8b5cf6'}1A`, 
-                color: subject.color_hex || '#8b5cf6',
-                border: `1px solid ${subject.color_hex || '#8b5cf6'}33`
-              }}
-            >
-              {subject.type === 'academic' ? (
-                <><BookOpen className="w-3 h-3" /> {(subject.source_course_id && 'Academic') || "Academic"}</>
-              ) : (
-                <>
-                  <FolderOpen className="w-3 h-3" /> 
-                  {category ? category.name : (subject.label || "Personal")}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Options */}
-          <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 -translate-y-1">
-            <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7 text-muted-foreground hover:text-primary rounded-md">
-              <Pencil className="w-3.5 h-3.5"/>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-md">
-              <Trash2 className="w-3.5 h-3.5"/>
-            </Button>
-          </div>
-        </div>
-
-        <h3 className="text-xl font-black text-foreground mb-1 leading-tight tracking-tight">
-          {subject.name}
-        </h3>
-        
-        {/* Meta Row */}
-        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-5 flex-1">
-          {subject.type === 'academic' ? (
-            <>
-              <User className="w-4 h-4 opacity-70 shrink-0" />
-              <span className="truncate">{subject.instructor_name || "No Instructor set"}</span>
-            </>
-          ) : (
-            <>
-              <span className="truncate opacity-70">{subject.label || "Personal Track"}</span>
-            </>
-          )}
-        </div>
-
-        {/* Bottom Button */}
-        <Link href={`/dashboard/grades?subject=${subject.id}`} passHref className="mt-auto">
-          <Button variant="secondary" className="w-full flex items-center justify-center gap-2 h-10 bg-muted/40 hover:bg-muted text-sm font-bold transition-all group/btn rounded-xl">
-            <Target className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
-            View Performance
-          </Button>
-        </Link>
-      </CardContent>
-    </Card>
   )
 }

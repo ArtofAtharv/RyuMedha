@@ -198,6 +198,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
               absent={item.total_absent}
               percentage={pct}
               accentColor={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.color_hex ?? undefined}
+              instructorName={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.instructor_name ?? undefined}
+              label={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.label ?? undefined}
               onLog={handleLogAttendance}
             />
           </motion.div>

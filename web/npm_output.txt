@@ -1,0 +1,278 @@
+npm warn cleanup Failed to remove some directories [
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\acorn',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\acorn'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\acorn'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\jsesc',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\jsesc'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\jsesc'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\eslint',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\eslint'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\eslint'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\msw',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\msw'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\msw'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\baseline-browser-mapping',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\baseline-browser-mapping'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\baseline-browser-mapping'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\json5',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\json5'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\json5'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\browserslist',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\browserslist'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\browserslist'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\next',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\next'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\next'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\tldts',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\tldts'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\tldts'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nanoid',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\nanoid'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nanoid'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\shadcn',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\shadcn'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\shadcn'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\jiti',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\jiti'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\jiti'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\esparse',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\esparse'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\esparse'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\esvalidate',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\esvalidate'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\esvalidate'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\cssesc',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\cssesc'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\cssesc'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\js-yaml',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\js-yaml'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\js-yaml'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\uuid',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\uuid'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\uuid'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\tsc',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\tsc'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\tsc'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\tsserver',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\tsserver'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\tsserver'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\is-inside-container',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\is-inside-container'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\is-inside-container'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\semver',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\semver'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\semver'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\parser',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\parser'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\parser'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\dotenvx',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\dotenvx'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\dotenvx'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nci',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\nci'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nci'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nr',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\nr'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nr'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nup',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\nup'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nup'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nlx',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\nlx'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nlx'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\na',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\na'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\na'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nun',
+npm warn cleanup     [Error: EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\nun'] {
+npm warn cleanup       errno: -4068,
+npm warn cleanup       code: 'EISDIR',
+npm warn cleanup       syscall: 'lstat',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\.bin\\nun'
+npm warn cleanup     }
+npm warn cleanup   ],
+npm warn cleanup   [
+npm warn cleanup     '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\next',
+npm warn cleanup     [Error: EPERM: operation not permitted, rmdir '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\next\dist\compiled\@next'] {
+npm warn cleanup       errno: -4048,
+npm warn cleanup       code: 'EPERM',
+npm warn cleanup       syscall: 'rmdir',
+npm warn cleanup       path: '\\\\wsl.localhost\\Ubuntu-24.04\\home\\boss\\ryumedha\\web\\node_modules\\next\\dist\\compiled\\@next'
+npm warn cleanup     }
+npm warn cleanup   ]
+npm warn cleanup ]
+npm error code EISDIR
+npm error syscall lstat
+npm error path \\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\na
+npm error errno -4068
+npm error EISDIR: illegal operation on a directory, lstat '\\wsl.localhost\Ubuntu-24.04\home\boss\ryumedha\web\node_modules\.bin\na'
+npm error A complete log of this run can be found in: C:\Users\athar\AppData\Local\npm-cache\_logs\2026-02-21T17_45_53_517Z-debug-0.log
