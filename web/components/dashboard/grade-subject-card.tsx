@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select"
 import { motion, AnimatePresence } from "motion/react"
 import { Check, Loader2 } from "lucide-react"
+import { getAccentGradient } from "@/lib/gradient"
 
 // Define the shape of our input fields
 type GradeScores = {
@@ -156,11 +157,16 @@ export function GradeSubjectCard({
 
   return (
     <Card className="overflow-hidden border-2 shadow-sm transition-all hover:shadow-md">
+      {/* Corner accent — hex gradient or theme gradient */}
+      {(() => { const g = getAccentGradient(subject.color_hex); return (
+        <div
+          className={`h-10 w-25 -mt-15 -rotate-45 -translate-x-1/2 translate-y-1/2 rounded-full ${g.className}`}
+          style={g.style}
+        />
+      )})()}
+
       {/* Header */}
-      <div 
-        className="p-4 border-b flex items-center justify-between"
-        style={{ borderTop: `4px solid ${subject.color_hex || 'hsl(var(--primary))'}` }}
-      >
+      <div className="p-4 border-b flex items-center justify-between">
         <h3 className="font-bold text-lg truncate pr-4">{subject.name}</h3>
         {/* Animated Save Button */}
         <AnimatePresence mode="popLayout">

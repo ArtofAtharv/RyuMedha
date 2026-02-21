@@ -187,7 +187,7 @@ export default function TasksPage() {
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Tasks</h1>
+        <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Tasks</span></h1>
         <p className="text-muted-foreground mt-1">Keep track of your assignments and daily to-dos.</p>
       </div>
 

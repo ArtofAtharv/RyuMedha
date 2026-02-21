@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Trash2, X, Pencil } from "lucide-react"
+import { hexToGradient, getAccentGradient } from "@/lib/gradient"
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<any[]>([])
@@ -141,7 +142,7 @@ export default function SubjectsPage() {
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Subjects</h1>
+        <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Subjects</span></h1>
         <p className="text-muted-foreground mt-1">Manage your active academic courses and personal learning tracks.</p>
       </div>
 
@@ -265,7 +266,7 @@ export default function SubjectsPage() {
                       type="button"
                       onClick={() => setEditingSubject({...editingSubject, color_hex: hex})}
                       className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 ${editingSubject.color_hex === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-transparent hover:scale-110'}`}
-                      style={{backgroundColor: hex}}
+                      style={hexToGradient(hex)}
                       title={hex}
                     />
                   ))}

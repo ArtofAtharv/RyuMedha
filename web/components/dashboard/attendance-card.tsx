@@ -2,8 +2,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { Progress } from "@/components/ui/progress"
 import { cn } from '@/lib/utils'
+import { getAccentGradient, getBarGradient } from '@/lib/gradient'
 
 interface AttendanceCardProps {
   subjectId?: string
@@ -38,11 +38,16 @@ export function AttendanceCard({
         ? 'text-yellow-500 dark:text-yellow-400'
         : 'text-destructive'
 
+  // Corner & progress bar: hex → gradient, or theme gradient fallback
+  const corner = getAccentGradient(accentColor)
+  const bar = getBarGradient(accentColor)
+
   return (
     <Card className="overflow-hidden">
-      {/* Thin top accent corner using the subject's hex color, falls back to primary */}
+      {/* Corner accent — hex gradient or theme gradient */}
       <div
-        className="h-10 w-25 -mt-15 -rotate-45 -translate-x-1/2 translate-y-1/2 rounded-full bg-primary"
+        className={cn("h-10 w-25 -mt-15 -rotate-45 -translate-x-1/2 translate-y-1/2 rounded-full", corner.className)}
+        style={corner.style}
       />
 
       <CardHeader className="pb-2 flex-row items-center space-y-0">
@@ -57,11 +62,11 @@ export function AttendanceCard({
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {/* Progress bar */}
-        <div className="h-2 w-full rounded-full overflow-hidden">
-          <Progress
-            value={progress}
-            className="h-full bg-muted transition-all duration-500"
+        {/* Progress bar — hex gradient or theme gradient */}
+        <div className="h-2 w-full rounded-full overflow-hidden bg-muted">
+          <div
+            className={cn("h-full rounded-full transition-all duration-500", bar.className)}
+            style={{ ...bar.style, width: `${progress}%` }}
           />
         </div>
 
@@ -78,8 +83,6 @@ export function AttendanceCard({
 
         {onLog && subjectId && (
           <div className="flex gap-2 pt-2 border-t mt-2">
-            
-            {/* Present Controls */}
             <div className="flex flex-1 rounded overflow-hidden">
               <button
                 onClick={() => onLog(subjectId, 'present')}
@@ -91,13 +94,11 @@ export function AttendanceCard({
               <button
                 onClick={() => onLog(subjectId, 'undo_present')}
                 className="px-2 py-1 text-xs font-bold bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors border-l border-green-500/10"
-                title="Undo Present (Rectify Mistake)"
+                title="Undo Present"
               >
                 -
               </button>
             </div>
-
-            {/* Absent Controls */}
             <div className="flex flex-1 rounded overflow-hidden">
               <button
                 onClick={() => onLog(subjectId, 'absent')}
@@ -109,12 +110,11 @@ export function AttendanceCard({
               <button
                 onClick={() => onLog(subjectId, 'undo_absent')}
                 className="px-2 py-1 text-xs font-bold bg-red-500/20 text-red-600 hover:bg-red-500/30 transition-colors border-l border-red-500/10"
-                title="Undo Absent (Rectify Mistake)"
+                title="Undo Absent"
               >
                 -
               </button>
             </div>
-
           </div>
         )}
       </CardContent>

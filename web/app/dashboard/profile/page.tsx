@@ -95,7 +95,7 @@ export default function ProfilePage() {
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Your Profile</h1>
+        <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Your Profile</span></h1>
         <p className="text-muted-foreground mt-1">Manage your Ryu Medha settings and academic tracks.</p>
       </div>
 

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookOpen } from 'lucide-react'
+import { getAccentGradient } from '@/lib/gradient'
 
 interface Subject {
   id: string
@@ -30,7 +31,7 @@ export function SubjectList({ subjects }: SubjectListProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-bold flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary" />
+          <BookOpen className="h-4 w-4 gradient-accent-text" />
           Active Subjects
         </CardTitle>
       </CardHeader>
@@ -40,10 +41,13 @@ export function SubjectList({ subjects }: SubjectListProps) {
             key={sub.id}
             className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent transition-colors"
           >
-            {/* Subject accent dot — user-defined color stored per-row in DB */}
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0 bg-primary"
-            />
+            {/* Subject accent dot — hex gradient or theme gradient */}
+            {(() => { const g = getAccentGradient(sub.color_hex); return (
+              <span
+                className={`w-2.5 h-2.5 rounded-full shrink-0 ${g.className}`}
+                style={g.style}
+              />
+            )})()}
             <span className="text-sm font-medium">{sub.name}</span>
           </div>
         ))}

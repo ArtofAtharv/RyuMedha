@@ -135,12 +135,13 @@ export default function GradesPage() {
         <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Academic Section */}
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">🎓 Academic Grades</h2>
         
-        {/* Summary Column */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Academic Summary */}
-          <Card className="gradient-accent text-white border-0 shadow-lg">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+          {/* Academic Summary Card — first item in the grid */}
+          <Card className="gradient-accent text-white border-0 shadow-lg sm:col-span-2 lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2">🎓 Academic</CardTitle>
               <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
@@ -154,8 +155,33 @@ export default function GradesPage() {
             </CardContent>
           </Card>
 
-          {/* Personal Summary */}
-          <Card className="bg-violet-600 text-white border-0 shadow-lg shadow-violet-600/20">
+          {subjects.filter(s => s.type === 'academic').map(sub => {
+            const subjectGrades = grades.filter(g => g.subject_id === sub.id)
+            return (
+              <GradeSubjectCard 
+                key={sub.id}
+                subject={sub}
+                existingGrades={subjectGrades}
+                onSave={handleSaveGrades}
+              />
+            )
+          })}
+          
+          {subjects.filter(s => s.type === 'academic').length === 0 && (
+            <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+              No academic subjects found. Add one in the Subjects tab first.
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Personal Section */}
+      <section className="space-y-4">
+        <h2 className="text-xl font-bold flex items-center gap-2">📂 Personal Track Scores</h2>
+        
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+          {/* Personal Summary Card — first item in the grid */}
+          <Card className="bg-violet-600 text-white border-0 shadow-lg shadow-violet-600/20 sm:col-span-2 lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2">📂 Personal</CardTitle>
               <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
@@ -168,66 +194,33 @@ export default function GradesPage() {
               </div>
             </CardContent>
           </Card>
+
+          {subjects.filter(s => s.type === 'personal').map(sub => {
+            const subjectGrades = grades.filter(g => g.subject_id === sub.id)
+            return (
+              <GradeSubjectCard 
+                key={sub.id}
+                subject={{...sub, name: sub.label || sub.name}} 
+                existingGrades={subjectGrades}
+                onSave={handleSaveGrades}
+                isPersonal
+              />
+            )
+          })}
           
-          {isSyncing && (
-            <div className="text-center text-sm text-muted-foreground animate-pulse">
-              Syncing to database...
+          {subjects.filter(s => s.type === 'personal').length === 0 && (
+            <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+              No personal subjects found.
             </div>
           )}
         </div>
+      </section>
 
-        {/* Live Subject Cards Grid */}
-        <div className="lg:col-span-2 space-y-8">
-          
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">🎓 Academic Grades</h2>
-            <div className="grid sm:grid-cols-2 gap-4 auto-rows-max">
-              {subjects.filter(s => s.type === 'academic').map(sub => {
-                const subjectGrades = grades.filter(g => g.subject_id === sub.id)
-                return (
-                  <GradeSubjectCard 
-                    key={sub.id}
-                    subject={sub}
-                    existingGrades={subjectGrades}
-                    onSave={handleSaveGrades}
-                  />
-                )
-              })}
-              
-              {subjects.filter(s => s.type === 'academic').length === 0 && (
-                <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
-                  No academic subjects found. Add one in the Subjects tab first.
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">📂 Personal Track Scores</h2>
-            <div className="grid sm:grid-cols-2 gap-4 auto-rows-max">
-              {subjects.filter(s => s.type === 'personal').map(sub => {
-                const subjectGrades = grades.filter(g => g.subject_id === sub.id)
-                return (
-                  <GradeSubjectCard 
-                    key={sub.id}
-                    subject={{...sub, name: sub.label || sub.name}} 
-                    existingGrades={subjectGrades}
-                    onSave={handleSaveGrades}
-                    isPersonal
-                  />
-                )
-              })}
-              
-              {subjects.filter(s => s.type === 'personal').length === 0 && (
-                <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
-                  No personal subjects found.
-                </div>
-              )}
-            </div>
-          </div>
-
+      {isSyncing && (
+        <div className="text-center text-sm text-muted-foreground animate-pulse">
+          Syncing to database...
         </div>
-      </div>
+      )}
     </div>
   )
 }
