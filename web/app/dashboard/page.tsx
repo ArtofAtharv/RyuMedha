@@ -115,7 +115,7 @@ export default async function DashboardPage() {
         {/* Greeting */}
         <div>
           <h1 className="text-3xl font-black">
-            Welcome back, {displayName}!
+            Welcome back, <span className="gradient-accent-text">{displayName}</span>!
           </h1>
           <p className="text-muted-foreground text-sm mt-1">📱 {session.user.phone}</p>
         </div>
@@ -157,8 +157,13 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-black">
-                {overallPct !== null ? `${overallPct}%` : '—'}
+                {overallPct !== null ? <span className="gradient-accent-text">{overallPct}%</span> : '—'}
               </p>
+              {overallPct !== null && (
+                <div className="w-full bg-muted h-1.5 rounded-full mt-2">
+                  <div className="gradient-accent-bar h-1.5 rounded-full transition-all" style={{width: `${overallPct}%`}} />
+                </div>
+              )}
               <p className="text-xs text-muted-foreground mt-1">across all subjects</p>
             </CardContent>
           </Card>
@@ -207,8 +212,8 @@ export default async function DashboardPage() {
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 bg-muted/30 p-4 rounded-xl border border-dashed">
             <div>
-              <h2 className="text-lg font-bold text-primary flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary animate-pulse"/>
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full gradient-accent animate-pulse"/>
                 Today's Attendance
               </h2>
               <p className="text-sm text-muted-foreground mt-1">

@@ -7,7 +7,7 @@ import {
   HiPencil,
   HiTrash,
 } from "react-icons/hi";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "motion/react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 

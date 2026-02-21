@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react"; 
-import { motion, Variants } from "framer-motion";
+import { motion, Variants } from "motion/react";
 import { createClient } from "@supabase/supabase-js";
 import { HiOutlineClipboardCheck } from "react-icons/hi";
 import { useRouter } from "next/navigation";

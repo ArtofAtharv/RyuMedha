@@ -6,7 +6,7 @@ import {
   format, eachDayOfInterval, isSameDay, isWeekend, eachMonthOfInterval,
   startOfMonth, endOfMonth, isToday, startOfDay, subMonths, addMonths
 } from "date-fns";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { createClient } from "@supabase/supabase-js";
 
 export default function AttendanceView({ subject, attendanceLogs, token, profileId }: { subject: any, attendanceLogs: any[], token?: string, profileId: string }) { 

@@ -131,7 +131,7 @@ export default function GradesPage() {
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Grades & Scores</h1>
+        <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Grades & Scores</span></h1>
         <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
       </div>
 
@@ -140,14 +140,14 @@ export default function GradesPage() {
         {/* Summary Column */}
         <div className="lg:col-span-1 space-y-4">
           {/* Academic Summary */}
-          <Card className="bg-primary text-primary-foreground border-0 shadow-lg shadow-primary/20">
+          <Card className="gradient-accent text-white border-0 shadow-lg">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2">🎓 Academic</CardTitle>
-              <CardDescription className="text-primary-foreground/80">Cumulative academic grade</CardDescription>
+              <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-5xl font-black">{acadPct}%</p>
-              <div className="mt-3 pt-3 border-t border-primary-foreground/20">
+              <div className="mt-3 pt-3 border-t border-white/20">
                 <p className="text-xs font-bold opacity-90">Total Marks</p>
                 <p className="font-mono text-base">{acadScore} <span className="opacity-70 text-sm">/ {acadMax}</span></p>
               </div>

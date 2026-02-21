@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react"; 
 import { HiPlus, HiTrash, HiCheckCircle, HiCalendar, HiTag } from "react-icons/hi";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
