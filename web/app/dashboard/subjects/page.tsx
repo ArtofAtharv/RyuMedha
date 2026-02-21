@@ -10,8 +10,9 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, X, Pencil } from "lucide-react"
-import { hexToGradient, getAccentGradient } from "@/lib/gradient"
+import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen } from "lucide-react"
+import { hexToGradient } from "@/lib/gradient"
+import Link from "next/link"
 
 export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<any[]>([])
@@ -199,7 +200,7 @@ export default function SubjectsPage() {
           </CardContent>
         </Card>
 
-        {/* List */}
+        {/* Grid List */}
         <div className="md:col-span-2 space-y-4">
           {loading ? (
             <p className="text-muted-foreground animate-pulse text-sm">Loading subjects...</p>
@@ -208,34 +209,73 @@ export default function SubjectsPage() {
               <p className="text-muted-foreground">No active subjects found.</p>
             </div>
           ) : (
-            subjects.map(sub => (
-              <Card key={sub.id} className="flex flex-row items-center justify-between p-4 shadow-sm border-l-4 group" style={{borderLeftColor: sub.color_hex || 'hsl(var(--primary))'}}>
-                
-                <div className="text-left flex-1" title={sub.label || sub.instructor_name}>
-                  <h3 className="font-bold">{sub.name}</h3>
-                  <div className="flex gap-2 mt-1">
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                      {sub.type === 'academic' ? '🎓 Academic' : '📂 Personal'}
-                    </Badge>
-                    {sub.label && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
-                        {sub.label}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {subjects.map(sub => (
+                <Card key={sub.id} className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 shadow-sm bg-card">
+                  {/* Top Subtle Gradient Bar */}
+                  <div className="h-1.5 w-full absolute top-0 left-0" style={hexToGradient(sub.color_hex || '#8b5cf6')} />
+                  
+                  <CardContent className="p-5 pt-6">
+                    <div className="flex justify-between items-start mb-4">
+                      {/* Badge / Code */}
+                      <div>
+                        <div 
+                          className="text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider uppercase inline-flex items-center gap-1.5"
+                          style={{
+                            backgroundColor: `${sub.color_hex || '#8b5cf6'}1A`, // 10% opacity
+                            color: sub.color_hex || '#8b5cf6',
+                            border: `1px solid ${sub.color_hex || '#8b5cf6'}33`
+                          }}
+                        >
+                          {sub.type === 'academic' ? (
+                            <><BookOpen className="w-3 h-3" /> {(sub.source_course_id && 'Academic') || "Academic"}</>
+                          ) : (
+                            <><FolderOpen className="w-3 h-3" /> {sub.label || "Personal"}</>
+                          )}
+                        </div>
+                      </div>
 
-                <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" onClick={() => setEditingSubject({...sub})} className="h-8 w-8 hover:text-primary">
-                    <Pencil className="w-4 h-4"/>
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => setSubjectToDelete(sub)} className="h-8 w-8 hover:text-destructive">
-                    <Trash2 className="w-4 h-4"/>
-                  </Button>
-                </div>
+                      {/* Options */}
+                      <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 -translate-y-1">
+                        <Button variant="ghost" size="icon" onClick={() => setEditingSubject({...sub})} className="h-7 w-7 text-muted-foreground hover:text-primary rounded-md">
+                          <Pencil className="w-3.5 h-3.5"/>
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setSubjectToDelete(sub)} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-md">
+                          <Trash2 className="w-3.5 h-3.5"/>
+                        </Button>
+                      </div>
+                    </div>
 
-              </Card>
-            ))
+                    <h3 className="text-xl font-black text-foreground mb-1 leading-tight tracking-tight">
+                      {sub.name}
+                    </h3>
+                    
+                    {/* Meta Row */}
+                    <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-5">
+                      {sub.type === 'academic' ? (
+                        <>
+                          <User className="w-4 h-4 opacity-70 shrink-0" />
+                          <span className="truncate">{sub.instructor_name || "No Instructor"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <FolderOpen className="w-4 h-4 opacity-70 shrink-0" />
+                          <span className="truncate">{categories.find(c => c.id === sub.category_id)?.name || "Uncategorized"}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Bottom Button */}
+                    <Link href={`/dashboard/grades?subject=${sub.id}`} passHref>
+                      <Button variant="secondary" className="w-full flex items-center justify-center gap-2 h-10 bg-muted/40 hover:bg-muted text-sm font-bold transition-all group/btn rounded-xl">
+                        <Target className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
+                        View Performance
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
         </div>
       </div>
