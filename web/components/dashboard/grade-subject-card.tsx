@@ -19,12 +19,37 @@ type GradeScores = {
   [key: string]: { marks: string; max_marks: string }
 }
 
+// These MUST match the DB grade_type enum exactly:
+// 'mid_sem' | 'end_sem' | 'viva' | 'project' | 'presentation' | 'assignment' | 'quiz'
 const DEFAULT_SCORES: GradeScores = {
   mid_sem: { marks: "", max_marks: "" },
   end_sem: { marks: "", max_marks: "" },
   project: { marks: "", max_marks: "" },
+  assignment: { marks: "", max_marks: "" },
   quiz: { marks: "", max_marks: "" },
-  other: { marks: "", max_marks: "" },
+  viva: { marks: "", max_marks: "" },
+  presentation: { marks: "", max_marks: "" },
+}
+
+// Labels for personal subject cards — more generic wording
+const PERSONAL_LABELS: Record<string, string> = {
+  mid_sem: "Test 1",
+  end_sem: "Test 2",
+  project: "Project",
+  assignment: "Assignment",
+  quiz: "Quiz",
+  viva: "Oral / Viva",
+  presentation: "Presentation",
+}
+
+const ACADEMIC_LABELS: Record<string, string> = {
+  mid_sem: "Mid Semester",
+  end_sem: "End Semester",
+  project: "Project",
+  assignment: "Assignment",
+  quiz: "Quiz / Unit Test",
+  viva: "Viva",
+  presentation: "Presentation",
 }
 
 // Logic derived from the sample project for Grade allocation
@@ -42,19 +67,19 @@ function getGradeDetails(percentage: number) {
 export function GradeSubjectCard({ 
   subject, 
   existingGrades, 
-  onSave 
+  onSave,
+  isPersonal = false
 }: { 
   subject: any; 
   existingGrades: any[]; 
-  onSave: (subjectId: string, scoresToSave: GradeScores, otherLabel?: string) => Promise<void> 
+  onSave: (subjectId: string, scoresToSave: GradeScores) => Promise<void>;
+  isPersonal?: boolean;
 }) {
   const [isSaving, setIsSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [activeType, setActiveType] = useState('mid_sem')
-  const [otherLabel, setOtherLabel] = useState(() => {
-    const otherGrade = existingGrades.find(g => g.grade_type === 'other')
-    return otherGrade?.notes || ''
-  })
+
+  const labels = isPersonal ? PERSONAL_LABELS : ACADEMIC_LABELS
 
   // Initialize state with existing grades from the DB
   const [scores, setScores] = useState<GradeScores>(() => {
@@ -123,7 +148,7 @@ export function GradeSubjectCard({
   const handleSaveClick = async () => {
     if (!hasChanges) return
     setIsSaving(true)
-    await onSave(subject.id, scores, otherLabel || undefined)
+    await onSave(subject.id, scores)
     setIsSaving(false)
     setSuccess(true)
     setTimeout(() => setSuccess(false), 2000)
@@ -195,27 +220,13 @@ export function GradeSubjectCard({
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="mid_sem">Mid Semester</SelectItem>
-                <SelectItem value="end_sem">End Semester</SelectItem>
-                <SelectItem value="project">Project / Assignment</SelectItem>
-                <SelectItem value="quiz">Quiz / Unit Test</SelectItem>
-                <SelectItem value="other">Other (Custom)</SelectItem>
+                {Object.entries(labels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           
-          {activeType === 'other' && (
-            <div className="space-y-1.5">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Custom Label</Label>
-              <Input 
-                placeholder="e.g. Lab Viva, Presentation" 
-                className="h-9 text-sm"
-                value={otherLabel}
-                onChange={(e) => setOtherLabel(e.target.value)}
-              />
-            </div>
-          )}
-
           <div className="flex gap-3">
             <div className="space-y-1.5 flex-[1]">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Marks</Label>

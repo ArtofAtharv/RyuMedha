@@ -257,10 +257,18 @@ export default function SubjectsPage() {
               </div>
 
               <div className="space-y-1.5">
-                <Label>Color Hex (e.g. #3b82f6)</Label>
-                <div className="flex gap-2">
-                  <Input value={editingSubject.color_hex || ""} onChange={e => setEditingSubject({...editingSubject, color_hex: e.target.value})} placeholder="#hex" />
-                  <div className="w-10 h-10 rounded border shrink-0" style={{backgroundColor: editingSubject.color_hex || 'hsl(var(--primary))'}} />
+                <Label>Color</Label>
+                <div className="flex flex-wrap gap-2">
+                  {['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#a855f7'].map(hex => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => setEditingSubject({...editingSubject, color_hex: hex})}
+                      className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 ${editingSubject.color_hex === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-transparent hover:scale-110'}`}
+                      style={{backgroundColor: hex}}
+                      title={hex}
+                    />
+                  ))}
                 </div>
               </div>
 

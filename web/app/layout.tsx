@@ -54,6 +54,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         {/* Restore color theme from localStorage before first paint — no flash */}
         <Script id="color-theme-init" strategy="beforeInteractive">{`

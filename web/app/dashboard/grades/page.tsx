@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
-import { motion } from "motion/react"
+
 
 export default function GradesPage() {
   const [grades, setGrades] = useState<any[]>([])
@@ -63,16 +63,16 @@ export default function GradesPage() {
     setSubjects(subs || [])
   }
 
-  async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>, otherLabel?: string) {
+  async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>) {
     if (!supabaseClient || !profileId) return
     setIsSyncing(true)
 
-    // Prepare upserts for all 5 grade types
+    // Prepare upserts for all grade types
     const upserts = Object.keys(scores).map(type => {
       const m = parseFloat(scores[type].marks)
       const mx = parseFloat(scores[type].max_marks)
 
-      // Only upsert if valid numbers exist (or intentionally clear them if 0/NaN but we'll just skip empty strings)
+      // Only upsert if valid numbers exist
       if (!isNaN(m) && !isNaN(mx)) {
         return {
           profile_id: profileId,
@@ -80,18 +80,23 @@ export default function GradesPage() {
           grade_type: type,
           marks: m,
           max_marks: mx,
-          assessed_date: new Date().toISOString(),
-          notes: type === 'other' && otherLabel ? otherLabel.trim() : null
+          assessed_date: new Date().toISOString().split('T')[0]
         }
       }
       return null
     }).filter(Boolean)
 
     if (upserts.length > 0) {
-      // Supabase lacks an easy "upsert by 3 compound keys" without a unique constraint,
-      // so we delete existing grades for this subject and re-insert the valid ones.
+      // Delete existing grades for this subject then re-insert
       await supabaseClient.from('grades').delete().eq('subject_id', subjectId)
-      await supabaseClient.from('grades').insert(upserts)
+      
+      // Insert one-by-one so a single invalid type doesn't wipe all grades
+      for (const row of upserts) {
+        const { error } = await supabaseClient.from('grades').insert([row])
+        if (error) {
+          console.error(`Failed to save grade type ${(row as any).grade_type}:`, error.message)
+        }
+      }
     }
 
     await fetchData(supabaseClient, profileId)
@@ -100,48 +105,66 @@ export default function GradesPage() {
 
 
 
-  // Aggregate stats
-  let totalScore = 0
-  let totalMax = 0
-  const subjectMap: any = {}
+  // Separate aggregate stats for academic vs personal
+  const academicSubjectIds = new Set(subjects.filter(s => s.type === 'academic').map(s => s.id))
+  const personalSubjectIds = new Set(subjects.filter(s => s.type === 'personal').map(s => s.id))
+
+  let acadScore = 0, acadMax = 0, persScore = 0, persMax = 0
 
   grades.forEach(g => {
-    const sName = g.subjects?.name || "Unknown"
     const m = Number(g.marks) || 0
     const mx = Number(g.max_marks) || 0
     
-    totalScore += m
-    totalMax += mx
-
-    if (!subjectMap[sName]) subjectMap[sName] = { score: 0, max: 0 }
-    subjectMap[sName].score += m
-    subjectMap[sName].max += mx
+    if (academicSubjectIds.has(g.subject_id)) {
+      acadScore += m
+      acadMax += mx
+    } else if (personalSubjectIds.has(g.subject_id)) {
+      persScore += m
+      persMax += mx
+    }
   })
 
-  const overallPct = totalMax > 0 ? ((totalScore / totalMax) * 100).toFixed(1) : "—"
+  const acadPct = acadMax > 0 ? ((acadScore / acadMax) * 100).toFixed(1) : "—"
+  const persPct = persMax > 0 ? ((persScore / persMax) * 100).toFixed(1) : "—"
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <div>
-        <h1 className="text-3xl font-black tracking-tight">Academic Grades</h1>
+        <h1 className="text-3xl font-black tracking-tight">Grades & Scores</h1>
         <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Overall Summary Column */}
-        <div className="lg:col-span-1 space-y-6">
+        {/* Summary Column */}
+        <div className="lg:col-span-1 space-y-4">
+          {/* Academic Summary */}
           <Card className="bg-primary text-primary-foreground border-0 shadow-lg shadow-primary/20">
             <CardHeader className="pb-2">
-              <CardTitle>Cumulative Grade</CardTitle>
-              <CardDescription className="text-primary-foreground/80">Across all academic subjects</CardDescription>
+              <CardTitle className="flex items-center gap-2">🎓 Academic</CardTitle>
+              <CardDescription className="text-primary-foreground/80">Cumulative academic grade</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-6xl font-black">{overallPct}%</p>
-              <div className="mt-4 pt-4 border-t border-primary-foreground/20">
-                <p className="text-sm font-bold opacity-90">Total Marks Achieved</p>
-                <p className="font-mono text-lg">{totalScore} <span className="opacity-70 text-sm">/ {totalMax}</span></p>
+              <p className="text-5xl font-black">{acadPct}%</p>
+              <div className="mt-3 pt-3 border-t border-primary-foreground/20">
+                <p className="text-xs font-bold opacity-90">Total Marks</p>
+                <p className="font-mono text-base">{acadScore} <span className="opacity-70 text-sm">/ {acadMax}</span></p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Personal Summary */}
+          <Card className="bg-violet-600 text-white border-0 shadow-lg shadow-violet-600/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2">📂 Personal</CardTitle>
+              <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-5xl font-black">{persPct}%</p>
+              <div className="mt-3 pt-3 border-t border-white/20">
+                <p className="text-xs font-bold opacity-90">Total Marks</p>
+                <p className="font-mono text-base">{persScore} <span className="opacity-70 text-sm">/ {persMax}</span></p>
               </div>
             </CardContent>
           </Card>
@@ -190,6 +213,7 @@ export default function GradesPage() {
                     subject={{...sub, name: sub.label || sub.name}} 
                     existingGrades={subjectGrades}
                     onSave={handleSaveGrades}
+                    isPersonal
                   />
                 )
               })}
