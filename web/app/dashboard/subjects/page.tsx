@@ -212,8 +212,44 @@ export default function SubjectsPage() {
 
   if (loading && subjects.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-10 animate-in fade-in duration-500">
+        {/* Header Skeleton */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="space-y-2">
+            <div className="h-9 w-48 bg-muted animate-pulse rounded-md" />
+            <div className="h-4 w-72 bg-muted/60 animate-pulse rounded-md" />
+          </div>
+        </div>
+
+        {/* Add Form Skeleton */}
+        <Card className="bg-muted/10 border-dashed border-2">
+          <CardContent className="p-4">
+            <div className="h-4 w-32 bg-muted animate-pulse rounded-md mb-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+              <div className="space-y-2 sm:col-span-5">
+                <div className="h-3 w-20 bg-muted/60 animate-pulse rounded-md" />
+                <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+              </div>
+              <div className="space-y-2 sm:col-span-4">
+                <div className="h-3 w-12 bg-muted/60 animate-pulse rounded-md" />
+                <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+              </div>
+              <div className="sm:col-span-3">
+                <div className="h-10 w-full bg-primary/20 animate-pulse rounded-md" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Categories Skeleton */}
+        <div className="space-y-4">
+          <div className="h-6 w-40 bg-muted animate-pulse rounded-md" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="h-36 bg-muted/20 animate-pulse border-border/50" />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }

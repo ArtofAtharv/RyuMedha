@@ -136,9 +136,33 @@ export default function GradesPage() {
         <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
       </div>
 
-      {/* Academic Section */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
+      {subjects.length === 0 ? (
+        <div className="space-y-10 animate-in fade-in duration-500">
+          <section className="space-y-4">
+            <div className="h-6 w-48 bg-muted animate-pulse rounded-md" />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+              <Card className="bg-primary/10 border-0 h-32 sm:col-span-2 lg:col-span-1 animate-pulse" />
+              {[...Array(2)].map((_, i) => (
+                <Card key={i} className="h-48 border-2 border-dashed bg-muted/20 animate-pulse" />
+              ))}
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div className="h-6 w-48 bg-muted animate-pulse rounded-md" />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+              <Card className="bg-primary/5 border-0 h-32 sm:col-span-2 lg:col-span-1 animate-pulse" />
+              {[...Array(2)].map((_, i) => (
+                <Card key={i} className="h-48 border-2 border-dashed bg-muted/10 animate-pulse" />
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : (
+        <>
+          {/* Academic Section */}
+          <section className="space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
         
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
           {/* Academic Summary Card — first item in the grid */}
@@ -221,6 +245,8 @@ export default function GradesPage() {
         <div className="text-center text-sm text-muted-foreground animate-pulse">
           Syncing to database...
         </div>
+      )}
+      </>
       )}
     </div>
   )

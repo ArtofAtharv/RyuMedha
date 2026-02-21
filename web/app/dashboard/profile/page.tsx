@@ -222,8 +222,28 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6 animate-in fade-in duration-500">
+        {/* Hero Header Skeleton */}
+        <div className="bg-muted/40 rounded-3xl p-8 relative overflow-hidden animate-pulse h-40">
+          <div className="absolute top-8 left-8 space-y-3">
+            <div className="h-4 w-24 bg-muted/60 rounded-md" />
+            <div className="h-8 w-48 bg-muted rounded-md" />
+          </div>
+        </div>
+
+        {/* Form Skeleton */}
+        <div className="space-y-4">
+          <div className="h-6 w-32 bg-muted animate-pulse rounded-md mb-2" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex justify-between items-center p-4 rounded-xl border bg-card animate-pulse">
+              <div className="space-y-2">
+                <div className="h-3 w-16 bg-muted/60 rounded-md" />
+                <div className="h-5 w-32 bg-muted rounded-md" />
+              </div>
+              <div className="h-8 w-8 bg-muted rounded-md" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

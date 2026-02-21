@@ -264,7 +264,24 @@ export default function TasksPage() {
           {/* Pending Tasks */}
           <div className="space-y-4">
             <h2 className="text-lg font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-orange-500"/> Pending Tasks</h2>
-            {loading ? <p className="text-muted-foreground animate-pulse text-sm">Loading tasks...</p> : tasks.length === 0 ? (
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg bg-card shadow-sm gap-4 animate-pulse">
+                    <div className="flex items-center gap-3 w-full">
+                      <div className="w-6 h-6 rounded-full bg-muted/60 shrink-0" />
+                      <div className="space-y-2 w-full">
+                        <div className="h-5 w-3/4 sm:w-1/2 bg-muted rounded-md" />
+                        <div className="flex gap-2">
+                          <div className="h-4 w-12 bg-muted/60 rounded-full" />
+                          <div className="h-4 w-20 bg-muted/60 rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : tasks.length === 0 ? (
               <p className="text-muted-foreground italic text-sm py-4">No pending tasks! Time to relax. ☕</p>
             ) : (
               <motion.div layout className="grid gap-3">

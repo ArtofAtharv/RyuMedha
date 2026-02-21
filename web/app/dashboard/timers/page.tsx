@@ -137,7 +137,49 @@ export default function TimersPage() {
         <p className="text-muted-foreground mt-1">Track your dedicated study sessions live.</p>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      {subjects.length === 0 ? (
+        <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-500">
+          {/* Active Timer Skeleton */}
+          <Card className="border-2 border-primary/10">
+            <CardHeader>
+              <div className="h-6 w-32 bg-muted animate-pulse rounded-md" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="h-4 w-24 bg-muted animate-pulse rounded-md" />
+                  <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                </div>
+                <div className="h-12 w-full bg-primary/20 animate-pulse rounded-md mt-4" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* History Skeleton */}
+          <Card>
+            <CardHeader>
+              <div className="h-6 w-40 bg-muted animate-pulse rounded-md" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex justify-between items-center p-3 border rounded-lg bg-card animate-pulse">
+                    <div className="space-y-2">
+                      <div className="h-5 w-24 bg-muted rounded-md" />
+                      <div className="h-3 w-16 bg-muted/60 rounded-md" />
+                    </div>
+                    <div className="flex gap-2">
+                      <div className="h-6 w-12 bg-muted rounded-md" />
+                      <div className="h-8 w-8 bg-muted rounded-md" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6">
         
         {/* Active Timer / Start Form */}
         <Card className="border-2 border-primary/20">
@@ -214,6 +256,7 @@ export default function TimersPage() {
         </Card>
 
       </div>
+      )}
     </div>
   )
 }
