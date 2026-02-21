@@ -446,6 +446,20 @@ export default function SubjectsPage() {
                     <Label>Instructor / Prof</Label>
                     <Input value={editingSubject.instructor_name || ""} onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} className="bg-muted/30" />
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-muted-foreground">Legacy Attended</Label>
+                      <Input type="number" min="0" value={editingSubject.legacy_attended_lectures || 0} onChange={e => setEditingSubject({...editingSubject, legacy_attended_lectures: e.target.value})} className="bg-muted/30" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-muted-foreground">Legacy Missed</Label>
+                      <Input type="number" min="0" value={editingSubject.legacy_missed_lectures || 0} onChange={e => setEditingSubject({...editingSubject, legacy_missed_lectures: e.target.value})} className="bg-muted/30" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
+                    <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: e.target.value})} className="bg-muted/30" />
+                  </div>
                   <div className="space-y-1.5">
                     <Label>Color Identity</Label>
                     <div className="flex flex-wrap gap-2 pt-1">
