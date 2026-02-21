@@ -24,28 +24,28 @@ export function DashboardNav() {
   )?.href
 
   return (
-    <nav className="border-b bg-card">
-      <div className="max-w-6xl mx-auto px-6 h-12 flex items-center overflow-x-auto gap-1 text-sm font-medium">
+    <div className="pt-6 pb-2 px-4 flex justify-center w-full sticky top-0 z-40 bg-background/80 backdrop-blur-md">
+      <nav className="bg-card border shadow-sm rounded-full p-1.5 flex items-center overflow-x-auto gap-1 max-w-full scrollbar-none">
         {tabs.map((tab) => {
           const isActive = activeHref === tab.href
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`relative px-3 py-1.5 rounded-full transition-colors ${
+              className={`relative px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
                 isActive
                   ? "text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               }`}
             >
               {isActive && (
                 <motion.span
                   layoutId="dashboard-tab-bubble"
-                  className="absolute inset-0 z-0 gradient-accent rounded-full shadow-sm"
+                  className="absolute inset-0 z-0 gradient-accent rounded-full shadow-md"
                   transition={{
                     type: "spring",
-                    bounce: 0.2,
-                    duration: 0.6,
+                    bounce: 0.25,
+                    duration: 0.5,
                   }}
                 />
               )}
@@ -53,7 +53,7 @@ export function DashboardNav() {
             </Link>
           )
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   )
 }

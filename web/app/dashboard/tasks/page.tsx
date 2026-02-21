@@ -194,20 +194,20 @@ export default function TasksPage() {
       <div className="space-y-8">
         
         {/* Quick Add Form */}
-        <Card className="bg-muted/30 border-dashed">
+        <Card className="bg-muted/30 border-dashed border-2">
           <CardContent className="p-4">
             <form onSubmit={handleAddTask} className="flex flex-col gap-4">
               
               <div className="flex flex-col sm:flex-row gap-3 items-end">
                 <div className="space-y-1.5 w-full sm:flex-1">
-                  <Label htmlFor="title" className="text-xs text-muted-foreground uppercase font-bold tracking-wider">What needs doing?</Label>
-                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Read Chapter 5" required className="bg-background shadow-sm border-muted-foreground/20" />
+                  <Label htmlFor="title" className="text-sm font-semibold text-muted-foreground">What needs doing?</Label>
+                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Read Chapter 5" required className="bg-background shadow-sm border-muted-foreground/20 h-10" />
                 </div>
                 
                 <div className="space-y-1.5 w-full sm:w-1/3">
-                  <Label htmlFor="subject" className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Subject Link</Label>
+                  <Label htmlFor="subject" className="text-sm font-semibold text-muted-foreground">Subject Link</Label>
                   <Select value={subjectId} onValueChange={setSubjectId}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20">
                       <SelectValue placeholder="No Subject" />
                     </SelectTrigger>
                     <SelectContent>
@@ -220,9 +220,9 @@ export default function TasksPage() {
 
               <div className="flex flex-col sm:flex-row gap-3 items-end">
                 <div className="space-y-1.5 w-full sm:w-[150px]">
-                  <Label htmlFor="priority" className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Priority</Label>
+                  <Label htmlFor="priority" className="text-sm font-semibold text-muted-foreground">Priority</Label>
                   <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20">
                       <SelectValue placeholder="Priority" />
                     </SelectTrigger>
                     <SelectContent>
@@ -235,26 +235,25 @@ export default function TasksPage() {
                 </div>
                 
                 <div className="space-y-1.5 w-full sm:w-[180px]">
-                  <Label htmlFor="duedate" className="text-xs text-muted-foreground uppercase font-bold tracking-wider flex items-center gap-1"><CalIcon className="w-3 h-3"/> Due Date</Label>
-                  <Input id="duedate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="bg-background shadow-sm border-muted-foreground/20" />
+                  <Label htmlFor="duedate" className="text-sm font-semibold text-muted-foreground flex items-center gap-1"><CalIcon className="w-3.5 h-3.5"/> Due Date</Label>
+                  <Input id="duedate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10 bg-background shadow-sm border-muted-foreground/20" />
                 </div>
 
-                <div className="flex-1 flex justify-start sm:justify-end items-center gap-2 mb-1">
+                <div className="flex-1 flex w-full justify-start sm:justify-end items-center gap-2 mb-0.5 mt-2 sm:mt-0">
                   <Button 
                     type="button"
                     variant={hasReminder ? "default" : "outline"} 
-                    className="h-10 gap-2" 
+                    className="h-10 flex-1 sm:flex-none gap-2 bg-background border-muted-foreground/20" 
                     onClick={() => setHasReminder(!hasReminder)}
                   >
                     <Bell className={`w-4 h-4 ${hasReminder ? "text-primary-foreground fill-current animate-wiggle" : "text-muted-foreground"}`} />
                     {hasReminder ? "Reminder On" : "No Reminder"}
                   </Button>
-                  <Button type="submit" className="font-bold gap-2 shrink-0 h-10 shadow-sm w-full sm:w-auto">
-                    <Plus className="w-4 h-4" /> Add Task
+                  <Button type="submit" className="h-10 flex-1 sm:flex-none px-6 font-semibold">
+                    Add Task
                   </Button>
                 </div>
               </div>
-              
             </form>
           </CardContent>
         </Card>
@@ -287,11 +286,11 @@ export default function TasksPage() {
                         </button>
                         
                         {editingTaskId === t.id ? (
-                          <div className="flex flex-col gap-3 w-full pr-2">
-                            <div className="flex gap-2 w-full">
-                              <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="h-9 flex-1" />
+                          <div className="flex flex-col gap-3 w-full pr-0 sm:pr-2">
+                            <div className="flex flex-col sm:flex-row gap-2 w-full">
+                              <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="h-9 flex-1 w-full" />
                               <Select value={editSubjectId} onValueChange={setEditSubjectId}>
-                                <SelectTrigger className="h-9 w-[140px]">
+                                <SelectTrigger className="h-9 w-full sm:w-[140px]">
                                   <SelectValue placeholder="No Subject" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -300,32 +299,33 @@ export default function TasksPage() {
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="flex gap-2">
-                              <Select value={editPriority} onValueChange={setEditPriority}>
-                                <SelectTrigger className="h-9 w-[120px]">
-                                  <SelectValue placeholder="Priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="urgent">Urgent</SelectItem>
-                                  <SelectItem value="high">High</SelectItem>
-                                  <SelectItem value="medium">Medium</SelectItem>
-                                  <SelectItem value="low">Low</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="h-9 text-sm w-36" />
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <div className="flex gap-2 w-full sm:w-auto">
+                                <Select value={editPriority} onValueChange={setEditPriority}>
+                                  <SelectTrigger className="h-9 w-full sm:w-[120px]">
+                                    <SelectValue placeholder="Priority" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="urgent">Urgent</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="low">Low</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="h-9 text-sm w-full sm:w-36" />
+                              </div>
                               
-                              <Button 
-                                type="button"
-                                variant={editHasReminder ? "default" : "outline"}
-                                className="h-9 px-3"
-                                onClick={() => setEditHasReminder(!editHasReminder)}
-                              >
-                                <Bell className={`w-4 h-4 ${editHasReminder ? "fill-current" : ""}`} />
-                              </Button>
-
-                              <div className="flex gap-2 ml-auto">
-                                <Button size="sm" onClick={saveEdit} className="h-9 px-4 font-bold">Save</Button>
-                                <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-9 px-3">Cancel</Button>
+                              <div className="flex gap-2 w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0">
+                                <Button 
+                                  type="button"
+                                  variant={editHasReminder ? "default" : "outline"}
+                                  className="h-9 px-3 shrink-0"
+                                  onClick={() => setEditHasReminder(!editHasReminder)}
+                                >
+                                  <Bell className={`w-4 h-4 ${editHasReminder ? "fill-current" : ""}`} />
+                                </Button>
+                                <Button size="sm" onClick={saveEdit} className="h-9 px-4 font-bold flex-1 sm:flex-none">Save</Button>
+                                <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-9 px-3 flex-1 sm:flex-none">Cancel</Button>
                               </div>
                             </div>
                           </div>

@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
+import { BookOpen, FolderOpen } from "lucide-react"
 
 
 export default function GradesPage() {
@@ -137,13 +138,13 @@ export default function GradesPage() {
 
       {/* Academic Section */}
       <section className="space-y-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">🎓 Academic Grades</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
         
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
           {/* Academic Summary Card — first item in the grid */}
           <Card className="gradient-accent text-white border-0 shadow-lg sm:col-span-2 lg:col-span-1">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">🎓 Academic</CardTitle>
+              <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic</CardTitle>
               <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
             </CardHeader>
             <CardContent>
@@ -177,13 +178,13 @@ export default function GradesPage() {
 
       {/* Personal Section */}
       <section className="space-y-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">📂 Personal Track Scores</h2>
+        <h2 className="text-xl font-bold flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal Track Scores</h2>
         
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
           {/* Personal Summary Card — first item in the grid */}
-          <Card className="bg-violet-600 text-white border-0 shadow-lg shadow-violet-600/20 sm:col-span-2 lg:col-span-1">
+          <Card className="gradient-accent text-white border-0 shadow-sm sm:col-span-2 lg:col-span-1">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">📂 Personal</CardTitle>
+              <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal</CardTitle>
               <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
             </CardHeader>
             <CardContent>
