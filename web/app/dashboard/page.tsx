@@ -33,21 +33,52 @@ export default async function DashboardPage() {
 
   const displayName = profile?.display_name || session.user.name || session.user.phone
 
-  // Fetch Active Subjects
-  const { data: subjectsData } = await supabase
-    .from('subjects')
-    .select('id, name, color_hex, type, is_active, legacy_attended_lectures, legacy_missed_lectures, category_id, label, instructor_name')
-    .eq('is_active', true)
-    .order('name')
-
-  // Fetch raw attendance logs instead of the view
-  const { data: attendanceLogs } = await supabase
-    .from('attendance_logs')
-    .select('subject_id, status')
-    .eq('profile_id', profile?.id)
-    .in('status', ['present', 'absent'])
+  // Fetch all dashboard data concurrently
+  const [
+    { data: subjectsData },
+    { data: attendanceLogs },
+    { data: pendingTasks },
+    { data: timersData },
+    { data: gradesData },
+    { data: categoriesData }
+  ] = await Promise.all([
+    supabase
+      .from('subjects')
+      .select('id, name, color_hex, type, is_active, legacy_attended_lectures, legacy_missed_lectures, category_id, label, instructor_name')
+      .eq('is_active', true)
+      .order('name'),
+    supabase
+      .from('attendance_logs')
+      .select('subject_id, status')
+      .eq('profile_id', profile?.id)
+      .in('status', ['present', 'absent']),
+    supabase
+      .from('tasks')
+      .select('id, subject_id, subjects(type)')
+      .eq('profile_id', profile?.id)
+      .eq('is_completed', false),
+    supabase
+      .from('study_timers')
+      .select('duration_seconds, subject_id, subjects(type)')
+      .eq('profile_id', profile?.id)
+      .not('ended_at', 'is', null),
+    supabase
+      .from('grades')
+      .select('marks, max_marks, subject_id, subjects!inner(type)')
+      .eq('profile_id', profile?.id),
+    supabase
+      .from('subject_categories')
+      .select('*')
+      .eq('profile_id', profile?.id)
+  ])
 
   // Dynamically compute attendance (matches Bot logic exactly)
+  
+  const categories = categoriesData || []
+
+  // Now perform all derivations
+  
+  // 1. Compute attendance
   const attendanceData = subjectsData?.filter(s => s.type === 'academic').map(sub => {
     const subjectLogs = attendanceLogs?.filter(log => log.subject_id === sub.id) || []
     const logPresent = subjectLogs.filter(log => log.status === 'present').length
@@ -67,13 +98,7 @@ export default async function DashboardPage() {
     }
   }).sort((a, b) => a.attendance_percentage - b.attendance_percentage) || []
 
-  // Fetch Pending Tasks Count by Type
-  const { data: pendingTasks } = await supabase
-    .from('tasks')
-    .select('id, subject_id, subjects(type)')
-    .eq('profile_id', profile?.id)
-    .eq('is_completed', false)
-
+  // 2. Compute pending tasks
   let academicPendingTasks = 0
   let personalPendingTasks = 0
   pendingTasks?.forEach(t => {
@@ -81,16 +106,9 @@ export default async function DashboardPage() {
     const type = t.subjects?.type
     if (type === 'academic') academicPendingTasks++
     else if (type === 'personal') personalPendingTasks++
-    // Uncategorized tasks aren't explicitly tracked in either bucket right now to maintain strict track isolation.
   })
 
-  // Fetch Study Timers by Type
-  const { data: timersData } = await supabase
-    .from('study_timers')
-    .select('duration_seconds, subject_id, subjects(type)')
-    .eq('profile_id', profile?.id)
-    .not('ended_at', 'is', null)
-
+  // 3. Compute study timer durations
   let academicStudySecs = 0
   let personalStudySecs = 0
   timersData?.forEach(t => {
@@ -103,19 +121,14 @@ export default async function DashboardPage() {
   const academicStudyHours = (academicStudySecs / 3600).toFixed(1)
   const personalStudyHours = (personalStudySecs / 3600).toFixed(1)
 
-  // Split Grades
-  const { data: gradesData } = await supabase
-    .from('grades')
-    .select('marks, max_marks, subject_id, subjects!inner(type)')
-    .eq('profile_id', profile?.id)
-
+  // 4. Compute grades
   let academicScore = 0
   let academicMax = 0
   let personalScore = 0
   let personalMax = 0
 
   gradesData?.forEach(g => {
-    // @ts-ignore - Supabase type inference on joins can be spotty
+    // @ts-ignore
     const type = g.subjects?.type
     if (type === 'academic') {
       academicScore += Number(g.marks)
@@ -129,28 +142,19 @@ export default async function DashboardPage() {
   const academicGradePct = academicMax > 0 ? Math.round((academicScore / academicMax) * 100) : null
   const personalScorePct = personalMax > 0 ? Math.round((personalScore / personalMax) * 100) : null
 
-  // Derived attendance stats
+  // 5. Derived attendance global stats
   const totalPresent = attendanceData?.reduce((s, r) => s + (r.total_present ?? 0), 0) ?? 0
   const totalAbsent = attendanceData?.reduce((s, r) => s + (r.total_absent ?? 0), 0) ?? 0
   const overallAttendancePct = totalPresent + totalAbsent > 0
     ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
     : null
 
-  // Split Subjects
+  // 6. Filter subjects
   const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
   const personalSubjects = subjectsData?.filter(s => s.type === 'personal') || []
 
-  // Fetch Categories for Personal Subjects
-  const { data: categoriesData } = await supabase
-    .from('subject_categories')
-    .select('*')
-    .eq('profile_id', profile?.id)
-  
-  const categories = categoriesData || []
-
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
-
       {/* Page content */}
       <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
 
