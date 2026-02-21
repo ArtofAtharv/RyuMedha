@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { getSession } from "next-auth/react"
 import { createClient } from "@supabase/supabase-js"
 import { motion, AnimatePresence } from "motion/react"
@@ -13,6 +13,16 @@ import {
 export default function ProfilePage() {
   const [session, setSession] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
+  
+  // Reference data lists
+  const [universities, setUniversities] = useState<any[]>([])
+  const [programs, setPrograms] = useState<any[]>([])
+  const [semesters, setSemesters] = useState<any[]>([])
+
+  // Display names for active relational fields
+  const [uniName, setUniName] = useState("Not Set")
+  const [progName, setProgName] = useState("Not Set")
+  const [semName, setSemName] = useState("Not Set")
   
   const [supabaseClient, setSupabaseClient] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -36,29 +46,131 @@ export default function ProfilePage() {
       )
       
       setSupabaseClient(supabase)
-      await fetchProfile(supabase, sess)
+      await fetchInitialData(supabase, sess)
     }
     init()
   }, [])
 
-  async function fetchProfile(supabase: any, sess: any) {
-    const { data: prof } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('whatsapp_number', sess.user.phone)
-      .single()
+  async function fetchInitialData(supabase: any, sess: any) {
+    // Fetch profile and all universities
+    const [{ data: prof }, { data: unis }] = await Promise.all([
+      supabase.from('profiles').select('*').eq('whatsapp_number', sess.user.phone).single(),
+      supabase.from('universities').select('id, name').order('name')
+    ])
+
+    if (unis) setUniversities(unis)
 
     if (prof) {
       setProfile(prof)
+      
+      // Fetch names for currently selected relational fields
+      if (prof.current_university_id) {
+        const { data: u } = await supabase.from('universities').select('name').eq('id', prof.current_university_id).single()
+        if (u) setUniName(u.name)
+        
+        // Fetch programs for the currently selected university so the dropdown is ready
+        const { data: progs } = await supabase.from('programs').select('id, name').eq('university_id', prof.current_university_id).order('name')
+        if (progs) setPrograms(progs)
+      } else {
+        setUniName("Not Set")
+        setPrograms([])
+      }
+
+      if (prof.current_program_id) {
+        const { data: p } = await supabase.from('programs').select('name').eq('id', prof.current_program_id).single()
+        if (p) setProgName(p.name)
+
+        // Fetch semesters for the currently selected program so the dropdown is ready
+        const { data: sems } = await supabase.from('semesters').select('id, name, semester_number').eq('program_id', prof.current_program_id).order('semester_number')
+        if (sems) setSemesters(sems)
+      } else {
+        setProgName("Not Set")
+        setSemesters([])
+      }
+
+      if (prof.current_semester_id) {
+        const { data: s } = await supabase.from('semesters').select('name').eq('id', prof.current_semester_id).single()
+        if (s) setSemName(s.name)
+      } else {
+        setSemName("Not Set")
+      }
     }
     setLoading(false)
   }
 
+  // Refetch just the profile and names
+  async function refreshProfileData() {
+    if (!supabaseClient || !session) return
+    const { data: prof } = await supabaseClient.from('profiles').select('*').eq('whatsapp_number', session.user.phone).single()
+    if (prof) {
+      setProfile(prof)
+      if (prof.current_university_id) {
+        const { data: u } = await supabaseClient.from('universities').select('name').eq('id', prof.current_university_id).single()
+        if (u) setUniName(u.name)
+      } else setUniName("Not Set")
+      
+      if (prof.current_program_id) {
+        const { data: p } = await supabaseClient.from('programs').select('name').eq('id', prof.current_program_id).single()
+        if (p) setProgName(p.name)
+      } else setProgName("Not Set")
+
+      if (prof.current_semester_id) {
+        const { data: s } = await supabaseClient.from('semesters').select('name').eq('id', prof.current_semester_id).single()
+        if (s) setSemName(s.name)
+      } else setSemName("Not Set")
+    }
+  }
+
+  // Handle cascaded fetches when a dropdown selection changes
+  async function handleRelationalChange(field: string, newId: string) {
+    if (!profile || !supabaseClient) return
+    setSaving(true)
+
+    const updates: any = {}
+    
+    if (field === 'current_university_id') {
+      updates.current_university_id = newId || null
+      // Reset downstream
+      updates.current_program_id = null
+      updates.current_semester_id = null
+      
+      if (newId) {
+        const { data: progs } = await supabaseClient.from('programs').select('id, name').eq('university_id', newId).order('name')
+        setPrograms(progs || [])
+      } else {
+        setPrograms([])
+      }
+      setSemesters([])
+    } 
+    else if (field === 'current_program_id') {
+      updates.current_program_id = newId || null
+      // Reset downstream
+      updates.current_semester_id = null
+      
+      if (newId) {
+        const { data: sems } = await supabaseClient.from('semesters').select('id, name, semester_number').eq('program_id', newId).order('semester_number')
+        setSemesters(sems || [])
+      } else {
+        setSemesters([])
+      }
+    }
+    else if (field === 'current_semester_id') {
+      updates.current_semester_id = newId || null
+    }
+
+    await supabaseClient.from('profiles').update(updates).eq('id', profile.id)
+    await refreshProfileData()
+    
+    setSaving(false)
+    setEditField(null)
+  }
+
+  // Handle simple scalar field saves
   async function saveField(field: string, value: any) {
     if (!profile || !supabaseClient) return
     setSaving(true)
     await supabaseClient.from('profiles').update({ [field]: value }).eq('id', profile.id)
-    await fetchProfile(supabaseClient, session)
+    await refreshProfileData()
     setSaving(false)
     setEditField(null)
   }
@@ -101,6 +213,13 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: '/login' })
   }
 
+  // Compile academic summary for the hero card (must be before early returns)
+  const academicSummary = useMemo(() => {
+    const parts = [uniName, progName, semName].filter(p => p && p !== "Not Set")
+    if (parts.length === 0) return "Academic Track Not Setup"
+    return parts.join(" • ")
+  }, [uniName, progName, semName])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -119,6 +238,7 @@ export default function ProfilePage() {
 
   const displayName = profile.display_name || session?.user?.name || session?.user?.phone
 
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
       
@@ -130,14 +250,28 @@ export default function ProfilePage() {
       >
         <div className="absolute inset-0 bg-black/10 rounded-3xl" />
         <div className="relative z-10">
-          <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl font-black mb-4">
-            {displayName?.charAt(0)?.toUpperCase() || "?"}
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl font-black mb-4 shadow-sm border border-white/10">
+                {displayName?.charAt(0)?.toUpperCase() || "?"}
+              </div>
+              <h1 className="text-2xl font-black tracking-tight">{displayName}</h1>
+              <p className="text-white/80 font-medium mt-1 flex items-center gap-1.5 pt-1">
+                <Phone className="w-4 h-4" />
+                {session?.user?.phone}
+              </p>
+            </div>
           </div>
-          <h1 className="text-2xl font-black">{displayName}</h1>
-          <p className="text-white/70 text-sm font-medium mt-1 flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5" />
-            {session?.user?.phone}
-          </p>
+          
+          {/* Compiled Academic Summary at the top */}
+          {profile.academics_enabled && (
+            <div className="mt-6 pt-5 border-t border-white/20 flex items-start gap-3">
+              <School className="w-5 h-5 text-white/70 shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold text-white/90 leading-relaxed">
+                {academicSummary}
+              </p>
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -146,15 +280,14 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="bg-card border rounded-2xl overflow-hidden"
+        className="bg-card border rounded-2xl overflow-hidden shadow-sm"
       >
-        <div className="px-5 py-3 bg-muted/30 border-b">
+        <div className="px-5 py-3 bg-muted/40 border-b">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <User className="w-3.5 h-3.5" /> Personal
+            <User className="w-3.5 h-3.5" /> Personal Settings
           </h2>
         </div>
         <div className="divide-y">
-          {/* Display Name — Editable */}
           <ProfileRow
             icon={<User className="w-4 h-4" />}
             label="Display Name"
@@ -168,7 +301,6 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          {/* Phone — Non-editable */}
           <div className="px-5 py-4 flex items-center gap-4">
             <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
               <Phone className="w-4 h-4 text-muted-foreground" />
@@ -177,106 +309,109 @@ export default function ProfilePage() {
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Phone Number</p>
               <p className="font-mono font-medium text-sm">{session?.user?.phone}</p>
             </div>
-            <div className="text-[10px] text-muted-foreground bg-muted px-2 py-1 rounded-full font-bold uppercase tracking-wider">
+            <div className="text-[10px] text-muted-foreground bg-muted border px-2 py-1 rounded-full font-bold uppercase tracking-wider">
               Locked
             </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Academic Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-card border rounded-2xl overflow-hidden"
-      >
-        <div className="px-5 py-3 bg-muted/30 border-b">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <GraduationCap className="w-3.5 h-3.5" /> Academic
-          </h2>
-        </div>
-        <div className="divide-y">
-          {/* Target Attendance — Editable */}
-          <ProfileRow
-            icon={<Target className="w-4 h-4" />}
-            label="Target Attendance"
-            value={`${profile.target_attendance_pct ?? 75}%`}
-            isEditing={editField === "target_attendance_pct"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("target_attendance_pct", profile.target_attendance_pct ?? 75)}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => {
-              const pct = parseFloat(editValue)
-              if (!isNaN(pct) && pct >= 0 && pct <= 100) saveField("target_attendance_pct", pct)
-            }}
-            inputType="number"
-            suffix="%"
-          />
+      {/* Institutional Academic Section */}
+      {profile.academics_enabled && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-card border rounded-2xl overflow-hidden shadow-sm"
+        >
+          <div className="px-5 py-3 bg-muted/40 border-b">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+              <School className="w-3.5 h-3.5" /> Institutional Enrollment
+            </h2>
+          </div>
+          <div className="divide-y">
+            
+            {/* University Selection Dropdown */}
+            <DropdownRow
+              icon={<School className="w-4 h-4" />}
+              label="University"
+              value={uniName}
+              options={universities}
+              isEditing={editField === "current_university_id"}
+              currentId={profile.current_university_id}
+              saving={saving}
+              onEdit={() => setEditField("current_university_id")}
+              onCancel={cancelEdit}
+              onChange={(newId) => handleRelationalChange("current_university_id", newId)}
+              placeholder="Select your university..."
+            />
 
-          {/* Current Semester — Editable (integer field on profiles table) */}
-          <ProfileRow
-            icon={<BookOpen className="w-4 h-4" />}
-            label="Current Semester"
-            value={profile.current_semester != null ? `Semester ${profile.current_semester}` : "Not Set"}
-            isEditing={editField === "current_semester"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("current_semester", profile.current_semester ?? "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => {
-              const sem = parseInt(editValue)
-              if (!isNaN(sem) && sem > 0 && sem <= 12) saveField("current_semester", sem)
-            }}
-            inputType="number"
-            placeholder="e.g. 4"
-          />
+            {/* Program Selection Dropdown */}
+            <DropdownRow
+              icon={<GraduationCap className="w-4 h-4" />}
+              label="Degree Program"
+              value={progName}
+              options={programs}
+              isEditing={editField === "current_program_id"}
+              currentId={profile.current_program_id}
+              saving={saving}
+              onEdit={() => setEditField("current_program_id")}
+              onCancel={cancelEdit}
+              onChange={(newId) => handleRelationalChange("current_program_id", newId)}
+              disabled={!profile.current_university_id}
+              disabledMessage="Select a university first"
+              placeholder="Select your program..."
+            />
 
-          {/* University — Editable (free text stored as display_university) */}
-          <ProfileRow
-            icon={<School className="w-4 h-4" />}
-            label="University"
-            value={profile.display_university || "Not Set"}
-            isEditing={editField === "display_university"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("display_university", profile.display_university || "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => saveField("display_university", editValue)}
-            placeholder="e.g. MIT Pune"
-          />
+            {/* Semester Selection Dropdown */}
+            <DropdownRow
+              icon={<BookOpen className="w-4 h-4" />}
+              label="Current Semester"
+              value={semName}
+              options={semesters}
+              isEditing={editField === "current_semester_id"}
+              currentId={profile.current_semester_id}
+              saving={saving}
+              onEdit={() => setEditField("current_semester_id")}
+              onCancel={cancelEdit}
+              onChange={(newId) => handleRelationalChange("current_semester_id", newId)}
+              disabled={!profile.current_program_id}
+              disabledMessage="Select a program first"
+              placeholder="Select your semester..."
+            />
 
-          {/* Program — Editable (free text stored as display_program) */}
-          <ProfileRow
-            icon={<GraduationCap className="w-4 h-4" />}
-            label="Program"
-            value={profile.display_program || "Not Set"}
-            isEditing={editField === "display_program"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("display_program", profile.display_program || "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => saveField("display_program", editValue)}
-            placeholder="e.g. B.Tech Computer Science"
-          />
-        </div>
-      </motion.div>
+            {/* Target Attendance */}
+            <ProfileRow
+              icon={<Target className="w-4 h-4" />}
+              label="Target Attendance"
+              value={`${profile.target_attendance_pct ?? 75}%`}
+              isEditing={editField === "target_attendance_pct"}
+              editValue={editValue}
+              saving={saving}
+              onEdit={() => startEdit("target_attendance_pct", profile.target_attendance_pct ?? 75)}
+              onCancel={cancelEdit}
+              onChange={setEditValue}
+              onSave={() => {
+                const pct = parseFloat(editValue)
+                if (!isNaN(pct) && pct >= 0 && pct <= 100) saveField("target_attendance_pct", pct)
+              }}
+              inputType="number"
+              suffix="%"
+            />
+          </div>
+        </motion.div>
+      )}
 
       {/* Tracks Section */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="bg-card border rounded-2xl overflow-hidden"
+        className="bg-card border rounded-2xl overflow-hidden shadow-sm"
       >
-        <div className="px-5 py-3 bg-muted/30 border-b">
+        <div className="px-5 py-3 bg-muted/40 border-b">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5" /> Enabled Tracks
+            <Shield className="w-3.5 h-3.5" /> Feature Tracks
           </h2>
         </div>
         <div className="px-5 py-5 flex gap-3">
@@ -302,7 +437,7 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="border border-destructive/20 rounded-2xl overflow-hidden"
+        className="border border-destructive/20 rounded-2xl overflow-hidden shadow-sm"
       >
         <div className="px-5 py-3 bg-destructive/5 border-b border-destructive/20">
           <h2 className="text-xs font-bold uppercase tracking-widest text-destructive flex items-center gap-2">
@@ -331,7 +466,7 @@ export default function ProfilePage() {
   )
 }
 
-/* ─── Reusable Inline-Edit Row ─── */
+/* ─── Reusable Inline-Edit Row (Scalars) ─── */
 function ProfileRow({
   icon, label, value, isEditing, editValue, saving,
   onEdit, onCancel, onChange, onSave,
@@ -353,7 +488,7 @@ function ProfileRow({
 }) {
   return (
     <div className="px-5 py-4 flex items-center gap-4">
-      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 shadow-sm border border-black/5 dark:border-white/5">
         {icon}
       </div>
       <div className="flex-1 min-w-0">
@@ -380,13 +515,13 @@ function ProfileRow({
               <button
                 onClick={onSave}
                 disabled={saving}
-                className="w-8 h-8 rounded-lg gradient-accent text-white flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="w-8 h-8 rounded-lg gradient-accent text-white flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50 shadow-sm"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={onCancel}
-                className="w-8 h-8 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0 hover:bg-muted/80 transition-colors"
+                className="w-8 h-8 rounded-lg bg-muted border text-muted-foreground flex items-center justify-center shrink-0 hover:bg-muted/80 transition-colors shadow-sm"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -413,6 +548,90 @@ function ProfileRow({
   )
 }
 
+/* ─── Reusable Dropdown Row (Relational FKs) ─── */
+function DropdownRow({
+  icon, label, value, options, isEditing, currentId, saving,
+  onEdit, onCancel, onChange, disabled, disabledMessage, placeholder
+}: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  options: any[]
+  isEditing: boolean
+  currentId: string | null
+  saving: boolean
+  onEdit: () => void
+  onCancel: () => void
+  onChange: (id: string) => void
+  disabled?: boolean
+  disabledMessage?: string
+  placeholder?: string
+}) {
+  return (
+    <div className="px-5 py-4 flex items-center gap-4">
+      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0 shadow-sm border border-black/5 dark:border-white/5">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{label}</p>
+        <AnimatePresence mode="wait">
+          {disabled ? (
+            <motion.div key="disabled" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1">
+              <p className="text-sm text-muted-foreground italic">{disabledMessage}</p>
+            </motion.div>
+          ) : isEditing ? (
+            <motion.div
+              key="edit"
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="flex items-center gap-2 mt-1"
+            >
+              <select
+                value={currentId || ""}
+                onChange={e => onChange(e.target.value)}
+                disabled={saving}
+                autoFocus
+                className="h-8 px-2 rounded-lg bg-muted border text-sm font-medium w-full max-w-[250px] outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+              >
+                <option value="">{placeholder || "Select..."}</option>
+                {options.map(opt => (
+                  <option key={opt.id} value={opt.id}>{opt.name}</option>
+                ))}
+              </select>
+              {saving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+              {!saving && (
+                <button
+                  onClick={onCancel}
+                  className="w-8 h-8 rounded-lg bg-muted border text-muted-foreground flex items-center justify-center shrink-0 hover:bg-muted/80 transition-colors shadow-sm"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="display"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex items-center gap-2 group mt-1"
+            >
+              <p className="font-medium text-sm">{value}</p>
+              <button
+                onClick={onEdit}
+                className="w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+              >
+                <Pencil className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
+
 /* ─── Track Toggle Button ─── */
 function TrackToggle({
   icon, label, enabled, saving, onToggle
@@ -427,22 +646,22 @@ function TrackToggle({
     <button
       onClick={onToggle}
       disabled={saving}
-      className={`flex-1 py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+      className={`flex-1 py-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 shadow-sm ${
         enabled
           ? "border-primary/30 bg-primary/5 text-primary"
-          : "border-muted bg-muted/30 text-muted-foreground hover:border-muted-foreground/20"
+          : "border-muted bg-muted/30 text-muted-foreground hover:border-muted-foreground/20 hover:bg-muted/50"
       } disabled:opacity-50`}
     >
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-        enabled ? "gradient-accent text-white" : "bg-muted"
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border border-black/5 dark:border-white/5 ${
+        enabled ? "gradient-accent text-white" : "bg-muted text-muted-foreground"
       }`}>
         {icon}
       </div>
       <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
         enabled
-          ? "bg-primary/10 text-primary"
-          : "bg-muted text-muted-foreground"
+          ? "bg-primary/10 text-primary border border-primary/20"
+          : "bg-muted text-muted-foreground border border-black/5 dark:border-white/10"
       }`}>
         {enabled ? "Active" : "Disabled"}
       </span>
