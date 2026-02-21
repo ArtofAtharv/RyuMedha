@@ -46,11 +46,15 @@ export function GradeSubjectCard({
 }: { 
   subject: any; 
   existingGrades: any[]; 
-  onSave: (subjectId: string, scoresToSave: GradeScores) => Promise<void> 
+  onSave: (subjectId: string, scoresToSave: GradeScores, otherLabel?: string) => Promise<void> 
 }) {
   const [isSaving, setIsSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [activeType, setActiveType] = useState('mid_sem')
+  const [otherLabel, setOtherLabel] = useState(() => {
+    const otherGrade = existingGrades.find(g => g.grade_type === 'other')
+    return otherGrade?.notes || ''
+  })
 
   // Initialize state with existing grades from the DB
   const [scores, setScores] = useState<GradeScores>(() => {
@@ -119,7 +123,7 @@ export function GradeSubjectCard({
   const handleSaveClick = async () => {
     if (!hasChanges) return
     setIsSaving(true)
-    await onSave(subject.id, scores)
+    await onSave(subject.id, scores, otherLabel || undefined)
     setIsSaving(false)
     setSuccess(true)
     setTimeout(() => setSuccess(false), 2000)
@@ -195,11 +199,23 @@ export function GradeSubjectCard({
                 <SelectItem value="end_sem">End Semester</SelectItem>
                 <SelectItem value="project">Project / Assignment</SelectItem>
                 <SelectItem value="quiz">Quiz / Unit Test</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="other">Other (Custom)</SelectItem>
               </SelectContent>
             </Select>
           </div>
           
+          {activeType === 'other' && (
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Custom Label</Label>
+              <Input 
+                placeholder="e.g. Lab Viva, Presentation" 
+                className="h-9 text-sm"
+                value={otherLabel}
+                onChange={(e) => setOtherLabel(e.target.value)}
+              />
+            </div>
+          )}
+
           <div className="flex gap-3">
             <div className="space-y-1.5 flex-[1]">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Marks</Label>

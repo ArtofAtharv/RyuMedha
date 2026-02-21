@@ -26,6 +26,7 @@ const cardVariants: Variants = {
 export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId }: { initialData: any[], subjectsInfo: any[], token: string, profileId: string }) {
   const [data, setData] = useState(initialData)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
   const router = useRouter()
 
   const supabase = createClient(
@@ -33,6 +34,11 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   )
+
+  function showToast(msg: string) {
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 4000)
+  }
 
   // Merge Subjects with Attendance Data to ensure all Academic subjects show up
   const mergedData = useMemo(() => {
@@ -125,12 +131,27 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         }
       }
     } else {
-      // Insert: The backend does not enforce a unique constraint on lecture_date
+      const today = new Date().toISOString().split('T')[0]
+      
+      // Check if trying to mark multiple times today
+      const { data: existingToday } = await supabase
+        .from('attendance_logs')
+        .select('id')
+        .eq('profile_id', profileId)
+        .eq('subject_id', subjectId)
+        .eq('lecture_date', today)
+        .limit(1)
+        
+      if (existingToday && existingToday.length > 0) {
+        showToast("⚠️ You've already marked attendance for this subject today. This will be recorded as a separate lecture slot.")
+      }
+      
+      // Insert: The backend does not enforce a unique constraint on lecture_date anymore due to our fix
       await supabase.from('attendance_logs').insert([{
         profile_id: profileId,
         subject_id: subjectId,
         status: targetStatus,
-        lecture_date: new Date().toISOString().split('T')[0]
+        lecture_date: today
       }])
     }
 
@@ -148,12 +169,19 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
   }
 
   return (
-    <motion.div 
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
-    >
+    <>
+      {/* Toast Banner for duplicate attendance warning */}
+      {toastMsg && (
+        <div className="mb-4 px-4 py-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
+          {toastMsg}
+        </div>
+      )}
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
       {mergedData.map((item: any, idx: number) => {
         // Calculate percentage dynamically here if it was 0 from synthesis
         let pct = item.attendance_percentage
@@ -176,5 +204,6 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         )
       })}
     </motion.div>
+    </>
   )
 }

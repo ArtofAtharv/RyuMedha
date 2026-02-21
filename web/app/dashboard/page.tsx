@@ -6,9 +6,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-attendance-grid'
 import { SubjectList } from '@/components/dashboard/subject-list'
-import { MarkTodayClasses } from '@/components/dashboard/mark-today-classes'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, CheckCircle2, BarChart3, Clock, ListTodo, GraduationCap } from 'lucide-react'
+import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap } from 'lucide-react'
 import { format } from 'date-fns'
 
 export default async function DashboardPage() {
@@ -139,7 +138,7 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <span className="flex items-center space-x-2">
-                <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+                <CircleCheck className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium text-muted-foreground">Classes Attended</CardTitle>
               </span>
             </CardHeader>
@@ -152,7 +151,7 @@ export default async function DashboardPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <span className="flex items-center space-x-2">
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                <ChartColumn className="h-4 w-4 text-muted-foreground" />
               <CardTitle className="text-sm font-medium text-muted-foreground">Overall Attendance</CardTitle>
               </span>
             </CardHeader>
@@ -216,12 +215,6 @@ export default async function DashboardPage() {
                 Mark your presence for {format(new Date(), "EEEE, MMMM do")}
               </p>
             </div>
-            
-            <MarkTodayClasses 
-              subjectsInfo={subjectsData?.filter(s => s.type === 'academic' && s.is_active) || []} 
-              token={session.user.supabaseToken}
-              profileId={profile?.id}
-            />
           </div>
 
           <div className="pt-4">

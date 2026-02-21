@@ -53,18 +53,17 @@ export default function GradesPage() {
       
     setGrades(g || [])
 
-    // Subjects for dropdown (Only Academic usually handles grades)
+    // Subjects for dropdown & cards - Fetch BOTH types
     const { data: subs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type')
+      .select('id, name, color_hex, type, label')
       .eq('profile_id', pid)
       .eq('is_active', true)
-      .eq('type', 'academic')
       
     setSubjects(subs || [])
   }
 
-  async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>) {
+  async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>, otherLabel?: string) {
     if (!supabaseClient || !profileId) return
     setIsSyncing(true)
 
@@ -81,7 +80,8 @@ export default function GradesPage() {
           grade_type: type,
           marks: m,
           max_marks: mx,
-          assessed_date: new Date().toISOString()
+          assessed_date: new Date().toISOString(),
+          notes: type === 'other' && otherLabel ? otherLabel.trim() : null
         }
       }
       return null
@@ -154,24 +154,54 @@ export default function GradesPage() {
         </div>
 
         {/* Live Subject Cards Grid */}
-        <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4 auto-rows-max">
-          {subjects.map(sub => {
-            const subjectGrades = grades.filter(g => g.subject_id === sub.id)
-            return (
-              <GradeSubjectCard 
-                key={sub.id}
-                subject={sub}
-                existingGrades={subjectGrades}
-                onSave={handleSaveGrades}
-              />
-            )
-          })}
+        <div className="lg:col-span-2 space-y-8">
           
-          {subjects.length === 0 && (
-            <div className="col-span-1 sm:col-span-2 py-12 text-center text-muted-foreground border border-dashed rounded-xl">
-              No academic subjects found. Add one in the Subjects tab first.
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">🎓 Academic Grades</h2>
+            <div className="grid sm:grid-cols-2 gap-4 auto-rows-max">
+              {subjects.filter(s => s.type === 'academic').map(sub => {
+                const subjectGrades = grades.filter(g => g.subject_id === sub.id)
+                return (
+                  <GradeSubjectCard 
+                    key={sub.id}
+                    subject={sub}
+                    existingGrades={subjectGrades}
+                    onSave={handleSaveGrades}
+                  />
+                )
+              })}
+              
+              {subjects.filter(s => s.type === 'academic').length === 0 && (
+                <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+                  No academic subjects found. Add one in the Subjects tab first.
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">📂 Personal Track Scores</h2>
+            <div className="grid sm:grid-cols-2 gap-4 auto-rows-max">
+              {subjects.filter(s => s.type === 'personal').map(sub => {
+                const subjectGrades = grades.filter(g => g.subject_id === sub.id)
+                return (
+                  <GradeSubjectCard 
+                    key={sub.id}
+                    subject={{...sub, name: sub.label || sub.name}} 
+                    existingGrades={subjectGrades}
+                    onSave={handleSaveGrades}
+                  />
+                )
+              })}
+              
+              {subjects.filter(s => s.type === 'personal').length === 0 && (
+                <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+                  No personal subjects found.
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

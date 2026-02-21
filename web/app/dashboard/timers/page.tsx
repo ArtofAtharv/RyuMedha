@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, Play, Square, History } from "lucide-react"
+import { Clock, Play, Square, History, Trash2 } from "lucide-react"
 
 export default function TimersPage() {
   const [activeTimer, setActiveTimer] = useState<any>(null)
@@ -116,6 +116,12 @@ export default function TimersPage() {
     fetchData(supabaseClient, profileId)
   }
 
+  async function deleteTimer(id: string) {
+    if (!supabaseClient) return
+    await supabaseClient.from('study_timers').delete().eq('id', id)
+    fetchData(supabaseClient, profileId)
+  }
+
   const formatTime = (secs: number) => {
     const h = Math.floor(secs / 3600)
     const m = Math.floor((secs % 3600) / 60)
@@ -190,8 +196,13 @@ export default function TimersPage() {
                         {new Date(h.started_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium">
-                      {Math.floor(h.duration_seconds / 60)} mins
+                    <div className="flex items-center gap-3">
+                      <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium">
+                        {Math.floor(h.duration_seconds / 60)} mins
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0">
+                        <Trash2 className="w-4 h-4"/>
+                      </Button>
                     </div>
                   </div>
                 ))}
