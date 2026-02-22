@@ -3,12 +3,11 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-attendance-grid'
-import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target } from 'lucide-react'
-import { format } from 'date-fns'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { PlusCircle } from 'lucide-react'
 import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-context'
 import { OverviewContent } from "./overview-content"
 
@@ -26,14 +25,19 @@ export default async function DashboardPage() {
     }
   )
 
-  // Fetch fresh display name
+  // Fetch fresh profile data
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, display_name')
+    .select('*')
     .eq('whatsapp_number', session.user.phone)
     .single()
 
-  const displayName = profile?.display_name || session.user.name || session.user.phone
+  if (!profile?.display_name) {
+    redirect('/setup')
+  }
+
+  const displayName = profile.display_name
+  const fullProfile = profile as unknown as UserProfile
 
   // Fetch all dashboard data concurrently
   const [
@@ -53,7 +57,7 @@ export default async function DashboardPage() {
       .from('attendance_logs')
       .select('subject_id, status')
       .eq('profile_id', profile?.id)
-      .in('status', ['present', 'absent']),
+      .in('status', ['present', 'absent', 'deemed']),
     supabase
       .from('tasks')
       .select('id, subject_id, subjects(type)')
@@ -74,13 +78,51 @@ export default async function DashboardPage() {
       .eq('profile_id', profile?.id)
   ])
 
-  // Dynamically compute attendance (matches Bot logic exactly)
-  
   const categories = categoriesData || []
+  const hasSubjects = (subjectsData?.length || 0) > 0
 
-  // Now perform all derivations
-  
-  // 1. Compute attendance
+  if (!hasSubjects) {
+    return (
+      <ProfileProvider profile={fullProfile}>
+        <div className="min-h-screen bg-background text-foreground pb-20">
+          <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+            <div className="flex items-center justify-between space-y-2">
+              <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
+                Namaste, <span className="gradient-accent-text">{displayName}</span>
+              </h2>
+            </div>
+            
+            <Card className="border-dashed border-2 bg-muted/20 border-primary/20 rounded-3xl overflow-hidden backdrop-blur-sm">
+              <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-8">
+                <div className="relative">
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse shadow-inner shadow-primary/5">
+                    <PlusCircle className="w-12 h-12 text-primary" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full animate-ping opacity-20" />
+                </div>
+                <div className="space-y-3 max-w-sm">
+                  <CardTitle className="text-3xl font-black tracking-tight">Your journey starts here</CardTitle>
+                  <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
+                    You haven't added any subjects yet. Add your first subject to start tracking your attendance, tasks, and progress!
+                  </CardDescription>
+                </div>
+                <Link href="/dashboard/subjects">
+                  <Button size="lg" className="font-bold h-14 px-10 text-lg rounded-2xl gradient-accent shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                    <PlusCircle className="mr-2 h-6 w-6" /> Add First Subject
+                  </Button>
+                </Link>
+                <p className="text-xs text-muted-foreground/60 font-medium italic">
+                  Tip: Use the bot or Subjects tab to populate your dashboard.
+                </p>
+              </CardContent>
+            </Card>
+          </main>
+        </div>
+      </ProfileProvider>
+    )
+  }
+
+  // Derived calculations (moved from original code)
   const attendanceData = subjectsData?.filter(s => s.type === 'academic').map(sub => {
     const subjectLogs = attendanceLogs?.filter(log => log.subject_id === sub.id) || []
     const logPresent = subjectLogs.filter(log => log.status === 'present').length
@@ -103,7 +145,6 @@ export default async function DashboardPage() {
     }
   }).sort((a, b) => a.attendance_percentage - b.attendance_percentage) || []
 
-  // 2. Compute pending tasks
   let academicPendingTasks = 0
   let personalPendingTasks = 0
   pendingTasks?.forEach(t => {
@@ -113,7 +154,6 @@ export default async function DashboardPage() {
     else if (type === 'personal') personalPendingTasks++
   })
 
-  // 3. Compute study timer durations
   let academicStudySecs = 0
   let personalStudySecs = 0
   timersData?.forEach(t => {
@@ -126,7 +166,6 @@ export default async function DashboardPage() {
   const academicStudyHours = (academicStudySecs / 3600).toFixed(1)
   const personalStudyHours = (personalStudySecs / 3600).toFixed(1)
 
-  // 4. Compute grades
   let academicScore = 0
   let academicMax = 0
   let personalScore = 0
@@ -147,7 +186,6 @@ export default async function DashboardPage() {
   const academicGradePct = academicMax > 0 ? Math.round((academicScore / academicMax) * 100) : null
   const personalScorePct = personalMax > 0 ? Math.round((personalScore / personalMax) * 100) : null
 
-  // 5. Derived attendance global stats
   const totalPresent = attendanceData?.reduce((s, r) => s + (r.total_present ?? 0), 0) ?? 0
   const totalAbsent = attendanceData?.reduce((s, r) => s + (r.total_absent ?? 0), 0) ?? 0
   const totalDeemed = attendanceData?.reduce((s, r) => s + (r.total_deemed ?? 0), 0) ?? 0
@@ -155,47 +193,44 @@ export default async function DashboardPage() {
     ? Math.round(((totalPresent + totalDeemed) / (totalPresent + totalAbsent + totalDeemed)) * 100)
     : null
 
-  // 6. Filter subjects
   const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
   const personalSubjects = subjectsData?.filter(s => s.type === 'personal') || []
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
-      {/* Page content */}
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+    <ProfileProvider profile={fullProfile}>
+      <div className="min-h-screen bg-background text-foreground pb-20">
+        <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+          <div>
+            <h1 className="text-3xl font-black">
+              Welcome back, <span className="gradient-accent-text">{displayName}</span>!
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">📱 {session.user.phone}</p>
+          </div>
 
-        {/* Greeting */}
-        <div>
-          <h1 className="text-3xl font-black">
-            Welcome back, <span className="gradient-accent-text">{displayName}</span>!
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">📱 {session.user.phone}</p>
-        </div>
-
-        <OverviewContent 
-          profile={profile as unknown as UserProfile}
-          academicOverviewData={{
-            overallAttendancePct,
-            totalPresent,
-            totalAbsent,
-            academicGradePct,
-            academicPendingTasks,
-            academicStudyHours,
-            attendanceData,
-            academicSubjects,
-            token: session.user.supabaseToken,
-            profileId: profile?.id
-          }}
-          personalOverviewData={{
-            personalScorePct,
-            personalPendingTasks,
-            personalStudyHours,
-            personalSubjects,
-            categories
-          }}
-        />
-
-      </main>
-    </div>
+          <OverviewContent 
+            profile={profile as unknown as UserProfile}
+            academicOverviewData={{
+              overallAttendancePct,
+              totalPresent,
+              totalAbsent,
+              academicGradePct,
+              academicPendingTasks,
+              academicStudyHours,
+              attendanceData,
+              academicSubjects,
+              token: session.user.supabaseToken,
+              profileId: profile?.id
+            }}
+            personalOverviewData={{
+              personalScorePct,
+              personalPendingTasks,
+              personalStudyHours,
+              personalSubjects,
+              categories
+            }}
+          />
+        </main>
+      </div>
+    </ProfileProvider>
   )
 }
