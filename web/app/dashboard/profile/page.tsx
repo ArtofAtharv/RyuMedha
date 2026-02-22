@@ -351,6 +351,43 @@ export default function ProfilePage() {
     }
   }
 
+  async function handleArchiveSemester() {
+    if (!profile || !supabaseClient) return
+    const confirmed = window.confirm(
+      "📦 Archive Current Semester?\n\n" +
+      "This will:\n" +
+      "1. Clear your current semester selection.\n" +
+      "2. Archive (hide) all your active academic subjects.\n\n" +
+      "Your history (attendance, grades) will be preserved. You can re-enroll in new subjects for your next semester."
+    )
+    if (!confirmed) return
+
+    setSaving(true)
+    try {
+      // 1. Soft-delete current academic subjects
+      await supabaseClient
+        .from('subjects')
+        .update({ is_active: false })
+        .eq('profile_id', profile.id)
+        .eq('type', 'academic')
+        .eq('is_active', true)
+
+      // 2. Clear semester in profile
+      await supabaseClient
+        .from('profiles')
+        .update({ current_semester_id: null })
+        .eq('id', profile.id)
+
+      await refreshProfileData()
+      toast.success("Semester archived! Setup your new semester below.")
+      router.refresh()
+    } catch (err) {
+      toast.error("Failed to archive semester")
+    } finally {
+      setSaving(false)
+    }
+  }
+
   // Compile academic summary for the hero card (must be before early returns)
   const academicSummary = useMemo(() => {
     const parts = [uniName, progName, semName].filter(p => p && p !== "Not Set")
@@ -574,6 +611,28 @@ export default function ProfilePage() {
               inputType="number"
               suffix="%"
             />
+
+            {/* Archive Semester Action */}
+            <div className="px-5 py-4 bg-amber-500/5 flex items-center justify-between gap-4">
+               <div className="flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20">
+                    <FolderOpen className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest">End of Semester</p>
+                    <p className="font-medium text-sm text-amber-900 dark:text-amber-100">Archive Current Data</p>
+                  </div>
+               </div>
+               <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleArchiveSemester}
+                disabled={saving || !profile.current_semester_id}
+                className="h-9 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs uppercase tracking-wider px-4"
+               >
+                 Archive
+               </Button>
+            </div>
           </div>
         </motion.div>
       )}
