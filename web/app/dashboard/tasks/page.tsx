@@ -11,8 +11,13 @@ import { Badge } from "@/components/ui/badge"
 import { CircleCheck, Clock, Trash2, Plus, Bell, Calendar as CalIcon } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useProfile } from '@/components/dashboard/profile-context'
+import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format, parseISO } from "date-fns"
 
 export default function TasksPage() {
+  const { profile } = useProfile()
   const [tasks, setTasks] = useState<any[]>([])
   const [completedTasks, setCompletedTasks] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
@@ -31,9 +36,11 @@ export default function TasksPage() {
   const [editingTaskId, setEditingTaskId] = useState<string|null>(null)
   const [editTitle, setEditTitle] = useState("")
   const [editPriority, setEditPriority] = useState("medium")
-  const [editDueDate, setEditDueDate] = useState("")
+  const [editDueDate, setEditDueDate] = useState<Date | null>(null)
   const [editSubjectId, setEditSubjectId] = useState("none")
   const [editHasReminder, setEditHasReminder] = useState(false)
+  const [isAddDatePickerOpen, setIsAddDatePickerOpen] = useState(false)
+  const [isEditDatePickerOpen, setIsEditDatePickerOpen] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -67,7 +74,7 @@ export default function TasksPage() {
     
     const { data: subs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex')
+      .select('id, name, color_hex, type')
       .eq('profile_id', pid)
       .eq('is_active', true)
       .order('name')
@@ -75,14 +82,14 @@ export default function TasksPage() {
 
     const { data: pending } = await supabase
       .from('tasks')
-      .select('*, subjects(name, color_hex)')
+      .select('*, subjects(id, name, color_hex, type)')
       .eq('profile_id', pid)
       .eq('is_completed', false)
       .order('due_date', { ascending: true, nullsFirst: false })
       
     const { data: done } = await supabase
       .from('tasks')
-      .select('*, subjects(name, color_hex)')
+      .select('*, subjects(id, name, color_hex, type)')
       .eq('profile_id', pid)
       .eq('is_completed', true)
       .order('completed_at', { ascending: false })
@@ -93,18 +100,20 @@ export default function TasksPage() {
     setLoading(false)
   }
 
-  // Helper to reliably parse local date string 'YYYY-MM-DD' into a stable UTC ISO string
-  function getDateISO(dateString: string) {
-    if (!dateString) return null
-    // Store as midnight UTC to avoid timezone drift pushing date forward
-    return `${dateString}T00:00:00.000Z`
+  // Helper to reliably parse local date string 'YYYY-MM-DD' into a stable UTC ISO string for DB
+  // This expects the Date object direct from the datepicker now.
+  function getDateISO(date: Date | null) {
+    if (!date) return null
+    // Offset local timezone so midnight is preserved perfectly
+    const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
+    return offsetDate.toISOString().split('T')[0]
   }
 
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
 
-    const finalDate = getDateISO(dueDate)
+    const finalDate = dueDate ? getDateISO(new Date(dueDate)) : null
 
     await supabaseClient
       .from('tasks')
@@ -145,14 +154,15 @@ export default function TasksPage() {
     setEditSubjectId(task.subject_id || "none")
 
     if (task.due_date) {
-      // Use UTC methods since we store as midnight UTC to avoid timezone drift
-      const d = new Date(task.due_date)
-      const yr = d.getUTCFullYear()
-      const mo = String(d.getUTCMonth() + 1).padStart(2, '0')
-      const dt = String(d.getUTCDate()).padStart(2, '0')
-      setEditDueDate(`${yr}-${mo}-${dt}`)
+      // Use offset date creation to correctly set local time
+      const components = task.due_date.split('T')[0].split('-')
+      if (components.length === 3) {
+        setEditDueDate(new Date(parseInt(components[0]), parseInt(components[1]) - 1, parseInt(components[2])))
+      } else {
+        setEditDueDate(new Date(task.due_date))
+      }
     } else {
-      setEditDueDate("")
+      setEditDueDate(null)
     }
   }
 
@@ -212,7 +222,10 @@ export default function TasksPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">No Subject</SelectItem>
-                      {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {subjects
+                        .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
+                        .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                      }
                     </SelectContent>
                   </Select>
                 </div>
@@ -236,14 +249,30 @@ export default function TasksPage() {
                 
                 <div className="space-y-1.5 w-full sm:w-[180px]">
                   <Label htmlFor="duedate" className="text-sm font-semibold text-muted-foreground flex items-center gap-1"><CalIcon className="w-3.5 h-3.5"/> Due Date</Label>
-                  <Input id="duedate" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="h-10 bg-background shadow-sm border-muted-foreground/20" />
+                  <Popover open={isAddDatePickerOpen} onOpenChange={setIsAddDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className={`w-full justify-start text-left font-normal h-10 bg-background shadow-sm border-muted-foreground/20 ${!dueDate && "text-muted-foreground"}`}>
+                        <CalIcon className="mr-2 h-4 w-4 shrink-0" />
+                        {dueDate ? format(new Date(dueDate), "MMM dd, yyyy") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-50" align="start">
+                      <DateRangePicker 
+                        mode="single" 
+                        onSelect={(date) => { 
+                          setDueDate((date as Date).toISOString())
+                          setIsAddDatePickerOpen(false) 
+                        }} 
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 <div className="flex-1 flex w-full justify-start sm:justify-end items-center gap-2 mb-0.5 mt-2 sm:mt-0">
                   <Button 
                     type="button"
                     variant={hasReminder ? "default" : "outline"} 
-                    className="h-10 flex-1 sm:flex-none gap-2 bg-background border-muted-foreground/20" 
+                    className={`h-10 flex-1 sm:flex-none gap-2 ${hasReminder ? "shadow-sm" : "bg-background border-muted-foreground/20"}`} 
                     onClick={() => setHasReminder(!hasReminder)}
                   >
                     <Bell className={`w-4 h-4 ${hasReminder ? "text-primary-foreground fill-current animate-wiggle" : "text-muted-foreground"}`} />
@@ -286,9 +315,13 @@ export default function TasksPage() {
             ) : (
               <motion.div layout className="grid gap-3">
                 <AnimatePresence mode="popLayout">
-                  {tasks.map(t => (
-                    <motion.div 
-                      layout
+                  {tasks
+                    .filter(t => !t.subjects || 
+                                 (t.subjects.type === 'academic' && profile?.academics_enabled) || 
+                                 (t.subjects.type === 'personal' && profile?.personal_enabled))
+                    .map(t => (
+                      <motion.div 
+                        layout
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
@@ -312,7 +345,10 @@ export default function TasksPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">No Subject</SelectItem>
-                                  {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                  {subjects
+                                    .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
+                                    .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                                  }
                                 </SelectContent>
                               </Select>
                             </div>
@@ -329,7 +365,23 @@ export default function TasksPage() {
                                     <SelectItem value="low">Low</SelectItem>
                                   </SelectContent>
                                 </Select>
-                                <Input type="date" value={editDueDate} onChange={e => setEditDueDate(e.target.value)} className="h-9 text-sm w-full sm:w-36" />
+                                <Popover open={isEditDatePickerOpen} onOpenChange={setIsEditDatePickerOpen}>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className={`w-full sm:w-[140px] justify-start text-left font-normal h-9 px-3 ${!editDueDate && "text-muted-foreground"}`}>
+                                      <CalIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
+                                      {editDueDate ? format(editDueDate, "MMM dd, yyyy") : <span>Pick a date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0 z-50" align="start">
+                                    <DateRangePicker 
+                                      mode="single" 
+                                      onSelect={(date) => { 
+                                        setEditDueDate(date as Date)
+                                        setIsEditDatePickerOpen(false) 
+                                      }} 
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                               </div>
                               
                               <div className="flex gap-2 w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0">
@@ -390,9 +442,13 @@ export default function TasksPage() {
             {completedTasks.length > 0 ? (
               <motion.div layout className="grid gap-3 opacity-70">
                 <AnimatePresence mode="popLayout">
-                  {completedTasks.map(t => (
-                    <motion.div 
-                      layout
+                  {completedTasks
+                    .filter(t => !t.subjects || 
+                                 (t.subjects.type === 'academic' && profile?.academics_enabled) || 
+                                 (t.subjects.type === 'personal' && profile?.personal_enabled))
+                    .map(t => (
+                      <motion.div 
+                        layout
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, scale: 0.95 }}

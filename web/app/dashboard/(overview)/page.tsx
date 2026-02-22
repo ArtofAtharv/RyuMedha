@@ -9,6 +9,8 @@ import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target } from 'lucide-react'
 import { format } from 'date-fns'
+import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-context'
+import { OverviewContent } from './overview-content'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -166,184 +168,30 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground text-sm mt-1">📱 {session.user.phone}</p>
         </div>
 
-        {/* ─── ACADEMIC OVERVIEW ─── */}
-        <section className="space-y-6 pt-2">
-          <div className="flex items-center gap-3 border-b pb-2">
-            <BookOpen className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold tracking-tight">Academic Overview</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <ChartColumn className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Attendance</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">
-                  {overallAttendancePct !== null ? <span className="gradient-accent-text">{overallAttendancePct}%</span> : '—'}
-                </p>
-                {overallAttendancePct !== null && (
-                  <div className="w-full bg-muted h-1.5 rounded-full mt-2">
-                    <div className="gradient-accent-bar h-1.5 rounded-full transition-all" style={{width: `${overallAttendancePct}%`}} />
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground mt-1">{totalPresent} out of {totalPresent + totalAbsent} classes present</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <GraduationCap className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Grades</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{academicGradePct !== null ? `${academicGradePct}%` : '—'}</p>
-                <p className="text-xs text-muted-foreground mt-1">cumulative average</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <ListTodo className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasks</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{academicPendingTasks}</p>
-                <p className="text-xs text-muted-foreground mt-1">academic to-dos</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Study Time</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{academicStudyHours}h</p>
-                <p className="text-xs text-muted-foreground mt-1">invested</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Today's Attendance Widget */}
-          <div className="space-y-4 pt-2">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 bg-muted/30 p-4 rounded-xl border border-dashed">
-              <div>
-                <h3 className="text-base font-bold flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full gradient-accent animate-pulse"/>
-                  Today's Attendance
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Mark your presence for {format(new Date(), "EEEE, MMMM do")}
-                </p>
-              </div>
-            </div>
-            <InteractiveAttendanceGrid 
-              initialData={attendanceData || []} 
-              subjectsInfo={academicSubjects} 
-              token={session.user.supabaseToken}
-              profileId={profile?.id}
-            />
-          </div>
-
-          <div className="pt-2">
-            {/* The old generic SubjectList was removed from the Academic section as Attendance Grid provides the cards already */}
-          </div>
-        </section>
-
-        {/* ─── PERSONAL OVERVIEW ─── */}
-        <section className="space-y-6 pt-6">
-          <div className="flex items-center gap-3 border-b pb-2">
-            <FolderOpen className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-bold tracking-tight">Personal Overview</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Score</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{personalScorePct !== null ? `${personalScorePct}%` : '—'}</p>
-                <p className="text-xs text-muted-foreground mt-1">skill points</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <ListTodo className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Tasks</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{personalPendingTasks}</p>
-                <p className="text-xs text-muted-foreground mt-1">personal to-dos</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Study Time</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{personalStudyHours}h</p>
-                <p className="text-xs text-muted-foreground mt-1">invested</p>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-                <span className="flex items-center space-x-2">
-                  <FolderOpen className="h-4 w-4 text-muted-foreground" />
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Focus Areas</CardTitle>
-                </span>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-black">{personalSubjects.length}</p>
-                <p className="text-xs text-muted-foreground mt-1">active tracks</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="pt-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {personalSubjects.map(sub => {
-                const subCategory = categories.find(c => c.id === sub.category_id)
-                return (
-                  <SubjectGridCard 
-                    key={sub.id} 
-                    subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
-                    category={subCategory}
-                  />
-                )
-              })}
-            </div>
-            {personalSubjects.length === 0 && (
-              <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
-                <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
-              </div>
-            )}
-          </div>
-        </section>
+        <OverviewContent 
+          profile={profile as unknown as UserProfile}
+          academicOverviewData={{
+            overallAttendancePct,
+            totalPresent,
+            totalAbsent,
+            academicGradePct,
+            academicPendingTasks,
+            academicStudyHours,
+            attendanceData,
+            academicSubjects,
+            token: session.user.supabaseToken,
+            profileId: profile?.id
+          }}
+          personalOverviewData={{
+            personalScorePct,
+            personalPendingTasks,
+            personalStudyHours,
+            personalSubjects,
+            categories
+          }}
+        />
 
       </main>
     </div>
   )
 }
-

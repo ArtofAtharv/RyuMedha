@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, Play, Square, History, Trash2 } from "lucide-react"
+import { useProfile } from '@/components/dashboard/profile-context'
 
 export default function TimersPage() {
+  const { profile } = useProfile()
   const [activeTimer, setActiveTimer] = useState<any>(null)
   const [history, setHistory] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
@@ -74,7 +76,7 @@ export default function TimersPage() {
     // Recent history
     const { data: past } = await supabase
       .from('study_timers')
-      .select('*, subjects(name)')
+      .select('*, subjects(name, type)')
       .eq('profile_id', pid)
       .not('ended_at', 'is', null)
       .order('ended_at', { ascending: false })
@@ -85,12 +87,16 @@ export default function TimersPage() {
     // Subjects for dropdown
     const { data: subs } = await supabase
       .from('subjects')
-      .select('id, name')
+      .select('id, name, type')
       .eq('profile_id', pid)
       .eq('is_active', true)
       
     setSubjects(subs || [])
-    if (subs && subs.length > 0 && !selectedSubject) setSelectedSubject(subs[0].id)
+    if (subs && subs.length > 0 && !selectedSubject) {
+      // Find the first subject that the user is actually allowed to see
+      // Cannot reliably use profile context on first render inside fetching logic unless passed in
+      setSelectedSubject(subs[0].id) 
+    }
   }
 
   async function startTimer() {
@@ -208,7 +214,10 @@ export default function TimersPage() {
                       <SelectValue placeholder="Select a Subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      {subjects
+                        .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
+                        .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                      }
                     </SelectContent>
                   </Select>
                 </div>
@@ -230,24 +239,28 @@ export default function TimersPage() {
           <CardContent>
             {history.length > 0 ? (
               <div className="space-y-3">
-                {history.map(h => (
-                  <div key={h.id} className="flex justify-between items-center p-3 border rounded-lg bg-card">
-                    <div>
-                      <p className="font-semibold">{h.subjects?.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(h.started_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium">
-                        {Math.floor(h.duration_seconds / 60)} mins
+                {history
+                  .filter(h => !h.subjects || 
+                               (h.subjects.type === 'academic' && profile?.academics_enabled) || 
+                               (h.subjects.type === 'personal' && profile?.personal_enabled))
+                  .map(h => (
+                    <div key={h.id} className="flex justify-between items-center p-3 border rounded-lg bg-card">
+                      <div>
+                        <p className="font-semibold">{h.subjects?.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(h.started_at).toLocaleDateString()}
+                        </p>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0">
-                        <Trash2 className="w-4 h-4"/>
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium">
+                          {Math.floor(h.duration_seconds / 60)} mins
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0">
+                          <Trash2 className="w-4 h-4"/>
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground italic">No study sessions recorded yet.</p>

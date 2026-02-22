@@ -11,8 +11,8 @@ export default function LandingPage() {
 
         {/* Background glow blobs */}
         <div className="pointer-events-none absolute inset-0 -z-10">
-          <div className="absolute left-1/2 top-1/4 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute right-0 bottom-0 h-[300px] w-[300px] rounded-full bg-primary/5 blur-2xl" />
+          <div className="absolute left-1/2 top-1/4 h-[600px] w-[600px] -translate-x-1/2 rounded-full gradient-accent opacity-10 blur-3xl" />
+          <div className="absolute right-0 bottom-0 h-[300px] w-[300px] rounded-full gradient-accent opacity-5 blur-2xl" />
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black tracking-tight max-w-4xl leading-[1.05] animate-in slide-in-from-bottom-8 duration-700">
@@ -25,7 +25,7 @@ export default function LandingPage() {
             cursorStyle="underscore"
           /></span>
           <br />
-          <span className="text-primary">with Ryu Medha.</span>
+          <span className="gradient-accent-text pb-2">with Ryu Medha.</span>
         </h1>
 
         <p className="mt-6 text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed animate-in slide-in-from-bottom-8 duration-700 delay-100">
@@ -36,7 +36,7 @@ export default function LandingPage() {
         <div className="mt-10 flex flex-col sm:flex-row gap-3 animate-in slide-in-from-bottom-8 duration-700 delay-200">
           <Link
             href="/login"
-            className="px-8 py-3.5 bg-primary text-primary-foreground font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:opacity-90 hover:-translate-y-0.5 transition-all active:scale-95"
+            className="px-8 py-3.5 gradient-accent text-white font-bold rounded-xl flex items-center gap-2 shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:opacity-90 hover:-translate-y-0.5 transition-all active:scale-95"
           >
             Get Started <HiArrowRight />
           </Link>
@@ -83,7 +83,7 @@ function FeatureCard({
 }) {
   return (
     <div className="group p-7 bg-card border border-border rounded-2xl hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300">
-      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl mb-5 transition-all duration-300 bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground group-hover:scale-110 group-hover:shadow-md group-hover:shadow-primary/30">
+      <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl mb-5 transition-all duration-300 gradient-accent-subtle text-primary group-hover:gradient-accent group-hover:text-white group-hover:scale-110 group-hover:shadow-md group-hover:shadow-primary/30">
         {icon}
       </div>
       <h3 className="font-bold text-base mb-2 text-foreground">{title}</h3>

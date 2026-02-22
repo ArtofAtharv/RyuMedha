@@ -6,9 +6,10 @@ import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
 import { BookOpen, FolderOpen } from "lucide-react"
-
+import { useProfile } from '@/components/dashboard/profile-context'
 
 export default function GradesPage() {
+  const { profile } = useProfile()
   const [grades, setGrades] = useState<any[]>([])
   const [subjects, setSubjects] = useState<any[]>([])
   const [isSyncing, setIsSyncing] = useState(false)
@@ -161,85 +162,89 @@ export default function GradesPage() {
       ) : (
         <>
           {/* Academic Section */}
-          <section className="space-y-4">
-            <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
-        
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
-          {/* Academic Summary Card — first item in the grid */}
-          <Card className="gradient-accent text-white border-0 shadow-lg sm:col-span-2 lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic</CardTitle>
-              <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-5xl font-black">{acadPct}%</p>
-              <div className="mt-3 pt-3 border-t border-white/20">
-                <p className="text-xs font-bold opacity-90">Total Marks</p>
-                <p className="font-mono text-base">{acadScore} <span className="opacity-70 text-sm">/ {acadMax}</span></p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {subjects.filter(s => s.type === 'academic').map(sub => {
-            const subjectGrades = grades.filter(g => g.subject_id === sub.id)
-            return (
-              <GradeSubjectCard 
-                key={sub.id}
-                subject={sub}
-                existingGrades={subjectGrades}
-                onSave={handleSaveGrades}
-              />
-            )
-          })}
+          {profile?.academics_enabled && (
+            <section className="space-y-4">
+              <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
           
-          {subjects.filter(s => s.type === 'academic').length === 0 && (
-            <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
-              No academic subjects found. Add one in the Subjects tab first.
-            </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+                {/* Academic Summary Card — first item in the grid */}
+                <Card className="gradient-accent text-white border-0 shadow-lg sm:col-span-2 lg:col-span-1">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic</CardTitle>
+                    <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-5xl font-black">{acadPct}%</p>
+                    <div className="mt-3 pt-3 border-t border-white/20">
+                      <p className="text-xs font-bold opacity-90">Total Marks</p>
+                      <p className="font-mono text-base">{acadScore} <span className="opacity-70 text-sm">/ {acadMax}</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {subjects.filter(s => s.type === 'academic').map(sub => {
+                  const subjectGrades = grades.filter(g => g.subject_id === sub.id)
+                  return (
+                    <GradeSubjectCard 
+                      key={sub.id}
+                      subject={sub}
+                      existingGrades={subjectGrades}
+                      onSave={handleSaveGrades}
+                    />
+                  )
+                })}
+                
+                {subjects.filter(s => s.type === 'academic').length === 0 && (
+                  <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+                    No academic subjects found. Add one in the Subjects tab first.
+                  </div>
+                )}
+              </div>
+            </section>
           )}
-        </div>
-      </section>
 
       {/* Personal Section */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal Track Scores</h2>
-        
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
-          {/* Personal Summary Card — first item in the grid */}
-          <Card className="gradient-accent text-white border-0 shadow-sm sm:col-span-2 lg:col-span-1">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal</CardTitle>
-              <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-5xl font-black">{persPct}%</p>
-              <div className="mt-3 pt-3 border-t border-white/20">
-                <p className="text-xs font-bold opacity-90">Total Marks</p>
-                <p className="font-mono text-base">{persScore} <span className="opacity-70 text-sm">/ {persMax}</span></p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {subjects.filter(s => s.type === 'personal').map(sub => {
-            const subjectGrades = grades.filter(g => g.subject_id === sub.id)
-            return (
-              <GradeSubjectCard 
-                key={sub.id}
-                subject={{...sub, name: sub.label || sub.name}} 
-                existingGrades={subjectGrades}
-                onSave={handleSaveGrades}
-                isPersonal
-              />
-            )
-          })}
+      {profile?.personal_enabled && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal Track Scores</h2>
           
-          {subjects.filter(s => s.type === 'personal').length === 0 && (
-            <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
-              No personal subjects found.
-            </div>
-          )}
-        </div>
-      </section>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
+            {/* Personal Summary Card — first item in the grid */}
+            <Card className="gradient-accent text-white border-0 shadow-sm sm:col-span-2 lg:col-span-1">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal</CardTitle>
+                <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-5xl font-black">{persPct}%</p>
+                <div className="mt-3 pt-3 border-t border-white/20">
+                  <p className="text-xs font-bold opacity-90">Total Marks</p>
+                  <p className="font-mono text-base">{persScore} <span className="opacity-70 text-sm">/ {persMax}</span></p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {subjects.filter(s => s.type === 'personal').map(sub => {
+              const subjectGrades = grades.filter(g => g.subject_id === sub.id)
+              return (
+                <GradeSubjectCard 
+                  key={sub.id}
+                  subject={{...sub, name: sub.label || sub.name}} 
+                  existingGrades={subjectGrades}
+                  onSave={handleSaveGrades}
+                  isPersonal
+                />
+              )
+            })}
+            
+            {subjects.filter(s => s.type === 'personal').length === 0 && (
+              <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+                No personal subjects found.
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {isSyncing && (
         <div className="text-center text-sm text-muted-foreground animate-pulse">

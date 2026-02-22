@@ -14,10 +14,11 @@ import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen, GraduationCap, P
 import { hexToGradient } from "@/lib/gradient"
 import Link from "next/link"
 import { AnimatePresence, motion } from "motion/react"
-
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
+import { useProfile } from '@/components/dashboard/profile-context'
 
 export default function SubjectsPage() {
+  const { profile } = useProfile()
   const [session, setSession] = useState<any>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
   const [supabaseClient, setSupabaseClient] = useState<any>(null)
@@ -154,6 +155,38 @@ export default function SubjectsPage() {
 
     setEditingSubject(null)
     fetchSubjects(supabaseClient)
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                            EXAM DATES (TASKS)                              */
+  /* -------------------------------------------------------------------------- */
+
+  async function handleAddExamDate(subject_id: string, label: string, date: Date) {
+    if (!profileId || !subject_id) return
+    const { error } = await supabaseClient
+      .from('tasks')
+      .insert([{
+        profile_id: profileId,
+        subject_id: subject_id,
+        title: label,
+        due_date: formatOutputDate(date),
+        priority: 'high',
+        is_completed: false
+      }])
+    
+    if (error) {
+      setErrorMsg(`Failed to add custom date: ${error.message}`)
+    } else {
+      // Optional: Show some success toast or alert here if shadcn sonner/toast is installed
+      // For now it silently adds it and it will show up in the Tasks/Overview pages
+    }
+  }
+
+  function formatOutputDate(d: Date) {
+    // Return YYYY-MM-DD for database
+    // we need to offset timezone issues
+    const offsetDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
+    return offsetDate.toISOString().split('T')[0]
   }
 
   /* -------------------------------------------------------------------------- */
@@ -295,8 +328,12 @@ export default function SubjectsPage() {
                   <SelectValue placeholder="Track type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="academic"><span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5"/> Academic</span></SelectItem>
-                  <SelectItem value="personal"><span className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5"/> Personal</span></SelectItem>
+                  {profile?.academics_enabled && (
+                    <SelectItem value="academic"><span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5"/> Academic</span></SelectItem>
+                  )}
+                  {profile?.personal_enabled && (
+                    <SelectItem value="personal"><span className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5"/> Personal</span></SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -325,82 +362,88 @@ export default function SubjectsPage() {
 
 
       {/* --- ACADEMIC SUBJECTS --- */}
-      <section className="space-y-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <BookOpen className="w-5 h-5 text-primary" /> Academic Track
-        </h2>
-        {academicSubjects.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
-            <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {academicSubjects.map(sub => (
-              <SubjectGridCard 
-                key={sub.id} 
-                subject={sub} 
-                onEdit={() => setEditingSubject({...sub})}
-                onDelete={() => setSubjectToDelete(sub)}
-              />
-            ))}
-          </div>
-        )}
-      </section>
+      {profile?.academics_enabled && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" /> Academic Track
+          </h2>
+          {academicSubjects.length === 0 ? (
+            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
+              <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {academicSubjects.map(sub => (
+                <SubjectGridCard 
+                  key={sub.id} 
+                  subject={sub} 
+                  onEdit={() => setEditingSubject({...sub})}
+                  onDelete={() => setSubjectToDelete(sub)}
+                  onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
-      <section className="space-y-6 pt-4 border-t">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <FolderOpen className="w-5 h-5 text-primary" /> Personal Learning
-          </h2>
-          
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-              <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="uncategorized">Uncategorized</SelectItem>
-                {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+      {profile?.personal_enabled && (
+        <section className="space-y-6 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-primary" /> Personal Learning
+            </h2>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
+                <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
 
-            <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="h-8 shrink-0 font-bold border-black/10 dark:border-white/10 shadow-sm text-xs px-2 sm:px-3">
-              <Folder className="w-3.5 h-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
-            </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="h-8 shrink-0 font-bold border-black/10 dark:border-white/10 shadow-sm text-xs px-2 sm:px-3">
+                <Folder className="w-3.5 h-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
+              </Button>
+            </div>
           </div>
-        </div>
 
-        {personalSubjects.length === 0 ? (
-          <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
-            <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {personalSubjects
-              .filter(sub => {
-                if (selectedCategoryFilter === "all") return true
-                if (selectedCategoryFilter === "uncategorized") return !sub.category_id
-                return sub.category_id === selectedCategoryFilter
-              })
-              .map(sub => {
-                const subCategory = categories.find(c => c.id === sub.category_id)
-                return (
-                  <SubjectGridCard 
-                    key={sub.id} 
-                    subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
-                    category={subCategory}
-                    onEdit={() => setEditingSubject({...sub})}
-                    onDelete={() => setSubjectToDelete(sub)}
-                  />
-                )
-            })}
-          </div>
-        )}
+          {personalSubjects.length === 0 ? (
+            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
+              <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {personalSubjects
+                .filter(sub => {
+                  if (selectedCategoryFilter === "all") return true
+                  if (selectedCategoryFilter === "uncategorized") return !sub.category_id
+                  return sub.category_id === selectedCategoryFilter
+                })
+                .map(sub => {
+                  const subCategory = categories.find(c => c.id === sub.category_id)
+                  return (
+                    <SubjectGridCard 
+                      key={sub.id} 
+                      subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
+                      category={subCategory}
+                      onEdit={() => setEditingSubject({...sub})}
+                      onDelete={() => setSubjectToDelete(sub)}
+                      onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                    />
+                  )
+              })}
+            </div>
+          )}
 
 
-      </section>
+        </section>
+      )}
 
       {/* --- EDIT SUBJECT MODAL --- */}
       {editingSubject && (

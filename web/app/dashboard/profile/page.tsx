@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { getSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import { motion, AnimatePresence } from "motion/react"
 import { 
@@ -11,6 +12,7 @@ import {
 } from "lucide-react"
 
 export default function ProfilePage() {
+  const router = useRouter()
   const [session, setSession] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   
@@ -160,6 +162,7 @@ export default function ProfilePage() {
 
     await supabaseClient.from('profiles').update(updates).eq('id', profile.id)
     await refreshProfileData()
+    router.refresh()
     
     setSaving(false)
     setEditField(null)
@@ -171,6 +174,7 @@ export default function ProfilePage() {
     setSaving(true)
     await supabaseClient.from('profiles').update({ [field]: value }).eq('id', profile.id)
     await refreshProfileData()
+    router.refresh()
     setSaving(false)
     setEditField(null)
   }
