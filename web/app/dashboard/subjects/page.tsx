@@ -79,7 +79,7 @@ export default function SubjectsPage() {
     setLoading(true)
     const { data } = await supabase
       .from('subjects')
-      .select('*')
+      .select('*, source_course_id(semester_id)')
       .eq('is_active', true)
       .order('name')
     setSubjects(data || [])
@@ -111,14 +111,51 @@ export default function SubjectsPage() {
       return
     }
 
+    let sourceCourseId = null
+
+    if (type === 'academic') {
+      if (!profile?.current_semester_id) {
+        setErrorMsg("Please complete your academic setup in the Profile tab first.")
+        return
+      }
+
+      // Find or create academic course for this semester
+      const { data: existingCourse } = await supabaseClient
+        .from('academic_courses')
+        .select('id')
+        .eq('semester_id', profile.current_semester_id)
+        .ilike('course_name', name.trim())
+        .maybeSingle()
+
+      if (existingCourse) {
+        sourceCourseId = existingCourse.id
+      } else {
+        const { data: newCourse, error: courseError } = await supabaseClient
+          .from('academic_courses')
+          .insert([{
+            semester_id: profile.current_semester_id,
+            course_name: name.trim()
+          }])
+          .select()
+          .single()
+        
+        if (courseError) {
+          setErrorMsg(`Failed to create curriculum course: ${courseError.message}`)
+          return
+        }
+        sourceCourseId = newCourse.id
+      }
+    }
+
     const { error } = await supabaseClient
       .from('subjects')
       .insert([{
         profile_id: profileId,
         name: name.trim(),
         type: type,
+        source_course_id: sourceCourseId,
         category_id: type === 'personal' && categoryId !== "none" ? categoryId : null,
-        color_hex: type === 'personal' && categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : '#8b5cf6'
+        color_hex: type === 'personal' && categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : (type === 'academic' ? null : '#8b5cf6')
       }])
 
     if (error) {
@@ -225,8 +262,25 @@ export default function SubjectsPage() {
   /*                                RENDER LOOP                                 */
   /* -------------------------------------------------------------------------- */
 
-  const academicSubjects = useMemo(() => subjects.filter(s => s.type === 'academic'), [subjects])
-  const personalSubjects = useMemo(() => subjects.filter(s => s.type === 'personal'), [subjects])
+  const filteredSubjects = useMemo(() => {
+    return subjects.filter(s => {
+      // 1. Filter by Academic Hierarchy (active semester)
+      if (s.type === 'academic') {
+        const semId = Array.isArray(s.source_course_id)
+          ? s.source_course_id[0]?.semester_id
+          : s.source_course_id?.semester_id
+        if (semId !== profile?.current_semester_id) return false
+      }
+
+      // 2. Filter by Category (Personal)
+      if (selectedCategoryFilter === "all") return true
+      if (selectedCategoryFilter === "academic") return s.type === "academic"
+      return s.category_id === selectedCategoryFilter
+    })
+  }, [subjects, selectedCategoryFilter, profile?.current_semester_id])
+
+  const academicSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'academic'), [filteredSubjects])
+  const personalSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'personal'), [filteredSubjects])
 
   // Group personal subjects by category
   const personalByCategory = useMemo(() => {
@@ -444,12 +498,8 @@ export default function SubjectsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {personalSubjects
-                .filter(sub => {
-                  if (selectedCategoryFilter === "all") return true
-                  if (selectedCategoryFilter === "uncategorized") return !sub.category_id
-                  return sub.category_id === selectedCategoryFilter
-                })
+              {filteredSubjects
+                .filter(s => s.type === 'personal')
                 .map(sub => {
                   const subCategory = categories.find(c => c.id === sub.category_id)
                   return (

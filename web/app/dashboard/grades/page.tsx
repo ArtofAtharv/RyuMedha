@@ -56,13 +56,23 @@ export default function GradesPage() {
     setGrades(g || [])
 
     // Subjects for dropdown & cards - Fetch BOTH types
-    const { data: subs } = await supabase
+    const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type, label')
+      .select('id, name, color_hex, type, label, source_course_id(semester_id)')
       .eq('profile_id', pid)
       .eq('is_active', true)
       
-    setSubjects(subs || [])
+    const subs = rawSubs?.filter((s: any) => {
+      if (s.type === 'personal') return true
+      const semId = Array.isArray(s.source_course_id) 
+        ? s.source_course_id[0]?.semester_id 
+        : (s.source_course_id as any)?.semester_id
+      return semId === profile?.current_semester_id
+    }) || []
+    setSubjects(subs)
+
+    const validSubjectIds = new Set(subs.map((s: any) => s.id))
+    setGrades((g || []).filter((item: any) => validSubjectIds.has(item.subject_id)))
   }
 
   async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>) {

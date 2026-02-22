@@ -98,25 +98,40 @@ export default function TimersPage() {
       }
     }
 
-    // Recent history
-    const { data: past } = await supabase
+    // Recent    // History
+    const { data: hist } = await supabase
       .from('study_timers')
-      .select('*, subjects(name, type)')
+      .select('*, subjects(id, name, type, source_course_id(semester_id))')
       .eq('profile_id', pid)
       .not('ended_at', 'is', null)
       .order('ended_at', { ascending: false })
-      .limit(10)
-      
-    setHistory(past || [])
+      .limit(50)
 
-    // Subjects for dropdown
-    const { data: subs } = await supabase
+    // Subjects
+    const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, type')
+      .select('id, name, type, source_course_id(semester_id)')
       .eq('profile_id', pid)
       .eq('is_active', true)
-      
-    setSubjects(subs || [])
+      .order('name')
+
+    const subs = rawSubs?.filter((s: any) => {
+      if (s.type === 'personal') return true
+      const semId = Array.isArray(s.source_course_id) 
+        ? s.source_course_id[0]?.semester_id 
+        : (s.source_course_id as any)?.semester_id
+      return semId === profile?.current_semester_id
+    }) || []
+    setSubjects(subs)
+
+    const validSubjectIds = new Set(subs.map((s: any) => s.id))
+    setHistory((hist || []).filter((h: any) => validSubjectIds.has(h.subject_id)))
+
+    // Final check for active timer - if it's from another semester, we might want to hide it or keep it?
+    // Usually, an active timer should stay visible, but if the user switches semester, it's safer to filter it.
+    if (active && !validSubjectIds.has(active.subject_id)) {
+      setActiveTimer(null)
+    }
     if (subs && subs.length > 0 && !selectedSubject) {
       // Find the first subject that the user is actually allowed to see
       // Cannot reliably use profile context on first render inside fetching logic unless passed in

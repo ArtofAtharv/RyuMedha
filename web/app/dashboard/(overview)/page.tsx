@@ -41,7 +41,7 @@ export default async function DashboardPage() {
 
   // Fetch all dashboard data concurrently
   const [
-    { data: subjectsData },
+    { data: rawSubjectsData },
     { data: attendanceLogs },
     { data: pendingTasks },
     { data: timersData },
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase
       .from('subjects')
-      .select('id, name, color_hex, type, is_active, legacy_attended_lectures, legacy_missed_lectures, category_id, label, instructor_name')
+      .select('id, name, color_hex, type, is_active, legacy_attended_lectures, legacy_missed_lectures, category_id, label, instructor_name, source_course_id(semester_id)')
       .eq('is_active', true)
       .order('name'),
     supabase
@@ -78,8 +78,21 @@ export default async function DashboardPage() {
       .eq('profile_id', profile?.id)
   ])
 
+  // Filter subjects by the current academic hierarchy (Semester)
+  const subjectsData = rawSubjectsData?.filter((s: any) => {
+    if (s.type === 'personal') return true
+    
+    // Access semester_id from joined source_course_id (handling potential array from Supabase join types)
+    const semesterId = Array.isArray(s.source_course_id) 
+      ? s.source_course_id[0]?.semester_id 
+      : (s.source_course_id as any)?.semester_id
+
+    // If academic, it MUST belong to the current semester
+    return semesterId === profile?.current_semester_id
+  }) || []
+
   const categories = categoriesData || []
-  const hasSubjects = (subjectsData?.length || 0) > 0
+  const hasSubjects = (subjectsData.length || 0) > 0
 
   if (!hasSubjects) {
     return (

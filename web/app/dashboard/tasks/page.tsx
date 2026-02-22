@@ -85,13 +85,21 @@ export default function TasksPage() {
     if (!pid) return
     setLoading(true)
     
-    const { data: subs } = await supabase
+    const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type')
+      .select('id, name, color_hex, type, source_course_id(semester_id)')
       .eq('profile_id', pid)
       .eq('is_active', true)
       .order('name')
-    setSubjects(subs || [])
+
+    const subs = rawSubs?.filter((s: any) => {
+      if (s.type === 'personal') return true
+      const semId = Array.isArray(s.source_course_id) 
+        ? s.source_course_id[0]?.semester_id 
+        : (s.source_course_id as any)?.semester_id
+      return semId === profile?.current_semester_id
+    }) || []
+    setSubjects(subs)
 
     const { data: pending } = await supabase
       .from('tasks')
@@ -108,8 +116,10 @@ export default function TasksPage() {
       .order('completed_at', { ascending: false })
       .limit(10)
 
-    setTasks(pending || [])
-    setCompletedTasks(done || [])
+    const validSubjectIds = new Set(subs.map((s: any) => s.id))
+    
+    setTasks((pending || []).filter((t: any) => validSubjectIds.has(t.subject_id)))
+    setCompletedTasks((done || []).filter((t: any) => validSubjectIds.has(t.subject_id)))
     setLoading(false)
   }
 
