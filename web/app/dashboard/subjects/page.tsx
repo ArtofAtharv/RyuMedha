@@ -320,50 +320,67 @@ export default function SubjectsPage() {
               </div>
             )}
             
-            <div className="space-y-2 sm:col-span-4 lg:col-span-5">
+            <motion.div 
+              layout 
+              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-4' : 'lg:col-span-6'}`}
+            >
               <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Contract Law" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
-            </div>
+            </motion.div>
             
-            <div className="space-y-2 sm:col-span-4 lg:col-span-5">
+            <motion.div 
+              layout 
+              className={`space-y-2 sm:col-span-6 ${type === 'personal' ? 'lg:col-span-3' : 'lg:col-span-4'}`}
+            >
               <Label htmlFor="type" className="text-sm font-semibold text-muted-foreground">Type</Label>
               <div className="w-full">
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
-                  <SelectValue placeholder="Track type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {profile?.academics_enabled && (
-                    <SelectItem value="academic"><span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5"/> Academic</span></SelectItem>
-                  )}
-                  {profile?.personal_enabled && (
-                    <SelectItem value="personal"><span className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5"/> Personal</span></SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              </div>
-            </div>
-
-            {type === 'personal' && (
-              <div className="space-y-2 sm:col-span-4 lg:col-span-5">
-                <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
-                <div className="w-full">
-                <Select value={categoryId} onValueChange={setCategoryId}>
+                <Select value={type} onValueChange={setType}>
                   <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
-                    <SelectValue placeholder="No Category" />
+                    <SelectValue placeholder="Track type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Uncategorized</SelectItem>
-                    {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {profile?.academics_enabled && (
+                      <SelectItem value="academic"><span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5"/> Academic</span></SelectItem>
+                    )}
+                    {profile?.personal_enabled && (
+                      <SelectItem value="personal"><span className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5"/> Personal</span></SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
-                </div>
               </div>
-            )}
+            </motion.div>
 
-            <div className="space-y-2 sm:col-span-4 lg:col-span-5">
+            <AnimatePresence mode="popLayout">
+              {type === 'personal' && (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, x: 20 }}
+                  className="space-y-2 sm:col-span-6 lg:col-span-3"
+                >
+                  <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
+                  <div className="w-full">
+                    <Select value={categoryId} onValueChange={setCategoryId}>
+                      <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
+                        <SelectValue placeholder="No Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Uncategorized</SelectItem>
+                        {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <motion.div 
+              layout 
+              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-2' : 'lg:col-span-2'}`}
+            >
               <Button type="submit" className="w-full h-10 font-semibold shadow-sm">Add</Button>
-            </div>
+            </motion.div>
           </form>
         </CardContent>
       </Card>
