@@ -148,13 +148,35 @@ export default async function DashboardPage() {
     const total = totalPresent + totalAbsent + totalDeemed
     const pct = total > 0 ? ((totalPresent + totalDeemed) / total) * 100 : 0
 
+    // Advice calculations
+    const targetPct = profile?.target_attendance_pct || 75
+    let bunksLeft = undefined
+    let neededToRecover = undefined
+
+    if ((sub as any).expected_total_lectures > 0) {
+      const totalSemLectures = (sub as any).expected_total_lectures
+      const maxAllowedMisses = Math.floor(totalSemLectures * (1 - (targetPct / 100)))
+      const netAbsent = totalAbsent - totalDeemed
+      bunksLeft = maxAllowedMisses - netAbsent
+
+      if (bunksLeft < 0) {
+        const t = targetPct / 100
+        neededToRecover = Math.ceil((t * total - (totalPresent + totalDeemed)) / (1 - t))
+      }
+    } else if (pct < targetPct) {
+      const t = targetPct / 100
+      neededToRecover = Math.ceil((t * total - (totalPresent + totalDeemed)) / (1 - t))
+    }
+
     return {
       subject_id: sub.id,
       subject_name: sub.name,
       total_present: totalPresent,
       total_absent: totalAbsent,
       total_deemed: totalDeemed,
-      attendance_percentage: pct
+      attendance_percentage: pct,
+      bunks_left: bunksLeft,
+      needed_to_recover: neededToRecover
     }
   }).sort((a, b) => a.attendance_percentage - b.attendance_percentage) || []
 
@@ -219,6 +241,7 @@ export default async function DashboardPage() {
               overallAttendancePct,
               totalPresent,
               totalAbsent,
+              totalDeemed,
               academicGradePct,
               academicPendingTasks,
               academicStudyHours,

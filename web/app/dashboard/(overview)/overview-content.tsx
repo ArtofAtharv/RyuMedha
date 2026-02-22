@@ -46,7 +46,9 @@ export function OverviewContent({
                     <div className="gradient-accent-bar h-1.5 rounded-full transition-all" style={{width: `${academicOverviewData.overallAttendancePct}%`}} />
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mt-1">{academicOverviewData.totalPresent} out of {academicOverviewData.totalPresent + academicOverviewData.totalAbsent} classes present</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {academicOverviewData.totalPresent + (academicOverviewData.totalDeemed || 0)} out of {academicOverviewData.totalPresent + academicOverviewData.totalAbsent + (academicOverviewData.totalDeemed || 0)} attended
+                </p>
               </CardContent>
             </Card>
 

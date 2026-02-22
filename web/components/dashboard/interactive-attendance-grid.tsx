@@ -55,7 +55,9 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         total_present: sub.legacy_attended_lectures || 0,
         total_absent: sub.legacy_missed_lectures || 0,
         total_deemed: 0,
-        attendance_percentage: 0 // Will auto-calc if legacy vars exist, but 0 is safe start
+        attendance_percentage: 0,
+        bunks_left: sub.bunks_left, // Pass down from page logic
+        needed_to_recover: sub.needed_to_recover
       }
     })
   }, [data, subjectsInfo])
@@ -206,6 +208,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
               accentColor={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.color_hex ?? undefined}
               instructorName={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.instructor_name ?? undefined}
               label={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.label ?? undefined}
+              bunksLeft={item.bunks_left}
+              recommendedClasses={item.needed_to_recover}
               onLog={handleLogAttendance}
             />
           </motion.div>

@@ -13,6 +13,8 @@ interface AttendanceCardProps {
   accentColor?: string
   instructorName?: string
   label?: string
+  bunksLeft?: number
+  recommendedClasses?: number
   onLog?: (subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') => void
 }
 
@@ -36,6 +38,8 @@ export function AttendanceCard({
   accentColor,
   instructorName,
   label,
+  bunksLeft,
+  recommendedClasses,
   onLog,
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)
@@ -118,6 +122,24 @@ export function AttendanceCard({
               style={{ ...hexToGradient(accentColor || '#8b5cf6'), width: `${progress}%` }}
             />
           </div>
+
+          {(bunksLeft !== undefined || recommendedClasses !== undefined) && (
+            <div className="pt-1">
+              {bunksLeft !== undefined && bunksLeft >= 0 ? (
+                <p className="text-[10px] font-bold text-green-600 dark:text-green-400/90 uppercase tracking-tighter bg-green-500/5 px-2 py-0.5 rounded-md inline-block">
+                  ✨ Safe to bunk {bunksLeft} classes
+                </p>
+              ) : recommendedClasses !== undefined && recommendedClasses > 0 ? (
+                <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-0.5 rounded-md inline-block">
+                  🚨 Attend next {recommendedClasses} classes
+                </p>
+              ) : bunksLeft !== undefined && bunksLeft < 0 ? (
+                <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-0.5 rounded-md inline-block">
+                  🚨 Attendance below target
+                </p>
+              ) : null}
+            </div>
+          )}
 
           {/* Action Buttons */}
           {onLog && subjectId && (
