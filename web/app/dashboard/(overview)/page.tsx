@@ -200,13 +200,6 @@ export default async function DashboardPage() {
     <ProfileProvider profile={fullProfile}>
       <div className="min-h-screen bg-background text-foreground pb-20">
         <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-          <div>
-            <h1 className="text-3xl font-black">
-              Welcome back, <span className="gradient-accent-text">{displayName}</span>!
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">📱 {session.user.phone}</p>
-          </div>
-
           <OverviewContent 
             profile={profile as unknown as UserProfile}
             academicOverviewData={{

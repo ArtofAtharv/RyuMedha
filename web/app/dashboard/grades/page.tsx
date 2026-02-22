@@ -170,7 +170,7 @@ export default function GradesPage() {
                 {/* Academic Summary Card — first item in the grid */}
                 <Card className="gradient-accent text-white border-0 shadow-lg sm:col-span-2 lg:col-span-1">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5"/> Academic</CardTitle>
                     <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -212,7 +212,7 @@ export default function GradesPage() {
             {/* Personal Summary Card — first item in the grid */}
             <Card className="gradient-accent text-white border-0 shadow-sm sm:col-span-2 lg:col-span-1">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal</CardTitle>
+                <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5"/> Personal</CardTitle>
                 <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
               </CardHeader>
               <CardContent>
