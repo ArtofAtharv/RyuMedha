@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen, GraduationCap, Plus, Folder, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import { hexToGradient } from "@/lib/gradient"
 import Link from "next/link"
 import { AnimatePresence, motion } from "motion/react"
@@ -171,14 +172,17 @@ export default function SubjectsPage() {
         title: label,
         due_date: formatOutputDate(date),
         priority: 'high',
-        is_completed: false
+        is_completed: false,
+        is_exam: true
       }])
     
     if (error) {
       setErrorMsg(`Failed to add custom date: ${error.message}`)
+      toast.error("Failed to add exam date", { description: error.message })
     } else {
-      // Optional: Show some success toast or alert here if shadcn sonner/toast is installed
-      // For now it silently adds it and it will show up in the Tasks/Overview pages
+      toast.success("Exam Date Added", { 
+        description: `"${label}" has been added. You can see it in your Tasks tab under Upcoming Exams.` 
+      })
     }
   }
 

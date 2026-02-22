@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, Play, Square, History, Trash2 } from "lucide-react"
+import { Clock, Play, Square, Pause, History, Trash2 } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 
 export default function TimersPage() {
@@ -50,9 +50,20 @@ export default function TimersPage() {
   // Live counter for active timer
   useEffect(() => {
     if (!activeTimer) return
+    
+    // If paused, we don't need to increment elapsed live
+    if (activeTimer.pause_started_at) {
+      const start = new Date(activeTimer.started_at).getTime()
+      const pauseStart = new Date(activeTimer.pause_started_at).getTime()
+      const totalPauseSecs = activeTimer.total_pause_seconds || 0
+      setElapsed(Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
+      return
+    }
+
     const interval = setInterval(() => {
       const start = new Date(activeTimer.started_at).getTime()
-      setElapsed(Math.floor((Date.now() - start) / 1000))
+      const totalPauseSecs = activeTimer.total_pause_seconds || 0
+      setElapsed(Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
     }, 1000)
     return () => clearInterval(interval)
   }, [activeTimer])
@@ -70,7 +81,14 @@ export default function TimersPage() {
       
     setActiveTimer(active)
     if (active) {
-      setElapsed(Math.floor((Date.now() - new Date(active.started_at).getTime()) / 1000))
+      const start = new Date(active.started_at).getTime()
+      const totalPauseSecs = active.total_pause_seconds || 0
+      if (active.pause_started_at) {
+        const pauseStart = new Date(active.pause_started_at).getTime()
+        setElapsed(Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
+      } else {
+        setElapsed(Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+      }
     }
 
     // Recent history
@@ -111,11 +129,48 @@ export default function TimersPage() {
     fetchData(supabaseClient, profileId)
   }
 
-  async function stopTimer() {
-    if (!activeTimer) return
+  async function pauseTimer() {
+    if (!activeTimer || activeTimer.pause_started_at) return
     await supabaseClient
       .from('study_timers')
-      .update({ ended_at: new Date().toISOString() })
+      .update({ pause_started_at: new Date().toISOString() })
+      .eq('id', activeTimer.id)
+    fetchData(supabaseClient, profileId)
+  }
+
+  async function resumeTimer() {
+    if (!activeTimer || !activeTimer.pause_started_at) return
+    const pauseStart = new Date(activeTimer.pause_started_at).getTime()
+    const pauseDuration = Math.floor((Date.now() - pauseStart) / 1000)
+    const newTotalPause = (activeTimer.total_pause_seconds || 0) + pauseDuration
+
+    await supabaseClient
+      .from('study_timers')
+      .update({ 
+        pause_started_at: null,
+        total_pause_seconds: newTotalPause
+      })
+      .eq('id', activeTimer.id)
+    fetchData(supabaseClient, profileId)
+  }
+
+  async function stopTimer() {
+    if (!activeTimer) return
+
+    // If it was paused when stopped, we need to finalize the total pause time
+    let finalPauseSecs = activeTimer.total_pause_seconds || 0
+    if (activeTimer.pause_started_at) {
+      const pauseStart = new Date(activeTimer.pause_started_at).getTime()
+      finalPauseSecs += Math.floor((Date.now() - pauseStart) / 1000)
+    }
+
+    await supabaseClient
+      .from('study_timers')
+      .update({ 
+        ended_at: new Date().toISOString(),
+        pause_started_at: null,
+        total_pause_seconds: finalPauseSecs
+      })
       .eq('id', activeTimer.id)
     
     setActiveTimer(null)
@@ -198,12 +253,25 @@ export default function TimersPage() {
             {activeTimer ? (
               <div className="text-center py-6 space-y-4">
                 <p className="text-lg font-medium text-muted-foreground">{activeTimer.subjects?.name}</p>
-                <div className="text-5xl font-mono font-black text-primary tracking-tighter">
+                <div className={`text-5xl font-mono font-black tracking-tighter transition-colors duration-500 ${activeTimer.pause_started_at ? 'text-orange-500' : 'text-primary'}`}>
                   {formatTime(elapsed)}
                 </div>
-                <Button onClick={stopTimer} variant="destructive" size="lg" className="w-full sm:w-auto gap-2">
-                  <Square className="fill-current w-4 h-4"/> Stop Timer
-                </Button>
+                {activeTimer.pause_started_at && <p className="text-sm text-orange-500/80 font-bold uppercase tracking-widest animate-pulse">Paused</p>}
+                
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
+                  {activeTimer.pause_started_at ? (
+                    <Button onClick={resumeTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 border-primary text-primary hover:bg-primary/10">
+                      <Play className="fill-current w-4 h-4"/> Resume
+                    </Button>
+                  ) : (
+                    <Button onClick={pauseTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 border-orange-500 text-orange-500 hover:bg-orange-500/10">
+                      <Pause className="fill-current w-4 h-4"/> Pause
+                    </Button>
+                  )}
+                  <Button onClick={stopTimer} variant="destructive" size="lg" className="w-full sm:w-auto gap-2">
+                    <Square className="fill-current w-4 h-4"/> Stop Timer
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -244,16 +312,23 @@ export default function TimersPage() {
                                (h.subjects.type === 'academic' && profile?.academics_enabled) || 
                                (h.subjects.type === 'personal' && profile?.personal_enabled))
                   .map(h => (
-                    <div key={h.id} className="flex justify-between items-center p-3 border rounded-lg bg-card">
+                    <div key={h.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded-lg bg-card gap-3">
                       <div>
                         <p className="font-semibold">{h.subjects?.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(h.started_at).toLocaleDateString()}
-                        </p>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                          <span>{new Date(h.started_at).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{new Date(h.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                        {h.total_pause_seconds > 0 && (
+                          <p className="text-[10px] text-orange-500 font-medium mt-0.5 border border-orange-500/30 bg-orange-500/5 px-1.5 py-0.5 rounded-sm inline-block">
+                            Includes {Math.floor(h.total_pause_seconds / 60)}m paused time
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium">
-                          {Math.floor(h.duration_seconds / 60)} mins
+                      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+                        <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium border border-border/50">
+                          {formatTime(Math.max(0, h.duration_seconds - (h.total_pause_seconds || 0)))}
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0">
                           <Trash2 className="w-4 h-4"/>
