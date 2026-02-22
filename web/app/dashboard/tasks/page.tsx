@@ -12,8 +12,9 @@ import { CircleCheck, Clock, Trash2, Plus, Bell, Target, Calendar as CalIcon } f
 import { motion, AnimatePresence } from "motion/react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useProfile } from '@/components/dashboard/profile-context'
-import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { format, parseISO } from "date-fns"
 
 const pColors = {
@@ -290,23 +291,11 @@ export default function TasksPage() {
                 
                 <div className="space-y-1.5 w-full sm:w-[180px]">
                   <Label htmlFor="duedate" className="text-sm font-semibold text-muted-foreground flex items-center gap-1"><CalIcon className="w-3.5 h-3.5"/> Due Date</Label>
-                  <Popover open={isAddDatePickerOpen} onOpenChange={setIsAddDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={`w-full justify-start text-left font-normal h-10 bg-background shadow-sm border-muted-foreground/20 ${!dueDate && "text-muted-foreground"}`}>
-                        <CalIcon className="mr-2 h-4 w-4 shrink-0" />
-                        {dueDate ? format(new Date(dueDate), "MMM dd, yyyy") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-50" align="start">
-                      <DateRangePicker 
-                        mode="single" 
-                        onSelect={(date) => { 
-                          setDueDate((date as Date).toISOString())
-                          setIsAddDatePickerOpen(false) 
-                        }} 
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DatePicker
+                    date={dueDate ? new Date(dueDate) : undefined}
+                    setDate={(d) => setDueDate(d ? d.toISOString() : "")}
+                    className="w-full bg-background shadow-sm border-muted-foreground/20 h-10"
+                  />
                 </div>
 
                 <div className="flex-1 flex flex-col sm:flex-row w-full justify-start sm:justify-end items-stretch sm:items-center gap-2 mb-0.5 mt-2 sm:mt-0">
@@ -547,23 +536,11 @@ function TaskRow({
                     <SelectItem value="low">Low</SelectItem>
                   </SelectContent>
                 </Select>
-                <Popover open={isEditDatePickerOpen} onOpenChange={setIsEditDatePickerOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={`w-[140px] justify-start text-left font-normal h-9 px-3 ${!editDueDate && "text-muted-foreground"}`}>
-                      <CalIcon className="mr-2 h-3.5 w-3.5 shrink-0" />
-                      {editDueDate ? format(editDueDate, "MMM dd, yyyy") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-50" align="start">
-                    <DateRangePicker 
-                      mode="single" 
-                      onSelect={(date) => { 
-                        setEditDueDate(date as Date)
-                        setIsEditDatePickerOpen(false) 
-                      }} 
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DatePicker
+                  date={editDueDate ? new Date(editDueDate) : undefined}
+                  setDate={(d) => setEditDueDate(d ? d.toISOString() : null)}
+                  className="w-[140px] h-9 px-3"
+                />
               </div>
               
               <div className="flex gap-2 w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0 items-end">

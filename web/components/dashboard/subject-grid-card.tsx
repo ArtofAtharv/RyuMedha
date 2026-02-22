@@ -6,8 +6,9 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Calendar as CalIcon, X, Plus } from "lucide-react"
 // Helper function locally re-implemented since we're pulling this out of the main page
 function hexToGradient(hex: string) {
@@ -132,23 +133,11 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold text-muted-foreground">Select Date</Label>
-                  <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className={`w-full justify-start text-left font-normal ${!examDate && "text-muted-foreground"}`}>
-                        <CalIcon className="mr-2 h-4 w-4" />
-                        {examDate ? examDate.toLocaleDateString() : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0 z-[110]" align="start">
-                      <DateRangePicker 
-                        mode="single" 
-                        onSelect={(date) => { 
-                          setExamDate(date as Date)
-                          setIsDatePickerOpen(false) 
-                        }} 
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DatePicker
+                    date={examDate || undefined}
+                    setDate={(d) => setExamDate(d as Date)}
+                    className="w-full text-foreground/80 h-10 border-muted"
+                  />
                 </div>
               </div>
 
