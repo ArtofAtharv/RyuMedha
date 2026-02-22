@@ -434,7 +434,7 @@ export default function SetupPage() {
                           else setSelectedUniId(val)
                         }}
                       >
-                        <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                        <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
                           <SelectValue placeholder="Select university..." />
                         </SelectTrigger>
                         <SelectContent>
@@ -494,7 +494,7 @@ export default function SetupPage() {
                       }} 
                       disabled={!selectedUniId}
                     >
-                      <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                      <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
                         <SelectValue placeholder={selectedUniId ? "Select program..." : "← Select uni first"} />
                       </SelectTrigger>
                       <SelectContent>
@@ -524,7 +524,7 @@ export default function SetupPage() {
                 </div>
 
                 {/* SEMESTER & TARGET */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols gap-4">
                   <div className="space-y-2">
                     <Label className="font-bold data-[enabled=false]:opacity-50" data-enabled={!!selectedProgId}>Semester</Label>
                     
@@ -558,7 +558,7 @@ export default function SetupPage() {
                         }} 
                         disabled={!selectedProgId}
                       >
-                        <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                        <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
@@ -586,7 +586,7 @@ export default function SetupPage() {
                       </Select>
                     )}
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-2 ">
                     <Label className="font-bold flex items-center gap-2">
                       <Target className="w-4 h-4 text-muted-foreground" /> Goal
                     </Label>
@@ -647,7 +647,7 @@ export default function SetupPage() {
                 <div className="space-y-2">
                   <Label className="font-bold">Track</Label>
                   <Select value={firstSubjectType} onValueChange={(v: any) => setFirstSubjectType(v)}>
-                    <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                    <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -692,7 +692,7 @@ function TrackOption({ icon, label, selected, onClick }: { icon: any, label: str
       onClick={onClick}
       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 group ${selected ? 'border-primary bg-primary/5 shadow-inner' : 'border-border/50 bg-background hover:bg-muted/50'}`}
     >
-      <div className={`p-2 rounded-xl transition-all ${selected ? 'bg-primary text-white scale-110' : 'bg-muted text-muted-foreground group-hover:scale-105'}`}>
+      <div className={`p-2 rounded-xl transition-all ${selected ? 'gradient-accent shadow-lg shadow-primary/20 text-white scale-110' : 'bg-muted text-muted-foreground group-hover:scale-105'}`}>
         {icon}
       </div>
       <span className={`text-xs font-bold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>

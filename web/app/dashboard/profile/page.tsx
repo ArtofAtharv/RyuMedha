@@ -8,8 +8,12 @@ import { motion, AnimatePresence } from "motion/react"
 import { 
   User, Phone, GraduationCap, Target, BookOpen, 
   Pencil, Check, X, Loader2, Shield,
-  School, FolderOpen, AlertTriangle, Trash2
+  School, FolderOpen, AlertTriangle, Trash2, Plus
 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -34,6 +38,19 @@ export default function ProfilePage() {
   const [editValue, setEditValue] = useState("")
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // Dynamic Management state
+  const [isAddingUni, setIsAddingUni] = useState(false)
+  const [newUniName, setNewUniName] = useState("")
+  
+  const [isAddingProg, setIsAddingProg] = useState(false)
+  const [newProgName, setNewProgName] = useState("")
+
+  const [isAddingSem, setIsAddingSem] = useState(false)
+  const [newSemName, setNewSemName] = useState("")
+  const [newSemNumber, setNewSemNumber] = useState("")
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -217,6 +234,123 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: '/login' })
   }
 
+  // Institutional Management Functions
+  async function handleCreateUni() {
+    if (!newUniName.trim() || !supabaseClient) return
+    setIsSubmitting(true)
+    const { data, error } = await supabaseClient.from('universities').insert([{ name: newUniName.trim() }]).select().single()
+    setIsSubmitting(false)
+    if (error) {
+      toast.error("Failed to add university")
+    } else {
+      setUniversities(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      handleRelationalChange('current_university_id', data.id)
+      setIsAddingUni(false)
+      setNewUniName("")
+      toast.success("University added!")
+    }
+  }
+
+  async function handleDeleteUni(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    if (!supabaseClient) return
+    if (!confirm("Are you sure? This will remove the university for everyone.")) return
+    
+    setIsSubmitting(true)
+    const { error } = await supabaseClient.from('universities').delete().eq('id', id)
+    setIsSubmitting(false)
+    
+    if (error) {
+      toast.error("Cannot delete university (likely has linked programs)")
+    } else {
+      setUniversities(prev => prev.filter(u => u.id !== id))
+      if (profile?.current_university_id === id) {
+        handleRelationalChange('current_university_id', "")
+      }
+      toast.success("University removed")
+    }
+  }
+
+  async function handleCreateProg() {
+    if (!newProgName.trim() || !profile?.current_university_id || !supabaseClient) return
+    setIsSubmitting(true)
+    const { data, error } = await supabaseClient.from('programs').insert([{ 
+      name: newProgName.trim(), 
+      university_id: profile.current_university_id 
+    }]).select().single()
+    setIsSubmitting(false)
+    if (error) {
+      toast.error("Failed to add program")
+    } else {
+      setPrograms(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      handleRelationalChange('current_program_id', data.id)
+      setIsAddingProg(false)
+      setNewProgName("")
+      toast.success("Program added!")
+    }
+  }
+
+  async function handleDeleteProg(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    if (!supabaseClient) return
+    if (!confirm("Remove this program?")) return
+    
+    setIsSubmitting(true)
+    const { error } = await supabaseClient.from('programs').delete().eq('id', id)
+    setIsSubmitting(false)
+    
+    if (error) {
+      toast.error("Cannot delete program (has linked semesters)")
+    } else {
+      setPrograms(prev => prev.filter(p => p.id !== id))
+      if (profile?.current_program_id === id) {
+        handleRelationalChange('current_program_id', "")
+      }
+      toast.success("Program removed")
+    }
+  }
+
+  async function handleCreateSem() {
+    if (!newSemName.trim() || !profile?.current_program_id || !supabaseClient) return
+    setIsSubmitting(true)
+    const { data, error } = await supabaseClient.from('semesters').insert([{ 
+      name: newSemName.trim(), 
+      semester_number: parseInt(newSemNumber) || 1,
+      program_id: profile.current_program_id 
+    }]).select().single()
+    setIsSubmitting(false)
+    if (error) {
+      toast.error("Failed to add semester")
+    } else {
+      setSemesters(prev => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
+      handleRelationalChange('current_semester_id', data.id)
+      setIsAddingSem(false)
+      setNewSemName("")
+      setNewSemNumber("")
+      toast.success("Semester added!")
+    }
+  }
+
+  async function handleDeleteSem(e: React.MouseEvent, id: string) {
+    e.stopPropagation()
+    if (!supabaseClient) return
+    if (!confirm("Remove this semester?")) return
+    
+    setIsSubmitting(true)
+    const { error } = await supabaseClient.from('semesters').delete().eq('id', id)
+    setIsSubmitting(false)
+    
+    if (error) {
+      toast.error("Cannot delete semester")
+    } else {
+      setSemesters(prev => prev.filter(s => s.id !== id))
+      if (profile?.current_semester_id === id) {
+        handleRelationalChange('current_semester_id', "")
+      }
+      toast.success("Semester removed")
+    }
+  }
+
   // Compile academic summary for the hero card (must be before early returns)
   const academicSummary = useMemo(() => {
     const parts = [uniName, progName, semName].filter(p => p && p !== "Not Set")
@@ -361,13 +495,18 @@ export default function ProfilePage() {
               label="University"
               value={uniName}
               options={universities}
-              isEditing={editField === "current_university_id"}
               currentId={profile.current_university_id}
               saving={saving}
-              onEdit={() => setEditField("current_university_id")}
-              onCancel={cancelEdit}
+              isAdding={isAddingUni}
+              onSetIsAdding={setIsAddingUni}
+              newName={newUniName}
+              onNewNameChange={setNewUniName}
+              onCreate={handleCreateUni}
+              onDelete={handleDeleteUni}
               onChange={(newId) => handleRelationalChange("current_university_id", newId)}
               placeholder="Select your university..."
+              addLabel="Add New University"
+              addValue="ADD_NEW_UNI"
             />
 
             {/* Program Selection Dropdown */}
@@ -376,15 +515,20 @@ export default function ProfilePage() {
               label="Degree Program"
               value={progName}
               options={programs}
-              isEditing={editField === "current_program_id"}
               currentId={profile.current_program_id}
               saving={saving}
-              onEdit={() => setEditField("current_program_id")}
-              onCancel={cancelEdit}
+              isAdding={isAddingProg}
+              onSetIsAdding={setIsAddingProg}
+              newName={newProgName}
+              onNewNameChange={setNewProgName}
+              onCreate={handleCreateProg}
+              onDelete={handleDeleteProg}
               onChange={(newId) => handleRelationalChange("current_program_id", newId)}
               disabled={!profile.current_university_id}
               disabledMessage="Select a university first"
               placeholder="Select your program..."
+              addLabel="Add New Program"
+              addValue="ADD_NEW_PROG"
             />
 
             {/* Semester Selection Dropdown */}
@@ -393,15 +537,23 @@ export default function ProfilePage() {
               label="Current Semester"
               value={semName}
               options={semesters}
-              isEditing={editField === "current_semester_id"}
               currentId={profile.current_semester_id}
               saving={saving}
-              onEdit={() => setEditField("current_semester_id")}
-              onCancel={cancelEdit}
+              isAdding={isAddingSem}
+              onSetIsAdding={setIsAddingSem}
+              newName={newSemName}
+              onNewNameChange={setNewSemName}
+              newNumber={newSemNumber}
+              onNewNumberChange={setNewSemNumber}
+              onCreate={handleCreateSem}
+              onDelete={handleDeleteSem}
               onChange={(newId) => handleRelationalChange("current_semester_id", newId)}
               disabled={!profile.current_program_id}
               disabledMessage="Select a program first"
               placeholder="Select your semester..."
+              addLabel="Add New Semester"
+              addValue="ADD_NEW_SEM"
+              isSemester
             />
 
             {/* Target Attendance */}
@@ -574,22 +726,32 @@ function ProfileRow({
 
 /* ─── Reusable Dropdown Row (Relational FKs) ─── */
 function DropdownRow({
-  icon, label, value, options, isEditing, currentId, saving,
-  onEdit, onCancel, onChange, disabled, disabledMessage, placeholder
+  icon, label, value, options, currentId, saving,
+  onChange, disabled, disabledMessage, placeholder,
+  isAdding, onSetIsAdding, newName, onNewNameChange, onCreate, onDelete,
+  addLabel, addValue, isSemester, newNumber, onNewNumberChange
 }: {
   icon: React.ReactNode
   label: string
   value: string
   options: any[]
-  isEditing: boolean
   currentId: string | null
   saving: boolean
-  onEdit: () => void
-  onCancel: () => void
   onChange: (id: string) => void
   disabled?: boolean
   disabledMessage?: string
   placeholder?: string
+  isAdding: boolean
+  onSetIsAdding: (v: boolean) => void
+  newName: string
+  onNewNameChange: (v: string) => void
+  onCreate: () => void
+  onDelete: (e: React.MouseEvent, id: string) => void
+  addLabel: string
+  addValue: string
+  isSemester?: boolean
+  newNumber?: string
+  onNewNumberChange?: (v: string) => void
 }) {
   return (
     <div className="px-5 py-4 flex items-center gap-4">
@@ -603,34 +765,52 @@ function DropdownRow({
             <motion.div key="disabled" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-1">
               <p className="text-sm text-muted-foreground italic">{disabledMessage}</p>
             </motion.div>
-          ) : isEditing ? (
+          ) : isAdding ? (
             <motion.div
-              key="edit"
+              key="adding"
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="flex items-center gap-2 mt-1"
+              className="mt-1"
             >
-              <select
-                value={currentId || ""}
-                onChange={e => onChange(e.target.value)}
-                disabled={saving}
-                autoFocus
-                className="h-8 px-2 rounded-lg bg-muted border text-sm font-medium w-full max-w-[250px] outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-              >
-                <option value="">{placeholder || "Select..."}</option>
-                {options.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.name}</option>
-                ))}
-              </select>
-              {saving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
-              {!saving && (
-                <button
-                  onClick={onCancel}
-                  className="w-8 h-8 rounded-lg bg-muted border text-muted-foreground flex items-center justify-center shrink-0 hover:bg-muted/80 transition-colors shadow-sm"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+              {isSemester ? (
+                <div className="flex flex-col gap-2 p-2 bg-muted/30 rounded-lg border border-primary/20 animate-in zoom-in-95">
+                  <Input 
+                    autoFocus
+                    placeholder="Name (e.g. Sem 1)" 
+                    className="h-8 text-xs px-2"
+                    value={newName}
+                    onChange={(e) => onNewNameChange(e.target.value)}
+                  />
+                  <div className="flex gap-2">
+                    <Input 
+                      type="number"
+                      placeholder="#" 
+                      className="h-8 w-16 text-xs px-2"
+                      value={newNumber}
+                      onChange={(e) => onNewNumberChange?.(e.target.value)}
+                    />
+                    <Button size="sm" className="h-8 flex-1 text-xs" onClick={onCreate}>Save</Button>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => onSetIsAdding(false)}><X className="w-3.5 h-3.5" /></Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2 animate-in slide-in-from-top-1 duration-200">
+                  <Input 
+                    autoFocus
+                    placeholder={placeholder} 
+                    className="h-10 bg-background"
+                    value={newName}
+                    onChange={(e) => onNewNameChange(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && onCreate()}
+                  />
+                  <Button size="icon" className="h-10 w-10 shrink-0" onClick={onCreate}>
+                    <Check className="w-4 h-4" />
+                  </Button>
+                  <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => onSetIsAdding(false)}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
               )}
             </motion.div>
           ) : (
@@ -638,15 +818,39 @@ function DropdownRow({
               key="display"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-2 group mt-1"
+              className="mt-1"
             >
-              <p className="font-medium text-sm">{value}</p>
-              <button
-                onClick={onEdit}
-                className="w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted"
+              <Select 
+                value={currentId || ""} 
+                onValueChange={(val) => {
+                  if (val === addValue) onSetIsAdding(true)
+                  else onChange(val)
+                }}
               >
-                <Pencil className="w-3 h-3 text-muted-foreground" />
-              </button>
+                <SelectTrigger className="h-10 w-full bg-background border-muted-foreground/10 text-sm font-medium">
+                  <SelectValue placeholder={placeholder || "Select..."} />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map(opt => (
+                    <div key={opt.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
+                      <SelectItem value={opt.id} className="flex-1">{opt.name}</SelectItem>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => onDelete(e, opt.id)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="border-t mt-1 pt-1">
+                    <SelectItem value={addValue} className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
+                      <span className="flex items-center gap-2 font-black"><Plus className="w-4 h-4" /> {addLabel}</span>
+                    </SelectItem>
+                  </div>
+                </SelectContent>
+              </Select>
             </motion.div>
           )}
         </AnimatePresence>
