@@ -54,12 +54,13 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         subject_name: sub.name,
         total_present: sub.legacy_attended_lectures || 0,
         total_absent: sub.legacy_missed_lectures || 0,
+        total_deemed: 0,
         attendance_percentage: 0 // Will auto-calc if legacy vars exist, but 0 is safe start
       }
     })
   }, [data, subjectsInfo])
 
-  async function handleLogAttendance(subjectId: string, action: 'present'|'absent'|'undo_present'|'undo_absent') {
+  async function handleLogAttendance(subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') {
     if (isUpdating || !subjectId) return
     setIsUpdating(true)
 
@@ -73,18 +74,21 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
       const updateRow = (item: any) => {
         let newPresent = item.total_present
         let newAbsent = item.total_absent
+        let newDeemed = item.total_deemed ?? 0
 
         if (isUndo) {
           if (targetStatus === 'present' && newPresent > 0) newPresent -= 1
           if (targetStatus === 'absent' && newAbsent > 0) newAbsent -= 1
+          if (targetStatus === 'deemed' && newDeemed > 0) newDeemed -= 1
         } else {
           if (targetStatus === 'present') newPresent += 1
           if (targetStatus === 'absent') newAbsent += 1
+          if (targetStatus === 'deemed') newDeemed += 1
         }
 
-        const total = newPresent + newAbsent
-        const newPct = total > 0 ? (newPresent / total) * 100 : 0
-        return { ...item, total_present: newPresent, total_absent: newAbsent, attendance_percentage: newPct }
+        const total = newPresent + newAbsent + newDeemed
+        const newPct = total > 0 ? ((newPresent + newDeemed) / total) * 100 : 0
+        return { ...item, total_present: newPresent, total_absent: newAbsent, total_deemed: newDeemed, attendance_percentage: newPct }
       }
 
       if (exists) {
@@ -98,6 +102,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
           subject_name: sub.name,
           total_present: sub.legacy_attended_lectures || 0,
           total_absent: sub.legacy_missed_lectures || 0,
+          total_deemed: 0,
           attendance_percentage: 0
         }
         return [...prev, updateRow(synthesized)]
@@ -180,13 +185,13 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        className="grid grid-cols-1 lg:grid-cols-2 gap-4"
       >
       {mergedData.map((item: any, idx: number) => {
         // Calculate percentage dynamically here if it was 0 from synthesis
         let pct = item.attendance_percentage
-        if (pct === 0 && (item.total_present > 0 || item.total_absent > 0)) {
-           pct = (item.total_present / (item.total_present + item.total_absent)) * 100
+        if (pct === 0 && (item.total_present > 0 || item.total_absent > 0 || item.total_deemed > 0)) {
+           pct = ((item.total_present + (item.total_deemed || 0)) / (item.total_present + item.total_absent + (item.total_deemed || 0))) * 100
         }
 
         return (
@@ -196,6 +201,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
               subjectName={item.subject_name}
               present={item.total_present}
               absent={item.total_absent}
+              deemed={item.total_deemed || 0}
               percentage={pct}
               accentColor={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.color_hex ?? undefined}
               instructorName={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.instructor_name ?? undefined}

@@ -1,20 +1,29 @@
 "use client"
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle2, XCircle, User, FolderOpen } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { CheckCircle2, XCircle, User, FolderOpen, BookOpen, Fingerprint } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { cn } from '@/lib/utils'
-import { getAccentGradient, getBarGradient } from '@/lib/gradient'
 
 interface AttendanceCardProps {
   subjectId?: string
   subjectName: string
   present: number
   absent: number
+  deemed: number
   percentage: number
   accentColor?: string
   instructorName?: string
   label?: string
-  onLog?: (subjectId: string, action: 'present'|'absent'|'undo_present'|'undo_absent') => void
+  onLog?: (subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') => void
+}
+
+function hexToGradient(hex: string) {
+  if (!hex) return {}
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return {
+    background: `linear-gradient(135deg, ${hex}, rgba(${r},${g},${b},0.6))`
+  }
 }
 
 export function AttendanceCard({
@@ -22,6 +31,7 @@ export function AttendanceCard({
   subjectName,
   present,
   absent,
+  deemed,
   percentage,
   accentColor,
   instructorName,
@@ -42,106 +52,127 @@ export function AttendanceCard({
         ? 'text-yellow-500 dark:text-yellow-400'
         : 'text-destructive'
 
-  // Corner & progress bar: hex → gradient, or theme gradient fallback
-  const corner = getAccentGradient(accentColor)
-  const bar = getBarGradient(accentColor)
-
   return (
-    <Card className="overflow-hidden">
-      {/* Corner accent — hex gradient or theme gradient */}
-      <div
-        className={cn("h-10 w-25 -mt-15 -rotate-45 -translate-x-1/2 translate-y-1/2 rounded-full", corner.className)}
-        style={corner.style}
-      />
+    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 shadow-sm bg-card flex flex-col h-full">
+      {/* Top Subtle Gradient Bar */}
+      <div className="h-1.5 w-full absolute top-0 left-0" style={hexToGradient(accentColor || '#8b5cf6')} />
+      
+      <CardContent className="p-5 pt-6 flex flex-col flex-1">
+        <div className="flex justify-between items-start mb-4">
+          {/* Badge / Code */}
+          <div>
+            <div 
+              className="text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider uppercase inline-flex items-center gap-1.5"
+              style={{
+                backgroundColor: `${accentColor || '#8b5cf6'}1A`, 
+                color: accentColor || '#8b5cf6',
+                border: `1px solid ${accentColor || '#8b5cf6'}33`
+              }}
+            >
+              <BookOpen className="w-3 h-3" /> Academic
+            </div>
+          </div>
+        </div>
 
-      <CardHeader className="pb-2 flex-row items-center space-y-0">
-        <div className="flex flex-col w-full gap-1">
-          <div className="flex items-start justify-between gap-2 w-full">
-            <CardTitle className="text-base font-bold leading-tight line-clamp-2">
-              {subjectName}
-            </CardTitle>
-            <span className={cn('text-xl font-black shrink-0', healthClass)}>
-              {pct}%
+        <div className="flex items-start justify-between gap-2 w-full mb-1">
+          <h3 className="text-xl font-black text-foreground leading-tight tracking-tight line-clamp-2">
+            {subjectName}
+          </h3>
+          <span className={`text-2xl font-black shrink-0 ${healthClass}`}>
+            {Math.round(pct)}%
+          </span>
+        </div>
+        
+        {/* Meta Row */}
+        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-4 flex-1">
+          {instructorName ? (
+            <>
+              <User className="w-4 h-4 opacity-70 shrink-0" />
+              <span className="truncate">{instructorName}</span>
+            </>
+          ) : (
+             <span className="truncate opacity-70">No Instructor set</span>
+          )}
+        </div>
+
+        {/* Attendance Stats bar */}
+        <div className="space-y-3 mt-auto">
+          <div className="flex justify-between text-sm font-medium text-muted-foreground">
+            <span className="flex items-center gap-1 text-green-600/80 dark:text-green-400/80">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {present} Pres
+            </span>
+            <span className="flex items-center gap-1 text-destructive/80">
+              <XCircle className="h-3.5 w-3.5" />
+              {absent} Abs
+            </span>
+            <span className="flex items-center gap-1 text-blue-600/80 dark:text-blue-400/80">
+              <Fingerprint className="h-3.5 w-3.5" />
+              {deemed} Deem
             </span>
           </div>
-          
-          {/* Meta Row: Instructor & Label if present */}
-          {(instructorName || label) && (
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mt-0.5">
-              {instructorName && (
-                <span className="flex items-center gap-1 opacity-80 shrink-0">
-                  <User className="h-3 w-3" />
-                  <span className="truncate max-w-[120px]">{instructorName}</span>
-                </span>
-              )}
-              {instructorName && label && <span className="opacity-30">•</span>}
-              {label && (
-                <span className="flex items-center gap-1 opacity-80 shrink-0 truncate">
-                  <FolderOpen className="h-3 w-3" />
-                  <span className="truncate">{label}</span>
-                </span>
-              )}
+
+          <div className="h-1.5 w-full rounded-full overflow-hidden bg-muted">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ ...hexToGradient(accentColor || '#8b5cf6'), width: `${progress}%` }}
+            />
+          </div>
+
+          {/* Action Buttons */}
+          {onLog && subjectId && (
+            <div className="flex gap-1.5 pt-3">
+              <div className="flex flex-1 rounded-lg overflow-hidden border border-green-500/20">
+                <button
+                  onClick={() => onLog(subjectId, 'present')}
+                  className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
+                  title="Mark Present"
+                >
+                  Present
+                </button>
+                <button
+                  onClick={() => onLog(subjectId, 'undo_present')}
+                  className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30 transition-colors border-l border-green-500/20"
+                  title="Undo Present"
+                >
+                  -
+                </button>
+              </div>
+              <div className="flex flex-1 rounded-lg overflow-hidden border border-red-500/20">
+                <button
+                  onClick={() => onLog(subjectId, 'absent')}
+                  className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
+                  title="Mark Absent"
+                >
+                  Absent
+                </button>
+                <button
+                  onClick={() => onLog(subjectId, 'undo_absent')}
+                  className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/30 transition-colors border-l border-red-500/20"
+                  title="Undo Absent"
+                >
+                  -
+                </button>
+              </div>
+              <div className="flex flex-1 rounded-lg overflow-hidden border border-blue-500/20">
+                <button
+                  onClick={() => onLog(subjectId, 'deemed')}
+                  className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors"
+                  title="Mark Deemed"
+                >
+                  Deemed
+                </button>
+                <button
+                  onClick={() => onLog(subjectId, 'undo_deemed')}
+                  className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500/30 transition-colors border-l border-blue-500/20"
+                  title="Undo Deemed"
+                >
+                  -
+                </button>
+              </div>
             </div>
           )}
         </div>
-      </CardHeader>
-
-      <CardContent className="space-y-3">
-        {/* Progress bar — hex gradient or theme gradient */}
-        <div className="h-2 w-full rounded-full overflow-hidden bg-muted">
-          <div
-            className={cn("h-full rounded-full transition-all duration-500", bar.className)}
-            style={{ ...bar.style, width: `${progress}%` }}
-          />
-        </div>
-
-        <div className="flex justify-between text-sm text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-            {present} present
-          </span>
-          <span className="flex items-center gap-1">
-            <XCircle className="h-3.5 w-3.5 text-destructive" />
-            {absent} absent
-          </span>
-        </div>
-
-        {onLog && subjectId && (
-          <div className="flex gap-2 pt-2 border-t mt-2">
-            <div className="flex flex-1 rounded overflow-hidden">
-              <button
-                onClick={() => onLog(subjectId, 'present')}
-                className="flex-1 py-1 text-[11px] uppercase tracking-wider font-bold bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
-                title="Mark Present"
-              >
-                + Present
-              </button>
-              <button
-                onClick={() => onLog(subjectId, 'undo_present')}
-                className="px-2 py-1 text-xs font-bold bg-green-500/20 text-green-600 hover:bg-green-500/30 transition-colors border-l border-green-500/10"
-                title="Undo Present"
-              >
-                -
-              </button>
-            </div>
-            <div className="flex flex-1 rounded overflow-hidden">
-              <button
-                onClick={() => onLog(subjectId, 'absent')}
-                className="flex-1 py-1 text-[11px] uppercase tracking-wider font-bold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
-                title="Mark Absent"
-              >
-                + Absent
-              </button>
-              <button
-                onClick={() => onLog(subjectId, 'undo_absent')}
-                className="px-2 py-1 text-xs font-bold bg-red-500/20 text-red-600 hover:bg-red-500/30 transition-colors border-l border-red-500/10"
-                title="Undo Absent"
-              >
-                -
-              </button>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   )

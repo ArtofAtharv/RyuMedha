@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target } from 'lucide-react'
 import { format } from 'date-fns'
 import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-context'
-import { OverviewContent } from './overview-content'
+import { OverviewContent } from "./overview-content"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
@@ -85,17 +85,20 @@ export default async function DashboardPage() {
     const subjectLogs = attendanceLogs?.filter(log => log.subject_id === sub.id) || []
     const logPresent = subjectLogs.filter(log => log.status === 'present').length
     const logAbsent = subjectLogs.filter(log => log.status === 'absent').length
+    const logDeemed = subjectLogs.filter(log => log.status === 'deemed').length
 
     const totalPresent = logPresent + (sub.legacy_attended_lectures || 0)
     const totalAbsent = logAbsent + (sub.legacy_missed_lectures || 0)
-    const total = totalPresent + totalAbsent
-    const pct = total > 0 ? (totalPresent / total) * 100 : 0
+    const totalDeemed = logDeemed
+    const total = totalPresent + totalAbsent + totalDeemed
+    const pct = total > 0 ? ((totalPresent + totalDeemed) / total) * 100 : 0
 
     return {
       subject_id: sub.id,
       subject_name: sub.name,
       total_present: totalPresent,
       total_absent: totalAbsent,
+      total_deemed: totalDeemed,
       attendance_percentage: pct
     }
   }).sort((a, b) => a.attendance_percentage - b.attendance_percentage) || []
@@ -147,8 +150,9 @@ export default async function DashboardPage() {
   // 5. Derived attendance global stats
   const totalPresent = attendanceData?.reduce((s, r) => s + (r.total_present ?? 0), 0) ?? 0
   const totalAbsent = attendanceData?.reduce((s, r) => s + (r.total_absent ?? 0), 0) ?? 0
-  const overallAttendancePct = totalPresent + totalAbsent > 0
-    ? Math.round((totalPresent / (totalPresent + totalAbsent)) * 100)
+  const totalDeemed = attendanceData?.reduce((s, r) => s + (r.total_deemed ?? 0), 0) ?? 0
+  const overallAttendancePct = totalPresent + totalAbsent + totalDeemed > 0
+    ? Math.round(((totalPresent + totalDeemed) / (totalPresent + totalAbsent + totalDeemed)) * 100)
     : null
 
   // 6. Filter subjects

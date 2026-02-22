@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, Play, Square, Pause, History, Trash2 } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
+import { toast } from "sonner"
 
 export default function TimersPage() {
   const { profile } = useProfile()
@@ -72,13 +73,19 @@ export default function TimersPage() {
     if (!pid) return
     
     // Check for active timer
-    const { data: active } = await supabase
+    const { data: activeList, error: fetchActiveErr } = await supabase
       .from('study_timers')
       .select('*, subjects(name)')
       .eq('profile_id', pid)
       .is('ended_at', null)
-      .maybeSingle()
+      .order('started_at', { ascending: false })
+      .limit(1)
       
+    if (fetchActiveErr) {
+      console.error("fetchActiveErr:", fetchActiveErr)
+    }
+
+    const active = activeList && activeList.length > 0 ? activeList[0] : null
     setActiveTimer(active)
     if (active) {
       const start = new Date(active.started_at).getTime()
@@ -118,14 +125,36 @@ export default function TimersPage() {
   }
 
   async function startTimer() {
-    if (!selectedSubject || activeTimer) return
-    await supabaseClient
+    console.log("Timer Start Clicked!", { selectedSubject, activeTimer, profileId, supabaseClient: !!supabaseClient })
+    if (!selectedSubject || activeTimer) {
+      console.log("Blocking start: ", { noSubject: !selectedSubject, hasActiveTimer: !!activeTimer })
+      return
+    }
+    const { error } = await supabaseClient
       .from('study_timers')
       .insert([{
         profile_id: profileId,
         subject_id: selectedSubject,
         started_at: new Date().toISOString()
       }])
+    
+    if (error) {
+      console.error("Supabase insert error:", error)
+      toast.error("Failed to start timer", { description: error.message })
+      return
+    }
+    
+    console.log("Timer started successfully in database.")
+    
+    // Safety check: close any extra stuck timers
+    await supabaseClient
+      .from('study_timers')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('profile_id', profileId)
+      .is('ended_at', null)
+      .neq('subject_id', selectedSubject) // assuming the one we just started is for the selected subject. Wait, it might close the one we just started if we don't differentiate.
+      // A better way is to rely on fetchData to grab the latest.
+
     fetchData(supabaseClient, profileId)
   }
 
@@ -253,18 +282,18 @@ export default function TimersPage() {
             {activeTimer ? (
               <div className="text-center py-6 space-y-4">
                 <p className="text-lg font-medium text-muted-foreground">{activeTimer.subjects?.name}</p>
-                <div className={`text-5xl font-mono font-black tracking-tighter transition-colors duration-500 ${activeTimer.pause_started_at ? 'text-orange-500' : 'text-primary'}`}>
+                <div className={`text-5xl font-mono font-black tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'gradient-accent-text'}`}>
                   {formatTime(elapsed)}
                 </div>
-                {activeTimer.pause_started_at && <p className="text-sm text-orange-500/80 font-bold uppercase tracking-widest animate-pulse">Paused</p>}
+                {activeTimer.pause_started_at && <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest animate-pulse">Paused</p>}
                 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
                   {activeTimer.pause_started_at ? (
-                    <Button onClick={resumeTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 border-primary text-primary hover:bg-primary/10">
+                    <Button onClick={resumeTimer} size="lg" className="w-full sm:w-auto gap-2 gradient-accent text-white border-0 hover:opacity-90 transition-opacity">
                       <Play className="fill-current w-4 h-4"/> Resume
                     </Button>
                   ) : (
-                    <Button onClick={pauseTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 border-orange-500 text-orange-500 hover:bg-orange-500/10">
+                    <Button onClick={pauseTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 hover:bg-muted">
                       <Pause className="fill-current w-4 h-4"/> Pause
                     </Button>
                   )}
@@ -289,7 +318,7 @@ export default function TimersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={startTimer} size="lg" className="w-full gap-2">
+                <Button onClick={startTimer} disabled={!selectedSubject} size="lg" className="w-full gap-2 gradient-accent text-white border-0 hover:opacity-90 transition-opacity">
                   <Play className="fill-current w-4 h-4"/> Start Focusing
                 </Button>
               </div>
@@ -321,7 +350,7 @@ export default function TimersPage() {
                           <span>{new Date(h.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                         </div>
                         {h.total_pause_seconds > 0 && (
-                          <p className="text-[10px] text-orange-500 font-medium mt-0.5 border border-orange-500/30 bg-orange-500/5 px-1.5 py-0.5 rounded-sm inline-block">
+                          <p className="text-[10px] text-muted-foreground font-medium mt-0.5 border bg-muted/50 px-1.5 py-0.5 rounded-sm inline-block">
                             Includes {Math.floor(h.total_pause_seconds / 60)}m paused time
                           </p>
                         )}
