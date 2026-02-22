@@ -258,8 +258,9 @@ export default function TasksPage() {
                 
                 <div className="space-y-1.5 w-full sm:w-1/3">
                   <Label htmlFor="subject" className="text-sm font-semibold text-muted-foreground">Subject Link</Label>
+                  <div className="w-full">
                   <Select value={subjectId} onValueChange={setSubjectId}>
-                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20">
+                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20 w-full">
                       <SelectValue placeholder="No Subject" />
                     </SelectTrigger>
                     <SelectContent>
@@ -270,26 +271,29 @@ export default function TasksPage() {
                       }
                     </SelectContent>
                   </Select>
+                  </div>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="space-y-1.5 w-full sm:w-[150px]">
+                <div className="space-y-1.5 w-full sm:w-1/3">
                   <Label htmlFor="priority" className="text-sm font-semibold text-muted-foreground">Priority</Label>
+                  <div className="w-full">
                   <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20">
+                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20 w-full">
                       <SelectValue placeholder="Priority" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="urgent">🔴 Urgent</SelectItem>
                       <SelectItem value="high">🟠 High</SelectItem>
-                      <SelectItem value="medium">🟡 Med</SelectItem>
+                      <SelectItem value="medium">🟡 Medium</SelectItem>
                       <SelectItem value="low">🟢 Low</SelectItem>
                     </SelectContent>
                   </Select>
+                  </div>
                 </div>
                 
-                <div className="space-y-1.5 w-full sm:w-[180px]">
+                <div className="space-y-1.5 w-full sm:w-1/3">
                   <Label htmlFor="duedate" className="text-sm font-semibold text-muted-foreground flex items-center gap-1"><CalIcon className="w-3.5 h-3.5"/> Due Date</Label>
                   <DatePicker
                     date={dueDate ? new Date(dueDate) : undefined}
@@ -361,7 +365,7 @@ export default function TasksPage() {
                 {/* Upcoming Exams Section (Visible if not filtered to 'tasks' string) */}
                 {filterType !== 'tasks' && tasks.some(t => t.is_exam) && (
                   <div className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-primary flex items-center gap-2 mb-3">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
                       <Target className="w-4 h-4" /> Upcoming Exams
                     </h3>
                     <motion.div layout className="grid gap-3">
@@ -498,7 +502,7 @@ function TaskRow({
       animate={{ opacity: 1, scale: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg hover:border-primary/50 transition-colors shadow-sm gap-4 ${t.is_exam ? 'bg-primary/5 border-primary/20' : 'bg-card'}`}
+      className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg hover:border-primary/50 transition-colors shadow-sm gap-4 bg-card'}`}
       style={t.subjects?.color_hex ? { borderLeft: `4px solid ${t.subjects.color_hex}` } : undefined}
     >
       <div className="flex items-start sm:items-center gap-3 w-full">

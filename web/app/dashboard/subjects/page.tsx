@@ -304,7 +304,7 @@ export default function SubjectsPage() {
 
       {/* --- ADD SUBJECT FORM --- */}
       <Card className="bg-muted/30 border-dashed border-2">
-        <CardContent className="p-4">
+        <CardContent className="p-4 w-full">
           <form onSubmit={handleAddSubject} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
             <div className="sm:col-span-12 mb-2">
               <h2 className="text-sm font-bold flex items-center gap-2 text-foreground">
@@ -325,10 +325,11 @@ export default function SubjectsPage() {
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Contract Law" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
             </div>
             
-            <div className="space-y-2 sm:col-span-3 lg:col-span-2">
+            <div className="space-y-2 sm:col-span-4 lg:col-span-5">
               <Label htmlFor="type" className="text-sm font-semibold text-muted-foreground">Type</Label>
+              <div className="w-full">
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20">
+                <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
                   <SelectValue placeholder="Track type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -340,13 +341,15 @@ export default function SubjectsPage() {
                   )}
                 </SelectContent>
               </Select>
+              </div>
             </div>
 
             {type === 'personal' && (
-              <div className="space-y-2 sm:col-span-3 lg:col-span-3">
+              <div className="space-y-2 sm:col-span-4 lg:col-span-5">
                 <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
+                <div className="w-full">
                 <Select value={categoryId} onValueChange={setCategoryId}>
-                  <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20">
+                  <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
                     <SelectValue placeholder="No Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,10 +357,11 @@ export default function SubjectsPage() {
                     {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                </div>
               </div>
             )}
 
-            <div className={`sm:col-span-2 ${type==='personal' ? 'lg:col-span-2' : 'lg:col-span-5'} mt-2 sm:mt-0`}>
+            <div className="space-y-2 sm:col-span-4 lg:col-span-5">
               <Button type="submit" className="w-full h-10 font-semibold shadow-sm">Add</Button>
             </div>
           </form>
