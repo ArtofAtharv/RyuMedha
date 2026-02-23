@@ -13,8 +13,13 @@ interface AttendanceCardProps {
   accentColor?: string
   instructorName?: string
   label?: string
-  bunksLeft?: number
-  recommendedClasses?: number
+  bunksRemaining?: number
+  maxAllowedSkips?: number
+  currentSkips?: number
+  neededToRecover?: number
+  maxPossiblePct?: number
+  isPossibleToRecover?: boolean
+  remainingLectures?: number
   onLog?: (subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') => void
 }
 
@@ -38,8 +43,13 @@ export function AttendanceCard({
   accentColor,
   instructorName,
   label,
-  bunksLeft,
-  recommendedClasses,
+  bunksRemaining,
+  maxAllowedSkips,
+  currentSkips,
+  neededToRecover,
+  maxPossiblePct,
+  isPossibleToRecover,
+  remainingLectures,
   onLog,
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)
@@ -50,11 +60,13 @@ export function AttendanceCard({
   }, [pct])
 
   const healthClass =
-    pct >= 85
-      ? 'text-green-500 dark:text-green-400'
-      : pct >= 75
-        ? 'text-yellow-500 dark:text-yellow-400'
-        : 'text-destructive'
+    (present === 0 && absent === 0 && deemed === 0)
+      ? 'text-muted-foreground'
+      : pct >= 85
+        ? 'text-green-500 dark:text-green-400'
+        : pct >= 75
+          ? 'text-yellow-500 dark:text-yellow-400'
+          : 'text-destructive'
 
   return (
     <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 shadow-sm bg-card flex flex-col h-full">
@@ -123,21 +135,53 @@ export function AttendanceCard({
             />
           </div>
 
-          {(bunksLeft !== undefined || recommendedClasses !== undefined) && (
+          {(present > 0 || absent > 0 || deemed > 0) && (bunksRemaining !== undefined || neededToRecover !== undefined) && (
             <div className="pt-1">
-              {bunksLeft !== undefined && bunksLeft >= 0 ? (
-                <p className="text-[10px] font-bold text-green-600 dark:text-green-400/90 uppercase tracking-tighter bg-green-500/5 px-2 py-0.5 rounded-md inline-block">
-                  ✨ Safe to bunk {bunksLeft} classes
-                </p>
-              ) : recommendedClasses !== undefined && recommendedClasses > 0 ? (
-                <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-0.5 rounded-md inline-block">
-                  🚨 Attend next {recommendedClasses} classes
-                </p>
-              ) : bunksLeft !== undefined && bunksLeft < 0 ? (
-                <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-0.5 rounded-md inline-block">
-                  🚨 Attendance below target
-                </p>
-              ) : null}
+              {bunksRemaining !== undefined && bunksRemaining >= 0 ? (
+                <>
+                  {(() => {
+                    const skipPct = maxAllowedSkips && maxAllowedSkips > 0 ? (currentSkips || 0) / maxAllowedSkips : 0;
+                    if (bunksRemaining === 0) {
+                      return (
+                        <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
+                          🛑 High risk: Can't afford to skip any lectures.
+                        </p>
+                      );
+                    }
+                    if (skipPct >= 0.6) {
+                      return (
+                        <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tighter bg-amber-500/10 px-2 py-1 rounded-md inline-block border border-amber-500/20">
+                          ⚠️ Risk alert: You can only skip {bunksRemaining} more lectures. Attend daily to be safe.
+                        </p>
+                      );
+                    }
+                    return (
+                      <p className="text-[10px] font-bold text-green-600 dark:text-green-400/90 uppercase tracking-tighter bg-green-500/5 px-2 py-1 rounded-md inline-block border border-green-500/10">
+                        ✨ Goal: You can safely miss up to {bunksRemaining} classes
+                      </p>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  {isPossibleToRecover ? (
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
+                        🚨 Goal: Attend {neededToRecover} classes to recover
+                      </p>
+                      <p className="text-[9px] text-muted-foreground font-medium pl-1 italic">
+                        Focus on showing up! You need {neededToRecover} more consecutive classes to reach your goal.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
+                        ⚠️ Attending all lectures daily without fail will make your attendance {Math.round(maxPossiblePct || 0)}%.
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

@@ -48,9 +48,11 @@ export default function SetupPage() {
   const [newSemName, setNewSemName] = useState("")
   const [newSemNumber, setNewSemNumber] = useState("")
   
-  // Step 3: First Subject
-  const [firstSubjectName, setFirstSubjectName] = useState("")
-  const [firstSubjectType, setFirstSubjectType] = useState<"academic" | "personal">("academic")
+  // Step 3: Subjects
+  const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
+  const [newCourseName, setNewCourseName] = useState("")
+  const [isAddingNewCourse, setIsAddingNewCourse] = useState(false)
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -95,7 +97,7 @@ export default function SetupPage() {
   // cascaded fetches for Step 2
   useEffect(() => {
     if (selectedUniId && supabaseClient) {
-      supabaseClient.from('programs').select('id, name').eq('university_id', selectedUniId).order('name')
+      supabaseClient.from('programs').select('id, name, default_target_attendance').eq('university_id', selectedUniId).order('name')
         .then(({ data }: any) => {
           setPrograms(data || [])
           setSelectedProgId("")
@@ -107,13 +109,19 @@ export default function SetupPage() {
 
   useEffect(() => {
     if (selectedProgId && supabaseClient) {
+      // Find the selected program to get its default target attendance
+      const prog = programs.find(p => p.id === selectedProgId)
+      if (prog && prog.default_target_attendance) {
+        setTargetAttendance(prog.default_target_attendance.toString())
+      }
+
       supabaseClient.from('semesters').select('id, name, semester_number').eq('program_id', selectedProgId).order('semester_number')
         .then(({ data }: any) => {
           setSemesters(data || [])
           setSelectedSemId("")
         })
     }
-  }, [selectedProgId, supabaseClient])
+  }, [selectedProgId, supabaseClient, programs])
 
   // Institutional Management Functions
   async function handleCreateUni() {
@@ -234,7 +242,6 @@ export default function SetupPage() {
       setStep(2)
     } else if (personalEnabled) {
       setStep(3)
-      setFirstSubjectType("personal")
     } else {
       await saveProfileOnly()
     }
@@ -262,8 +269,22 @@ export default function SetupPage() {
       return
     }
     setErrorMsg("")
-    setStep(3)
-    setFirstSubjectType("academic")
+    setIsSubmitting(true)
+    
+    // Fetch available courses for this semester
+    const { data: courses, error } = await supabaseClient
+      .from('academic_courses')
+      .select('id, course_name')
+      .eq('semester_id', selectedSemId)
+      .order('course_name')
+    
+    if (error) {
+      toast.error("Failed to fetch courses")
+    } else {
+      setAvailableCourses(courses || [])
+      setStep(3)
+    }
+    setIsSubmitting(false)
   }
 
   async function handleFinalSave(e: React.FormEvent) {
@@ -296,32 +317,60 @@ export default function SetupPage() {
       return
     }
 
-    // 2. Add Subject if provided
-    if (firstSubjectName.trim()) {
-      const subData: any = {
-        profile_id: profileId,
-        name: firstSubjectName.trim(),
-        type: firstSubjectType,
-        color_hex: firstSubjectType === 'academic' ? '#3b82f6' : '#8b5cf6',
-        is_active: true
+    // 2. Add Subjects from selected courses
+    if (academicsEnabled && selectedCourseIds.length > 0) {
+      // Fetch existing subjects for this profile to prevent duplication
+      const { data: existingSubjects } = await supabaseClient
+        .from('subjects')
+        .select('source_course_id')
+        .eq('profile_id', profileId)
+      
+      const existingIds = existingSubjects?.map((s: any) => s.source_course_id) || []
+      const deduplicatedCourseIds = selectedCourseIds.filter(id => !existingIds.includes(id))
+      const skippedCount = selectedCourseIds.length - deduplicatedCourseIds.length
+
+      if (deduplicatedCourseIds.length > 0) {
+        const subjectsToInsert = deduplicatedCourseIds.map(courseId => {
+          const course = availableCourses.find(c => c.id === courseId)
+          return {
+            profile_id: profileId,
+            name: course?.course_name || "Unknown Subject",
+            type: 'academic',
+            source_course_id: courseId,
+            color_hex: '#3b82f6',
+            is_active: true
+          }
+        })
+        await supabaseClient.from('subjects').insert(subjectsToInsert)
       }
 
-      if (firstSubjectType === 'academic') {
-        const { data: courses } = await supabaseClient
-          .from('academic_courses')
-          .select('id')
-          .eq('semester_id', selectedSemId)
-          .limit(1)
-        
-        if (courses && courses.length > 0) {
-          subData.source_course_id = courses[0].id
-        } else {
-          subData.type = 'personal'
-          subData.color_hex = '#8b5cf6'
-        }
+      if (skippedCount > 0) {
+        toast.info(`${skippedCount} subjects were already in your list and were skipped.`)
       }
+    }
 
-      await supabaseClient.from('subjects').insert([subData])
+    // 3. Add New Course if provided
+    if (academicsEnabled && newCourseName.trim()) {
+      // First create the academic course
+      const { data: newCourse, error: courseError } = await supabaseClient
+        .from('academic_courses')
+        .insert([{
+          semester_id: selectedSemId,
+          course_name: newCourseName.trim()
+        }])
+        .select()
+        .single()
+      
+      if (!courseError && newCourse) {
+        await supabaseClient.from('subjects').insert([{
+          profile_id: profileId,
+          name: newCourse.course_name,
+          type: 'academic',
+          source_course_id: newCourse.id,
+          color_hex: '#3b82f6',
+          is_active: true
+        }])
+      }
     }
 
     setIsSubmitting(false)
@@ -628,53 +677,74 @@ export default function SetupPage() {
                 <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform rotate-6 shadow-lg shadow-primary/10">
                   <Sparkles className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-3xl font-black tracking-tight">One Last Step</CardTitle>
-                <CardDescription>Add a subject or skip to the dashboard.</CardDescription>
+                <CardTitle className="text-3xl font-black tracking-tight">Select Your Courses</CardTitle>
+                <CardDescription>
+                  {availableCourses.length > 0 
+                    ? "Choose the subjects you're studying this semester."
+                    : "Be the first user from " + 
+                      (semesters.find(s => s.id === selectedSemId)?.name || "this semester") + 
+                      " of " + 
+                      (universities.find(u => u.id === selectedUniId)?.name || "this University") + 
+                      " to manage the study with excellence!"}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="subName" className="font-bold">First Subject (Optional)</Label>
-                  <Input 
-                    id="subName"
-                    autoComplete="off"
-                    placeholder="e.g. Mathematics, Python" 
-                    className="h-12 bg-background border-muted-foreground/20 text-lg"
-                    value={firstSubjectName}
-                    onChange={(e) => setFirstSubjectName(e.target.value)}
-                  />
-                </div>
+                
+                {academicsEnabled && (
+                  <div className="space-y-4">
+                    {availableCourses.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="font-bold">Existing Courses</Label>
+                        <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
+                          {availableCourses.map(course => (
+                            <div 
+                              key={course.id}
+                              onClick={() => {
+                                if (selectedCourseIds.includes(course.id)) {
+                                  setSelectedCourseIds(prev => prev.filter(id => id !== course.id))
+                                } else {
+                                  setSelectedCourseIds(prev => [...prev, course.id])
+                                }
+                              }}
+                              className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between group ${selectedCourseIds.includes(course.id) ? 'border-primary bg-primary/5' : 'border-border/50 hover:bg-muted/50'}`}
+                            >
+                              <span className="font-medium text-sm">{course.course_name}</span>
+                              {selectedCourseIds.includes(course.id) && <Check className="w-4 h-4 text-primary" />}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                <div className="space-y-2">
-                  <Label className="font-bold">Track</Label>
-                  <Select value={firstSubjectType} onValueChange={(v: any) => setFirstSubjectType(v)}>
-                    <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {academicsEnabled && <SelectItem value="academic">Academic (Course)</SelectItem>}
-                      {personalEnabled && <SelectItem value="personal">Personal learning</SelectItem>}
-                    </SelectContent>
-                  </Select>
-                  {firstSubjectType === 'academic' && (
-                    <p className="text-[10px] text-muted-foreground italic leading-tight">* Will be linked to a course in your selected semester.</p>
-                  )}
-                </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold">{availableCourses.length > 0 ? "Don't see your course?" : "Add your first course"}</Label>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Course name (e.g. Contract Law)" 
+                          value={newCourseName}
+                          onChange={(e) => setNewCourseName(e.target.value)}
+                          className="h-10 bg-background"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-3 pt-2">
                   <Button 
                     className="h-12 text-lg font-bold gradient-accent shadow-xl shadow-primary/20"
                     onClick={handleFinalSave}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && !newCourseName.trim())}
                   >
                     {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finish Setup"}
                   </Button>
                   <Button 
                     variant="ghost" 
                     className="text-muted-foreground"
-                    onClick={() => { setFirstSubjectName(""); handleFinalSave({ preventDefault: () => {} } as any) }}
+                    onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as any) }}
                     disabled={isSubmitting}
                   >
-                    Skip and go to Dashboard
+                    Skip to Dashboard
                   </Button>
                 </div>
               </CardContent>

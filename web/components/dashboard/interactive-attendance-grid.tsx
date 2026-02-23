@@ -23,7 +23,7 @@ const cardVariants: Variants = {
   },
 }
 
-export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId }: { initialData: any[], subjectsInfo: any[], token: string, profileId: string }) {
+export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId, targetPct }: { initialData: any[], subjectsInfo: any[], token: string, profileId: string, targetPct: number }) {
   const [data, setData] = useState(initialData)
   const [isUpdating, setIsUpdating] = useState(false)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
@@ -40,27 +40,89 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     setTimeout(() => setToastMsg(null), 4000)
   }
 
+  function calculateAdvice(totalPresent: number, totalAbsent: number, totalDeemed: number, expectedTotal: number) {
+    const totalLogged = totalPresent + totalAbsent + totalDeemed
+    const pct = totalLogged > 0 ? ((totalPresent + totalDeemed) / totalLogged) * 100 : 0
+    
+    let bunksRemaining = undefined
+    let neededToRecover = undefined
+    let maxPossiblePct = undefined
+    let isPossibleToRecover = true
+    let maxAllowedMisses = undefined
+
+    if (expectedTotal > 0) {
+      maxAllowedMisses = Math.floor(expectedTotal * (1 - (targetPct / 100)))
+      const netAbsent = Math.max(0, totalAbsent - totalDeemed)
+      bunksRemaining = maxAllowedMisses - netAbsent
+      const remaining = Math.max(0, expectedTotal - totalLogged)
+
+      if (bunksRemaining < 0) {
+        const t = targetPct / 100
+        neededToRecover = Math.ceil((t * totalLogged - (totalPresent + totalDeemed)) / (1 - t))
+        
+        if (neededToRecover > remaining) {
+          isPossibleToRecover = false
+          maxPossiblePct = ((totalPresent + totalDeemed + remaining) / expectedTotal) * 100
+        }
+      }
+    } else if (pct < targetPct) {
+      const t = targetPct / 100
+      neededToRecover = Math.ceil((t * totalLogged - (totalPresent + totalDeemed)) / (1 - t))
+    }
+
+    return { 
+      pct, 
+      bunksRemaining, 
+      neededToRecover, 
+      maxPossiblePct, 
+      isPossibleToRecover, 
+      maxAllowedMisses, 
+      currentMisses: Math.max(0, totalAbsent - totalDeemed),
+      remainingLectures: Math.max(0, expectedTotal - totalLogged)
+    }
+  }
+
   // Merge Subjects with Attendance Data to ensure all Academic subjects show up
+  // AND ensure advice is calculated for all rows on initial load and updates
   const mergedData = useMemo(() => {
     const academicSubjects = subjectsInfo.filter((s: any) => s.type === 'academic' && s.is_active === true)
     
     return academicSubjects.map((sub: any) => {
       const existingAtt = data.find((d: any) => d.subject_id === sub.id)
-      if (existingAtt) return existingAtt
+      
+      const present = existingAtt ? existingAtt.total_present : (sub.legacy_attended_lectures || 0)
+      const absent = existingAtt ? existingAtt.total_absent : (sub.legacy_missed_lectures || 0)
+      const deemed = existingAtt ? (existingAtt.total_deemed || 0) : 0
+      const expectedTotal = sub.expected_total_lectures || 0
 
-      // Synthesize blank attendance if none exists
+      const { 
+        pct, 
+        bunksRemaining, 
+        neededToRecover, 
+        maxPossiblePct, 
+        isPossibleToRecover, 
+        maxAllowedMisses, 
+        currentMisses, 
+        remainingLectures 
+      } = calculateAdvice(present, absent, deemed, expectedTotal)
+
       return {
         subject_id: sub.id,
         subject_name: sub.name,
-        total_present: sub.legacy_attended_lectures || 0,
-        total_absent: sub.legacy_missed_lectures || 0,
-        total_deemed: 0,
-        attendance_percentage: 0,
-        bunks_left: sub.bunks_left, // Pass down from page logic
-        needed_to_recover: sub.needed_to_recover
+        total_present: present,
+        total_absent: absent,
+        total_deemed: deemed,
+        attendance_percentage: pct,
+        bunks_remaining: bunksRemaining,
+        needed_to_recover: neededToRecover,
+        max_possible_pct: maxPossiblePct,
+        is_possible_to_recover: isPossibleToRecover,
+        max_allowed_misses: maxAllowedMisses,
+        current_misses: currentMisses,
+        remaining_lectures: remainingLectures
       }
-    })
-  }, [data, subjectsInfo])
+    }).sort((a: any, b: any) => a.attendance_percentage - b.attendance_percentage)
+  }, [data, subjectsInfo, targetPct])
 
   async function handleLogAttendance(subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') {
     if (isUpdating || !subjectId) return
@@ -88,9 +150,24 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
           if (targetStatus === 'deemed') newDeemed += 1
         }
 
-        const total = newPresent + newAbsent + newDeemed
-        const newPct = total > 0 ? ((newPresent + newDeemed) / total) * 100 : 0
-        return { ...item, total_present: newPresent, total_absent: newAbsent, total_deemed: newDeemed, attendance_percentage: newPct }
+        const subInfo = subjectsInfo.find(s => s.id === subjectId)
+        const expectedTotal = subInfo?.expected_total_lectures || 0
+        const { pct, bunksRemaining, neededToRecover, maxPossiblePct, isPossibleToRecover, maxAllowedMisses, currentMisses, remainingLectures } = calculateAdvice(newPresent, newAbsent, newDeemed, expectedTotal)
+
+        return { 
+          ...item, 
+          total_present: newPresent, 
+          total_absent: newAbsent, 
+          total_deemed: newDeemed, 
+          attendance_percentage: pct, 
+          bunks_remaining: bunksRemaining, 
+          needed_to_recover: neededToRecover,
+          max_possible_pct: maxPossiblePct,
+          is_possible_to_recover: isPossibleToRecover,
+          max_allowed_misses: maxAllowedMisses,
+          current_misses: currentMisses,
+          remaining_lectures: remainingLectures
+        }
       }
 
       if (exists) {
@@ -208,8 +285,16 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
               accentColor={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.color_hex ?? undefined}
               instructorName={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.instructor_name ?? undefined}
               label={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.label ?? undefined}
-              bunksLeft={item.bunks_left}
-              recommendedClasses={item.needed_to_recover}
+              
+              // Granular Advice Props
+              bunksRemaining={item.bunks_remaining}
+              maxAllowedSkips={item.max_allowed_misses}
+              currentSkips={item.current_misses}
+              neededToRecover={item.needed_to_recover}
+              maxPossiblePct={item.max_possible_pct}
+              isPossibleToRecover={item.is_possible_to_recover}
+              remainingLectures={item.remaining_lectures}
+              
               onLog={handleLogAttendance}
             />
           </motion.div>

@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen, GraduationCap, Plus, Folder, Loader2 } from "lucide-react"
+import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen, GraduationCap, Plus, Folder, Loader2, Check, ChevronDown } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { hexToGradient } from "@/lib/gradient"
 import Link from "next/link"
@@ -42,6 +43,13 @@ export default function SubjectsPage() {
   const [subjectToDelete, setSubjectToDelete] = useState<any>(null)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
 
+  // Strict Hierarchy / Shared Courses
+  const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
+  const [isAddingNewCourse, setIsAddingNewCourse] = useState(false)
+  const [newCourseName, setNewCourseName] = useState("")
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+
   // Category Manager State
   const [newCategoryName, setNewCategoryName] = useState("")
   const [newCategoryColor, setNewCategoryColor] = useState("#8b5cf6")
@@ -70,6 +78,22 @@ export default function SubjectsPage() {
         setProfileId(profile.id)
         await fetchSubjects(supabase)
         await fetchCategories(supabase, profile.id)
+        
+        // Setup Hierarchy Info
+        const { data: profileFull } = await supabase
+          .from('profiles')
+          .select('current_semester_id')
+          .eq('id', profile.id)
+          .single()
+        
+        if (profileFull?.current_semester_id) {
+          const { data: courses } = await supabase
+            .from('academic_courses')
+            .select('id, course_name')
+            .eq('semester_id', profileFull.current_semester_id)
+            .order('course_name')
+          setAvailableCourses(courses || [])
+        }
       }
     }
     init()
@@ -79,12 +103,17 @@ export default function SubjectsPage() {
     setLoading(true)
     const { data } = await supabase
       .from('subjects')
-      .select('*, source_course_id(semester_id)')
+      .select('*, source_course_id(*)')
       .eq('is_active', true)
       .order('name')
+    
     setSubjects(data || [])
     setLoading(false)
   }
+
+  const enrolledCourseIds = subjects
+    .filter(s => s.source_course_id)
+    .map(s => typeof s.source_course_id === 'object' ? s.source_course_id.id : s.source_course_id)
 
   async function fetchCategories(supabase: any, pid: string) {
     if (!pid) return
@@ -102,7 +131,11 @@ export default function SubjectsPage() {
 
   async function handleAddSubject(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    
+    // Fixed validation: personal needs name, academic needs selected courses or a new name
+    if (type === 'personal' && !name.trim()) return
+    if (type === 'academic' && selectedCourseIds.length === 0 && !newCourseName.trim()) return
+
     setErrorMsg("")
 
     const duplicate = subjects.find(s => s.name.toLowerCase() === name.trim().toLowerCase())
@@ -119,33 +152,73 @@ export default function SubjectsPage() {
         return
       }
 
-      // Find or create academic course for this semester
-      const { data: existingCourse } = await supabaseClient
-        .from('academic_courses')
-        .select('id')
-        .eq('semester_id', profile.current_semester_id)
-        .ilike('course_name', name.trim())
-        .maybeSingle()
+      try {
+        // Bulk Add Selected Courses
+        if (selectedCourseIds.length > 0) {
+          const existingIds = subjects.map(s => s.source_course_id).filter(Boolean)
+          const deduplicatedIds = selectedCourseIds.filter(cid => !existingIds.includes(cid))
+          const skippedCount = selectedCourseIds.length - deduplicatedIds.length
 
-      if (existingCourse) {
-        sourceCourseId = existingCourse.id
-      } else {
-        const { data: newCourse, error: courseError } = await supabaseClient
-          .from('academic_courses')
-          .insert([{
-            semester_id: profile.current_semester_id,
-            course_name: name.trim()
-          }])
-          .select()
-          .single()
-        
-        if (courseError) {
-          setErrorMsg(`Failed to create curriculum course: ${courseError.message}`)
-          return
+          if (deduplicatedIds.length > 0) {
+            const toInsert = deduplicatedIds.map(cid => {
+              const course = availableCourses.find(c => c.id === cid)
+              return {
+                profile_id: profileId,
+                name: course?.course_name || "Unknown",
+                type: 'academic',
+                source_course_id: cid,
+                color_hex: '#3b82f6',
+                is_active: true
+              }
+            })
+            const { error } = await supabaseClient.from('subjects').insert(toInsert)
+            if (error) throw error
+            toast.success(`Succesfully added ${deduplicatedIds.length} course(s)!`)
+          }
+
+          if (skippedCount > 0) {
+            toast.info(`${skippedCount} course(s) were already enrolled and were skipped.`)
+          }
         }
-        sourceCourseId = newCourse.id
+
+        // Add New Course if typed
+        if (newCourseName.trim()) {
+          const { data: newCourse, error: courseErr } = await supabaseClient
+            .from('academic_courses')
+            .insert([{
+              semester_id: profile.current_semester_id,
+              course_name: newCourseName.trim()
+            }])
+            .select()
+            .single()
+          
+          if (courseErr) throw courseErr
+
+          if (newCourse) {
+            const { error: subErr } = await supabaseClient.from('subjects').insert([{
+              profile_id: profileId,
+              name: newCourse.course_name,
+              type: 'academic',
+              source_course_id: newCourse.id,
+              color_hex: '#3b82f6',
+              is_active: true
+            }])
+            if (subErr) throw subErr
+            toast.success(`Created and added "${newCourse.course_name}"`)
+          }
+        }
+
+        setSelectedCourseIds([])
+        setNewCourseName("")
+        fetchSubjects(supabaseClient)
+      } catch (err: any) {
+        toast.error(`Failed to add subjects: ${err.message}`)
+        setErrorMsg(err.message)
       }
+      return
     }
+
+    // Personal Subject Flow
 
     const { error } = await supabaseClient
       .from('subjects')
@@ -176,13 +249,27 @@ export default function SubjectsPage() {
 
   async function saveEdit() {
     if (!editingSubject || !editingSubject.name.trim()) return
+    const supabase = supabaseClient
 
-    await supabaseClient
+    // Handle shared data if academic
+    if (editingSubject.type === 'academic' && editingSubject.source_course_id) {
+      const courseId = typeof editingSubject.source_course_id === 'object' 
+        ? editingSubject.source_course_id.id 
+        : editingSubject.source_course_id
+
+      await supabase
+        .from('academic_courses')
+        .update({ 
+          instructor_name: editingSubject.instructor_name 
+        })
+        .eq('id', courseId)
+    }
+
+    await supabase
       .from('subjects')
       .update({ 
         name: editingSubject.name.trim(),
         label: editingSubject.label,
-        instructor_name: editingSubject.instructor_name,
         color_hex: editingSubject.color_hex,
         legacy_attended_lectures: Number(editingSubject.legacy_attended_lectures || 0),
         legacy_missed_lectures: Number(editingSubject.legacy_missed_lectures || 0),
@@ -192,7 +279,7 @@ export default function SubjectsPage() {
       .eq('id', editingSubject.id)
 
     setEditingSubject(null)
-    fetchSubjects(supabaseClient)
+    fetchSubjects(supabase)
   }
 
   /* -------------------------------------------------------------------------- */
@@ -376,15 +463,96 @@ export default function SubjectsPage() {
             
             <motion.div 
               layout 
-              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-4' : 'lg:col-span-6'}`}
+              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-4' : 'lg:col-span-10'}`}
             >
-              <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Contract Law" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
+              {type === 'academic' ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
+                  
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
+                        {selectedCourseIds.length > 0 
+                          ? `${selectedCourseIds.length} course(s) selected` 
+                          : "Select academic courses..."}
+                        <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0" align="start">
+                      <div className="p-2 border-b bg-muted/20">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
+                      </div>
+                      <div className="max-h-[250px] overflow-y-auto p-1">
+                        {availableCourses.length > 0 ? (
+                          [...availableCourses]
+                            .sort((a, b) => {
+                              const aEnrolled = enrolledCourseIds.includes(a.id)
+                              const bEnrolled = enrolledCourseIds.includes(b.id)
+                              if (aEnrolled === bEnrolled) return 0
+                              return aEnrolled ? 1 : -1
+                            })
+                            .map(c => {
+                              const isEnrolled = enrolledCourseIds.includes(c.id)
+                              const isSelected = selectedCourseIds.includes(c.id)
+                              return (
+                                <div 
+                                  key={c.id}
+                                  onClick={() => {
+                                    if (isEnrolled) return 
+                                    if (isSelected) setSelectedCourseIds(prev => prev.filter(id => id !== c.id))
+                                    else setSelectedCourseIds(prev => [...prev, c.id])
+                                  }}
+                                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
+                                >
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
+                                    {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
+                                    {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
+                                  </div>
+                                </div>
+                              )
+                            })
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic p-4 text-center">No shared courses found for your semester.</p>
+                        )}
+                      </div>
+                      <div className="p-2 border-t bg-muted/10">
+                        <Button variant="secondary" className="w-full h-8 text-[10px] font-black uppercase tracking-wider h-10" onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsPopoverOpen(false);
+                        }}>
+                          Done
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {availableCourses.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground italic mb-2">
+                      Be the first from this semester to add courses!
+                    </p>
+                  )}
+                  
+                  <Input 
+                    value={newCourseName} 
+                    onChange={(e) => setNewCourseName(e.target.value)} 
+                    placeholder="Or type new course name..." 
+                    className="h-10 bg-background shadow-sm border-muted-foreground/20"
+                  />
+                </div>
+              ) : (
+                <>
+                  <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Contract Law" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
+                </>
+              )}
             </motion.div>
             
             <motion.div 
               layout 
-              className={`space-y-2 sm:col-span-6 ${type === 'personal' ? 'lg:col-span-3' : 'lg:col-span-4'}`}
+              className={`space-y-2 sm:col-span-6 ${type === 'personal' ? 'lg:col-span-3' : 'lg:col-span-2'}`}
             >
               <Label htmlFor="type" className="text-sm font-semibold text-muted-foreground">Type</Label>
               <div className="w-full">
@@ -431,9 +599,11 @@ export default function SubjectsPage() {
 
             <motion.div 
               layout 
-              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-2' : 'lg:col-span-2'}`}
+              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-2' : 'lg:col-span-12'}`}
             >
-              <Button type="submit" className="w-full h-10 font-semibold shadow-sm">Add</Button>
+              <Button type="submit" className="w-full h-10 font-bold tracking-tight shadow-sm">
+                Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
+              </Button>
             </motion.div>
           </form>
         </CardContent>
@@ -456,7 +626,10 @@ export default function SubjectsPage() {
                 <SubjectGridCard 
                   key={sub.id} 
                   subject={sub} 
-                  onEdit={() => setEditingSubject({...sub})}
+                  onEdit={() => setEditingSubject({
+                    ...sub, 
+                    instructor_name: sub.source_course_id?.instructor_name || ""
+                  })}
                   onDelete={() => setSubjectToDelete(sub)}
                   onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
                 />
@@ -537,33 +710,21 @@ export default function SubjectsPage() {
                 <Input value={editingSubject.name} onChange={e => setEditingSubject({...editingSubject, name: e.target.value})} className="bg-muted/30" />
               </div>
 
-              {editingSubject.type === 'personal' && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label>Short Label (e.g. Hobby)</Label>
-                    <Input value={editingSubject.label || ""} onChange={e => setEditingSubject({...editingSubject, label: e.target.value})} className="bg-muted/30" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Category</Label>
-                    <Select value={editingSubject.category_id || "none"} onValueChange={v => setEditingSubject({...editingSubject, category_id: v})}>
-                      <SelectTrigger className="h-10 w-full bg-muted/30">
-                        <SelectValue placeholder="No Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Uncategorized</SelectItem>
-                        {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
+              {editingSubject.type === 'academic' && (
+                <div className="space-y-1.5">
+                  <Label>Instructor Name (Shared)</Label>
+                  <Input 
+                    value={editingSubject.instructor_name || ""} 
+                    onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} 
+                    placeholder="Shared with everyone in your semester" 
+                    className="bg-muted/30"
+                  />
+                  <p className="text-[10px] text-muted-foreground italic">Updating this changes it for all students in this semester.</p>
+                </div>
               )}
 
               {editingSubject.type === 'academic' && (
                 <>
-                  <div className="space-y-1.5">
-                    <Label>Instructor / Prof</Label>
-                    <Input value={editingSubject.instructor_name || ""} onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} className="bg-muted/30" />
-                  </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-xs font-bold text-muted-foreground">Legacy Attended</Label>

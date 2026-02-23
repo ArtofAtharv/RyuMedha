@@ -30,7 +30,7 @@ export default async function SampleDashboardPage() {
   // 2. Fetch ALL active subjects
   const { data: subjectsData } = await supabase
     .from('subjects')
-    .select('id, name, color_hex, type, is_active, label, instructor_name, expected_total_lectures, legacy_attended_lectures, legacy_missed_lectures, category_id')
+    .select('id, name, color_hex, type, is_active, label, expected_total_lectures, legacy_attended_lectures, legacy_missed_lectures, category_id, source_course_id(*)')
     .eq('is_active', true)
     .order('name')
 

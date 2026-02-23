@@ -109,6 +109,7 @@ export function OverviewContent({
               subjectsInfo={academicOverviewData.academicSubjects} 
               token={academicOverviewData.token}
               profileId={academicOverviewData.profileId}
+              targetPct={academicOverviewData.targetPct}
             />
           </div>
         </section>

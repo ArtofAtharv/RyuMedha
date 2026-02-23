@@ -95,7 +95,9 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
           {subject.type === 'academic' ? (
             <>
               <User className="w-4 h-4 opacity-70 shrink-0" />
-              <span className="truncate">{subject.instructor_name || "No Instructor set"}</span>
+              <span className="truncate">
+                {subject.source_course_id?.instructor_name || subject.instructor_name || "No Instructor set"}
+              </span>
             </>
           ) : (
             <>
@@ -103,6 +105,21 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
             </>
           )}
         </div>
+
+        {/* Exam Dates Section */}
+        {subject.type === 'academic' && subject.source_course_id?.exam_dates && (
+          <div className="mb-4 space-y-1.5 ">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Upcoming Exams</p>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(subject.source_course_id.exam_dates).map(([label, date]: [string, any]) => (
+                <div key={label} className="bg-primary/5 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-primary">{label}</span>
+                  <span className="text-[10px] text-muted-foreground">{new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom Button */}
         <Link href={`/dashboard/grades?subject=${subject.id}`} passHref className="mt-auto">
