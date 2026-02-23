@@ -273,6 +273,9 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
            pct = ((item.total_present + (item.total_deemed || 0)) / (item.total_present + item.total_absent + (item.total_deemed || 0))) * 100
         }
 
+        const subRecord = subjectsInfo?.find((s: any) => s.id === item.subject_id)
+        const instructorName = subRecord?.source_course_id?.instructor_name || subRecord?.instructor_name || undefined
+
         return (
           <motion.div key={item.subject_id || `subj-${idx}`} variants={cardVariants}>
             <AttendanceCard
@@ -282,9 +285,9 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
               absent={item.total_absent}
               deemed={item.total_deemed || 0}
               percentage={pct}
-              accentColor={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.color_hex ?? undefined}
-              instructorName={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.instructor_name ?? undefined}
-              label={subjectsInfo?.find((s: any) => s.id === item.subject_id)?.label ?? undefined}
+              accentColor={subRecord?.color_hex ?? undefined}
+              instructorName={instructorName}
+              label={subRecord?.label ?? undefined}
               
               // Granular Advice Props
               bunksRemaining={item.bunks_remaining}
