@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* 1. Define the dark variant for v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+/* 2. Update variables when .dark class is applied */
+.dark {
+  --background: #000000;
+  --foreground: #ededed;
+}
+
+@theme {
+  /* 3. Link Tailwind colors to your CSS variables */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* 4. Apply the variables to the body */
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    /* Add a smooth transition for the theme switch */
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
