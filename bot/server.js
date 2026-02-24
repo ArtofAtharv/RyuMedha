@@ -53,6 +53,7 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const { parseIntent } = require('./smartRyuma');
+const { startOnboarding, handleOnboarding } = require('./setup');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -88,6 +89,140 @@ console.log('Supabase Anon Key:    ', SUPABASE_ANON_KEY ? '✅' : '❌ MISSING')
 console.log('Supabase Service Key: ', SUPABASE_SERVICE_KEY ? '✅' : '❌ MISSING');
 console.log('JWT Secret:           ', SUPABASE_JWT_SECRET ? '✅' : '❌ MISSING');
 console.log('='.repeat(60) + '\n');
+
+// ============================================================================
+// LANGUAGE & MESSAGES
+// ============================================================================
+
+const MESSAGES = {
+  categories: {
+    prompt: `I'd be happy to add a new category for you! Just let me know what to call it (e.g., "Professional Development").`,
+    duplicate: (name) => `It looks like you already have a category named *"${name}"*! 📂`,
+    error: `I'm sorry, I ran into a bit of trouble creating that category. Could you try again in a moment?`,
+    success: (name) => `Got it! I've created the *"${name}"* category for you. 📂\n\nYou can start adding subjects to it whenever you're ready!`,
+    empty: `It looks like you haven't created any categories yet. 📂\n\nWant to add one? Just tell me something like *"Add category Professional"*.`,
+    listHeader: (count) => `📂 *Here are your current categories (${count}):*\n\n`,
+    deletePrompt: `Please provide a category name.\nExample: * delete category Hobbies * `,
+    notFound: (name) => `I couldn't find a category named *"${name}"* in your list. 📂`,
+    inUse: (name, count) => `I can't delete *"${name}"* just yet because there are ${count} subject${count > 1 ? 's' : ''} still using it. 📂\n\nCould you please move or delete those subjects first ? `,
+    deleteError: `I'm sorry, I couldn't delete that category.Please try again!`,
+    deleteSuccess: (name) => `Done! I've removed the *"${name}"* category for you. 🗑️`,
+  },
+  subjects: {
+    duplicate: (name, type) => `Wait, it looks like *"${name}"* is already in your list! (${type} subject) 📚`,
+    setupNeeded: `It looks like your academic profile isn't fully set up yet. Could you please run *setup* first? 😊`,
+    error: `I ran into an issue setting up that subject for you. Could you try again?`,
+    academicSuccess: (name) => `Got it! I've added *"${name}"* to your academic list. 🎓`,
+    addError: (name) => `I'm sorry, I couldn't add *${name}* right now.`,
+    personalSuccess: (name) => `Got it! I've added *"${name}"* to your personal tracker. 💼`,
+    addPrompt: `Please provide subject details.\nFormat: * add subject < name >, <type (1 = Academic, 2 = Personal) >, [total], [missed], [attended] *\nExample: * add subject Contract Law, 1, 60, 5, 20 * `,
+    typeNeeded: `Please provide the subject type as well.\nFormat: * add subject < name >, < 1 or 2 >*\n(1 = Academic, 2 = Personal)`,
+    invalidType: (name) => `❌ Invalid type for * ${name} *.Use 1(Academic) or 2(Personal).`,
+    empty: `I don't see any subjects in your list yet. 📚\n\nWant to add one? Just say something like *"Add academic subject Law"* or *"Track personal subject Guitar"*!`,
+    emptySemester: `I don't see any subjects for your current semester yet. 📖\n\nYou can add one by telling me the name and whether it's Academic or Personal.`,
+    listHeader: `📚 * Your Subjects:*\n`,
+    listAcademic: `\n🎓 * Academic:*\n`,
+    listPersonal: `\n💼 * Personal:*\n`,
+    listFooter: (count, plural) => `\nYou're currently tracking **${count}** subject${plural ? 's' : ''} in this semester scope. 🎓`,
+    deletePrompt: `Please provide a subject name.\nExample: * delete subject Python * `,
+    notFound: (name) => `I couldn't find a subject named *"${name}"* in your active list. 📚`,
+    wrongContext: (name) => `I found *"${name}"*, but it doesn't seem to be in your current semester context. 📖`,
+    deleteError: `I'm sorry, I couldn't remove that subject for now. Please try again!`,
+    deleteSuccess: (name) => `Done! I've removed *"${name}"* from your active list. 🗑️\n\n_(Don't worry, your history is still safe for your stats)_`,
+    renamePrompt: `Format: *rename subject <old>, <new>*\nExample: *rename subject Contract, Contract Law*`,
+    renameSuccess: (oldName, newName) => `Consider it done! I've renamed *"${oldName}"* to *"${newName}"* across your profile. ✏️`,
+    renameError: `I'm sorry, I couldn't rename that subject. Please ensure the new name is unique and try again!`,
+    archiveSuccess: (count) => `📦 *Semester Archived!*\n\nI've soft-archived your **${count}** academic subjects and cleared your current semester setup. \n\nYour past attendance and grades are all safely stored! When you're ready to start your next semester, just tell me *"setup"* and we'll get you ready for the new classes. 🎓🚀`,
+    archiveError: `I'm sorry, I couldn't archive your semester subjects right now. Please try again later!`,
+  },
+  attendance: {
+    notFound: (name) => `I couldn't find a subject named *"${name}"* in your list. 📚`,
+    wrongContext: (name) => `I found *"${name}"*, but it doesn't seem to be in your current semester context. 📖`,
+    academicOnly: (name) => `I noticed *${name}* is a personal subject. I only track attendance for your academic classes! 🎓`,
+    alreadyMarked: (name, status) => `You've already marked *${name}* as *${status}* for today! 😊`,
+    error: (name) => `I'm sorry, I couldn't mark your attendance for *${name}* right now. Please try again!`,
+    presentPrefix: (name) => `Great job! I've marked you present for *${name}*. 🎓\n\n`,
+    absentPrefix: (name) => `Got it. I've marked you absent for *${name}*. ✍️\n\n`,
+    deemedPrefix: (name) => `Cancelled class or holiday? No problem, I've marked *${name}* as deemed! 🏖️\n\n`,
+    summaryNoData: (name) => `${name}: 0 classes so far.`,
+    summaryLine: (emoji, name, attended, total, pct) => `${emoji} * ${name}*: ${attended}/${total} (${pct}%)`,
+    deemedNote: (count) => ` _(incl. ${count} deemed)_`,
+    bunksLeft: (count, plural) => `\n💡 You can still skip *${count}* class${plural ? 'es' : ''} and stay above your goal!`,
+    onTrackTip: (count, plural, target) => `\n💡 You should attend the next **${count}** class${plural ? 'es' : ''} to reach your ${target}% goal.`,
+    trackWarning: (count, plural) => `\n🚨 Warning: You need to attend the next **${count}** class${plural ? 'es' : ''} to get back on track!`,
+    attendedPrompt: `Just let me know which subjects you attended today! 🎓\n\n(e.g., *"attended Math"* or *"present in Law"*)`,
+    missedPrompt: `I hope everything is okay! Which class did you miss? ✍️\n\n(e.g., *"missed Economics"*) `,
+    deemedPrompt: `If a class was cancelled or you were given a holiday, just let me know which ones! 🏖️\n\n(e.g., *"deemed Law"*)`,
+    undoPrompt: `Please provide a subject name.\nExample: *undo Contract Law*`,
+    undoError: `I'm sorry, I couldn't undo that for you right now.`,
+    undoSuccessPrefix: (name) => `🔄 No problem, I've removed today's log for *${name}*.\n\n`,
+    updateLegacyPrompt: (column) => `Format: *update ${column === 'legacy_missed_lectures' ? 'missed' : 'attended'} <subject>, <count>*\nExample: *update missed Math, 5*`,
+    updateLegacyError: (name) => `I'm sorry, I couldn't update your history for *${name}*. Please try again.`,
+    updateLegacySuccess: (name, count, column) => `Fixed! I've updated *${name}* to ${count} ${column === 'legacy_missed_lectures' ? 'missed' : 'attended'} classes in your history. ✍️`,
+  },
+  stats: {
+    academicOnly: `I only track attendance stats for academic subjects! 📊\n\nYou have personal tracking enabled. Would you like to check your *subjects* list instead?`,
+    noSubjects: `You haven't added any academic subjects for this semester yet! 📊🎓\n\nYou can add one by telling me something like *"Add subject Math"*!`,
+    header: (target) => `📊 *Attendance Stats (Target: ${target}%):*\n\n`,
+    noDataEmoji: `⬜`,
+    noDataNote: `No data yet`,
+    empty: `I don't have any attendance logs for your subjects yet! 📊\n\nTry telling me something like *"I was present in Math"* to get started.`,
+  },
+  timers: {
+    startPrompt: `Please provide a subject name.\nExample: *start Contract Law*`,
+    alreadyRunning: (name) => `⚠️ You already have an active timer for *${name || 'a subject'}*.\n\nPlease reply with *stop* before starting a new one.`,
+    notFound: (name) => `❌ Subject *"${name}"* not found.\n\nView subjects: *subjects*`,
+    wrongContext: (name) => `❌ Subject *"${name}"* exists but is not in your current semester context.`,
+    startError: `I'm sorry, I couldn't start the timer. Could you try again?`,
+    started: (name) => `⏱️ *Study session started for ${name}!*\n\nI'll keep track of the time for you. Just tell me *"stop"* or *"done studying"* when you're finished! 💪`,
+    noActive: `ℹ️ You don't have an active timer.`,
+    stopError: `I'm sorry, I couldn't stop the timer. Could you try again?`,
+    stopped: (name, hrs, mins) => `⏹️ *Great focus!* You've finished your session for *${name || 'Subject'}*.\n\n⏱️ Duration: **${hrs}h ${mins}m**\nI've saved this to your study history. Take a well-deserved break! 💪✨`,
+  },
+  tasks: {
+    addPrompt: `Please provide a task title.\nFormat: *add task <title> [due <YYYY-MM-DD>]*\nExample: *add task Submit assignment due 2026-03-10*`,
+    addError: `I'm sorry, I couldn't add that task for you right now.`,
+    addSuccess: (title, dueStr) => `Consider it done! I've added *"${title}"*${dueStr} to your list. ✅`,
+    dueNote: (date) => ` (due ${date})`,
+    donePrompt: `Please provide a valid task number.\nExample: *done 1*`,
+    empty: `You don't have any pending tasks right now! 📋`,
+    notFound: (id, count) => `I couldn't find task #${id} in your list. You have ${count} task(s) pending.`,
+    doneError: `I'm sorry, I couldn't mark that task as finished.`,
+    doneSuccess: (title) => `Nice work! I've checked off *"${title}"* for you. 🎉💪`,
+    listCaughtUp: `You're all caught up! You have no pending tasks right now. 📋✨`,
+    listHeader: (count) => `📋 *Pending Tasks (${count}):*\n\n`,
+    listFooter: (count, plural) => `\nYou have **${count}** task${plural ? 's' : ''} to work on. You've got this! 💪`,
+    emptySemester: `📋 No pending tasks for the current semester!`,
+  },
+  grades: {
+    addPrompt: `I'd love to save your marks! Just tell me the subject, the exam type, and your score. 🎓✨\n\n(e.g., *"I got 25/30 in Math assignment"* or *"add grade Law, MidSem, 40, 50"*)`,
+    numError: `I need the marks and max marks to be numbers so I can calculate your performance! 📊`,
+    notFound: (name) => `❌ Subject *"${name}"* not found.`,
+    addError: `I'm sorry, I couldn't save that grade for you right now.`,
+    addSuccess: (type, name, marks, max, pct) => `Great work! I've saved your *${type.toUpperCase()}* marks for *${name}*. 🎓✨\n\nScore: **${marks}/${max}** (${pct}%)\nKeep it up! 💪`,
+    empty: `I don't see any grades in your record yet. 📊✨\n\nOnce you add some, I can show you your performance overview!`,
+    emptySemester: `I don't see any grades for your current semester yet! 📖✨`,
+    header: `🎓 *Here is a look at your grades:* \n\n`,
+    subjectLine: (name, marks, max, pct) => `*${name}:* ${marks}/${max} (${pct}%)\n`,
+    footer: (pct) => `\nAcross all subjects, your current average is **${pct}%**. Keep pushing! 🚀`,
+  },
+  general: {
+    export: `📁 Your data export functionality is available via the dashboard! \n  \nPlease visit ${WEBSITE_URL} and go to your **Settings** page to securely download all your raw data (Subjects, Grades, Timers, Attendance) as a CSV file.`,
+    helpHeader: `👋 *Hi! I'm Ryuma, your personal study assistant.* 🎓\n\nI'm here to help you stay organized. You don't need to remember specific commands — you can just talk to me! 😊\n\n*Here are some things you can tell me:*\n📖 *"Add academic subject Math"* or *"Track guitar as a personal skill"*\n`,
+    helpAcademic: `🎓 *"I went to Law class"* or *"I missed Economics today"*\n📊 *"How are my stats?"* or *"What is my attendance like?"*\n📝 *"I got 25/30 in my Physics quiz"* or *"Show my grades"*\n`,
+    helpCommon: `⏱️ *"Start a timer for History"* or *"Done studying"*\n📋 *"Add a task: Submit project by Friday"* or *"Finish task 1"*\n\n*Need more?*\n👤 Say *"profile"* to see your current setup.\n⚙️ Say *"setup"* if you want to redo your profile or start a new semester.\n📁 Say *"export"* to get a link to download all your data.\n\nYou can also manage everything on your dashboard: ${WEBSITE_URL} 💻`,
+    profileHeader: `👤 *Your Profile*\n\n`,
+    profileName: (name) => `*Name:* ${name}\n`,
+    profilePersonal: `*Personal Track:* Active\n`,
+    profileAcademic: `*Academic Track:* Active\n`,
+    profileTarget: (pct) => `*Target Attendance:* ${pct}%\n`,
+    profileUniversity: (uni) => `*University:* ${uni}\n`,
+    profileProgram: (prog) => `*Program:* ${prog}\n`,
+    profileFooter: `\nIf you ever need to change any of this, just say *"setup"*! 😊`,
+    unknown: `Hmm, I'm not sure I understood that correctly. 🤔\n\nYou can say *"help"* to see some of the things you can ask me, or visit your dashboard at ${WEBSITE_URL}!`,
+    error: `❌ Something went wrong. Please try again.\n\nIf this keeps happening, visit ${WEBSITE_URL}`,
+  }
+};
 
 // ============================================================================
 // SUPABASE CLIENTS
@@ -278,349 +413,14 @@ async function seedDefaultCategories(phone) {
   else console.log('✅ Default categories seeded for', phone);
 }
 
-// ============================================================================
-// ONBOARDING STATE MACHINE
-// ============================================================================
-
-function startOnboarding(phone) {
-  setSession(phone, 'awaiting_name', {});
-  return `👋 Hi there! Welcome to *Ryu Medha* — I'm your new personal study assistant. 🎓
-
-I'm here to help you track your classes, manage your tasks, and keep an eye on your grades so you can focus on learning.
-
-To get started, what should I call you? 😊`;
-}
-
-/**
- * Drives onboarding one step at a time.
- * Returns the reply string, or null if step was unhandled.
- *
- * All DB writes here use getUserClient() (updateProfile, seedDefaultCategories,
- * reference table inserts which have no RLS).
- */
-async function handleOnboarding(user, session, rawText) {
-  const { step, data } = session;
-  const text = rawText.trim();
-  const uc = getUserClient(user.whatsapp_number);
-
-  // ── Step 1: Name ─────────────────────────────────────────────────────────
-  if (step === 'awaiting_name') {
-    if (!text) return `I'd love to know your name so I can set things up for you! 😊`;
-
-    await updateProfile(user.whatsapp_number, { display_name: text });
-    setSession(user.whatsapp_number, 'awaiting_setup_method', { name: text });
-
-    return `It's great to meet you, *${text}*! 👋
-
-How would you like to set up your profile? 
-
-1️⃣  *Continue here* (I'll ask you a few quick questions)
-2️⃣  *Use the website* (A bit faster, with easy dropdowns)
-
-Just reply with *1* or *2*!`;
-  }
-
-  // ── Step 2: Setup choice ──────────────────────────────────────────────────
-  if (step === 'awaiting_setup_method') {
-    const lower = text.toLowerCase();
-
-    // Option 2: Website
-    if (['2', 'website', 'web'].includes(lower)) {
-      clearSession(user.whatsapp_number);
-      return `Perfect! You can complete your setup on our dashboard here:
-
-${WEBSITE_URL}/setup
-
-Your account is already waiting for you. Just log in with your WhatsApp number and I'll see you on the other side! 💻✨`;
-    }
-
-    // Option 1: Bot
-    if (['1', 'here', 'chat'].includes(lower)) {
-      setSession(user.whatsapp_number, 'awaiting_track_selection', { ...data });
-
-      return `Awesome, let's do it right here! ✍️
-
-What would you like to track with me?
-
-1️⃣  *Academics* (University classes, attendance, and CGPA)
-2️⃣  *Personal* (Self-study, skills, or hobbies)
-3️⃣  *Both* (Full academic + personal tracking)
-
-Tell me *1*, *2*, or *3*!`;
-    }
-
-    return `Please reply *1* to continue here or *2* to set up on the website.`;
-  }
-
-  // ── Step 3: Track preference ──────────────────────────────────────────────
-  if (step === 'awaiting_track_selection') {
-    const lower = text.toLowerCase();
-    let track = null;
-
-    if (['1', 'academic', 'academics'].includes(lower)) track = 'academic';
-    else if (['2', 'personal'].includes(lower)) track = 'personal';
-    else if (['3', 'both'].includes(lower)) track = 'both';
-
-    if (!track) return `Please reply with *1* (Academic), *2* (Personal), or *3* (Both).`;
-
-    const wantsAcademic = track === 'academic' || track === 'both';
-    const wantsPersonal = track === 'personal' || track === 'both';
-
-    // Personal-only — done immediately
-    if (wantsPersonal && !wantsAcademic) {
-      await updateProfile(user.whatsapp_number, {
-        personal_enabled: true,
-        academics_enabled: false,
-      });
-      await seedDefaultCategories(user.whatsapp_number);
-      clearSession(user.whatsapp_number);
-
-      return `All set! I've enabled *Personal Tracking* for you. ✨
-
-I've already added some common categories like "Creative Skills" and "Language Learning" to get you started. 
-
-*Try telling me something like:*
-• "Add subject Spanish"
-• "Add category Photography"
-
-Whenever you need a hand, just type *help*! 🚀`;
-    }
-
-    // Academic or Both — fetch universities
-    const { data: unis } = await uc
-      .from('universities')
-      .select('id, name')
-      .order('name', { ascending: true });
-
-    let msg = `🏛️ *Which University do you attend?*\n\n`;
-    if (unis && unis.length > 0) {
-      unis.forEach((u, i) => { msg += `${i + 1}. ${u.name}\n`; });
-      msg += `\n_You can reply with the number or just type the name._`;
-    } else {
-      msg = `🏛️ *What is the name of your University?*\n\n(e.g., "Delhi University")`;
-    }
-
-    setSession(user.whatsapp_number, 'awaiting_university', {
-      ...data,
-      track,
-      wantsPersonal,
-      unisList: unis || []
-    });
-
-    return msg;
-  }
-
-  // ── Step 4: University Selection ──────────────────────────────────────────
-  if (step === 'awaiting_university') {
-    if (!text) return `Please enter or select your university name.`;
-
-    let university;
-    const match = text.match(/^\d+$/);
-
-    // Check if it's a number from the list
-    if (match) {
-      const idx = parseInt(match[0], 10) - 1;
-      if (data.unisList && data.unisList[idx]) {
-        university = data.unisList[idx];
-      }
-    }
-
-    // Fallback: Check if name exists in DB or create it
-    if (!university) {
-      const { data: existing } = await uc
-        .from('universities')
-        .select('id, name')
-        .ilike('name', text)
-        .maybeSingle();
-
-      if (existing) {
-        university = existing;
-      } else {
-        const { data: created, error } = await uc
-          .from('universities')
-          .insert([{ name: text }])
-          .select()
-          .single();
-        if (error) return `❌ Error saving university. Please try again.`;
-        university = created;
-      }
-    }
-
-    // Fetch Programs for this university
-    const { data: progs } = await uc
-      .from('programs')
-      .select('id, name, default_target_attendance')
-      .eq('university_id', university.id)
-      .order('name', { ascending: true });
-
-    let msg = `🎓 *And what is your Program at ${university.name}?*\n\n`;
-    if (progs && progs.length > 0) {
-      progs.forEach((p, i) => { msg += `${i + 1}. ${p.name}\n`; });
-      msg += `\n_Reply with the number or type it out (e.g., BA LLB)._`;
-    } else {
-      msg = `🎓 *What is the name of your Program?*\n\n(e.g., "B.Tech Computer Science" or "BA LLB")`;
-    }
-
-    setSession(user.whatsapp_number, 'awaiting_program', {
-      ...data,
-      universityId: university.id,
-      universityName: university.name,
-      progsList: progs || []
-    });
-
-    return msg;
-  }
-
-  // ── Step 5: Program Selection ─────────────────────────────────────────────
-  if (step === 'awaiting_program') {
-    if (!text) return `Please enter or select your program name.`;
-
-    let program;
-    const match = text.match(/^\d+$/);
-
-    if (match) {
-      const idx = parseInt(match[0], 10) - 1;
-      if (data.progsList && data.progsList[idx]) {
-        program = data.progsList[idx];
-      }
-    }
-
-    if (!program) {
-      const { data: existing } = await uc
-        .from('programs')
-        .select('id, name, default_target_attendance')
-        .eq('university_id', data.universityId)
-        .ilike('name', text)
-        .maybeSingle();
-
-      if (existing) {
-        program = existing;
-      } else {
-        const { data: created, error } = await uc
-          .from('programs')
-          .insert([{ university_id: data.universityId, name: text }])
-          .select()
-          .single();
-        if (error) return `❌ Error saving program. Try again.`;
-        program = created;
-      }
-    }
-
-    setSession(user.whatsapp_number, 'awaiting_semester', {
-      ...data,
-      programId: program.id,
-      programName: program.name,
-      defaultTarget: program.default_target_attendance || 75
-    });
-
-    return `📖 *Which Semester are you in?*
-
-Example: _"5"_ or _"Semester 5"_`;
-  }
-
-  // ── Step 6: Semester ──────────────────────────────────────────────────────
-  if (step === 'awaiting_semester') {
-    const match = text.match(/\d+/);
-    if (!match) return `Please enter a valid semester number, e.g. *5*.`;
-
-    const semNum = parseInt(match[0], 10);
-    const semName = `Semester ${semNum}`;
-
-    let semester;
-    const { data: existing } = await uc
-      .from('semesters')
-      .select('id')
-      .eq('program_id', data.programId)
-      .eq('semester_number', semNum)
-      .maybeSingle();
-
-    if (existing) {
-      semester = existing;
-    } else {
-      const { data: created, error } = await uc
-        .from('semesters')
-        .insert([{ program_id: data.programId, semester_number: semNum, name: semName }])
-        .select()
-        .single();
-      if (error) return `❌ Error saving semester.`;
-      semester = created;
-    }
-
-    setSession(user.whatsapp_number, 'awaiting_target_pct', {
-      ...data,
-      semesterId: semester.id,
-      semesterName: semName
-    });
-
-    return `🎯 *Attendance Goal*
-
-What's the minimum attendance percentage you're aiming for?
-${data.defaultTarget ? `_(Most students in your program aim for **${data.defaultTarget}%**)_` : ''}
-
-_(Just send me the number, like **75** or **85**)_`;
-  }
-
-  // ── Step 7: Final Target & Finish ─────────────────────────────────────────
-  if (step === 'awaiting_target_pct') {
-    const match = text.match(/\d+(\.\d+)?/);
-    const pct = match ? parseFloat(match[0]) : (data.defaultTarget || 75);
-
-    await updateProfile(user.whatsapp_number, {
-      academics_enabled: true,
-      personal_enabled: data.wantsPersonal || false,
-      current_university_id: data.universityId,
-      current_program_id: data.programId,
-      current_semester_id: data.semesterId,
-      target_attendance_pct: pct
-    });
-
-    if (data.wantsPersonal) await seedDefaultCategories(user.whatsapp_number);
-
-    clearSession(user.whatsapp_number);
-
-    return `✨ *You're all set, ${data.name}!* ✨
-
-I've created your profile with these details:
-🏛️ *${data.universityName}*
-🎓 *${data.programName}*
-📖 *${data.semesterName}*
-🎯 *Goal: ${pct}%*
-
-*You can now start managing your studies:*
-• "Add subject Math"
-• "I went to Law class"
-• "How are my stats?"
-
-I'm here whenever you need me. Just type *help* if you ever get stuck. Let's make this semester great! 🚀🎓`;
-  }
-
-  // ── Mid-command: subject type disambiguation ───────────────────────────────
-  if (step === 'awaiting_subject_type') {
-    const lower = text.toLowerCase();
-    let type = null;
-
-    if (['1', 'academic', 'academics'].includes(lower)) type = 'academic';
-    else if (['2', 'personal'].includes(lower)) type = 'personal';
-
-    if (!type) return `Please reply * 1 * for Academic or * 2 * for Personal.`;
-
-    clearSession(user.whatsapp_number);
-
-    // Re-fetch fresh profile (track flags may have just been set)
-    const fresh = await getOrCreateUser(user.whatsapp_number);
-    return await createSubject(fresh, data.subjectName, type);
-  }
-
-  clearSession(user.whatsapp_number);
-  return null;
-}
+// Onboarding logic extracted to setup.js
 
 // ============================================================================
 // CATEGORY HANDLERS  (all via user JWT client — RLS enforced)
 // ============================================================================
 
 async function handleAddCategory(user, categoryName) {
-  if (!categoryName) return `I'd be happy to add a new category for you! Just let me know what to call it (e.g., "Professional Development").`;
+  if (!categoryName) return MESSAGES.categories.prompt;
 
   const uc = getUserClient(user.whatsapp_number);
 
@@ -633,7 +433,7 @@ async function handleAddCategory(user, categoryName) {
     .maybeSingle();
 
   if (dup) {
-    return `It looks like you already have a category named *"${dup.name}"*! 📂`;
+    return MESSAGES.categories.duplicate(dup.name);
   }
 
   const { data: created, error } = await uc
@@ -644,12 +444,10 @@ async function handleAddCategory(user, categoryName) {
 
   if (error) {
     console.error('❌ addCategory:', error);
-    return `I'm sorry, I ran into a bit of trouble creating that category. Could you try again in a moment?`;
+    return MESSAGES.categories.error;
   }
 
-  return `Got it! I've created the *"${created.name}"* category for you. 📂
-
-You can start adding subjects to it whenever you're ready!`;
+  return MESSAGES.categories.success(created.name);
 }
 
 async function handleListCategories(user) {
@@ -662,16 +460,16 @@ async function handleListCategories(user) {
     .order('created_at', { ascending: true });
 
   if (error || !cats || cats.length === 0) {
-    return `It looks like you haven't created any categories yet. 📂\n\nWant to add one? Just tell me something like *"Add category Professional"*.`;
+    return MESSAGES.categories.empty;
   }
 
-  let msg = `📂 *Here are your current categories (${cats.length}):*\n\n`;
+  let msg = MESSAGES.categories.listHeader(cats.length);
   cats.forEach((c, i) => { msg += `${i + 1}. ${c.name}\n`; });
   return msg;
 }
 
 async function handleDeleteCategory(user, categoryName) {
-  if (!categoryName) return `Please provide a category name.\nExample: * delete category Hobbies * `;
+  if (!categoryName) return MESSAGES.categories.deletePrompt;
 
   const uc = getUserClient(user.whatsapp_number);
 
@@ -683,7 +481,7 @@ async function handleDeleteCategory(user, categoryName) {
     .maybeSingle();
 
   if (!cat) {
-    return `I couldn't find a category named *"${categoryName}"* in your list. 📂`;
+    return MESSAGES.categories.notFound(categoryName);
   }
 
   const { count } = await uc
@@ -693,9 +491,7 @@ async function handleDeleteCategory(user, categoryName) {
     .eq('is_active', true);
 
   if (count > 0) {
-    return `I can't delete *"${cat.name}"* just yet because there are ${count} subject${count > 1 ? 's' : ''} still using it. 📂
-
-Could you please move or delete those subjects first?`;
+    return MESSAGES.categories.inUse(cat.name, count);
   }
 
   const { error } = await uc
@@ -705,10 +501,10 @@ Could you please move or delete those subjects first?`;
 
   if (error) {
     console.error('❌ deleteCategory:', error);
-    return `I'm sorry, I couldn't delete that category. Please try again!`;
+    return MESSAGES.categories.deleteError;
   }
 
-  return `Done! I've removed the *"${cat.name}"* category for you. 🗑️`;
+  return MESSAGES.categories.deleteSuccess(cat.name);
 }
 
 // ============================================================================
@@ -757,20 +553,20 @@ async function createSubject(user, subjectName, type, total = null, missed = 0, 
     .maybeSingle();
 
   if (dup) {
-    return `Wait, it looks like *"${dup.name}"* is already in your list! (${dup.type} subject) 📚`;
+    return MESSAGES.subjects.duplicate(dup.name, dup.type);
   }
 
   // ── Academic subject ──────────────────────────────────────────────────────
   if (type === 'academic') {
     if (!user.current_semester_id) {
-      return `It looks like your academic profile isn't fully set up yet. Could you please run *setup* first? 😊`;
+      return MESSAGES.subjects.setupNeeded;
     }
 
     let courseId;
     try {
       courseId = await findOrCreateAcademicCourse(uc, user.current_semester_id, subjectName.trim());
     } catch {
-      return `I ran into an issue setting up that subject for you. Could you try again?`;
+      return MESSAGES.subjects.error;
     }
 
     const { data: subject, error } = await uc
@@ -791,10 +587,10 @@ async function createSubject(user, subjectName, type, total = null, missed = 0, 
 
     if (error) {
       console.error('❌ createSubject academic:', error);
-      return `I'm sorry, I couldn't add *${subjectName.trim()}* right now.`;
+      return MESSAGES.subjects.addError(subjectName.trim());
     }
 
-    return `Got it! I've added *"${subject.name}"* to your academic list. 🎓`;
+    return MESSAGES.subjects.academicSuccess(subject.name);
   }
 
   // ── Personal subject ──────────────────────────────────────────────────────
@@ -835,22 +631,22 @@ async function createSubject(user, subjectName, type, total = null, missed = 0, 
 
   if (error) {
     console.error('❌ createSubject personal:', error);
-    return `I'm sorry, I couldn't add *${subjectName.trim()}* right now.`;
+    return MESSAGES.subjects.addError(subjectName.trim());
   }
 
-  return `Got it! I've added *"${subject.name}"* to your personal tracker. 💼`;
+  return MESSAGES.subjects.personalSuccess(subject.name);
 }
 
 /** Routes "add subject <n>" — resolves type or asks if both tracks enabled. Supports bulk. */
 async function handleAddSubject(user, phone, rawText) {
-  if (!rawText) return `Please provide subject details.\nFormat: * add subject < name >, <type (1 = Academic, 2 = Personal) >, [total], [missed], [attended] *\nExample: * add subject Contract Law, 1, 60, 5, 20 * `;
+  if (!rawText) return MESSAGES.subjects.addPrompt;
 
   // Parse by comma for bulk addition or inline stats
   const parts = rawText.split(',').map(s => s.trim()).filter(Boolean);
 
   // If user only provided a name without type, let's gracefully fail and prompt format.
   if (parts.length < 2) {
-    return `Please provide the subject type as well.\nFormat: * add subject < name >, < 1 or 2 >*\n(1 = Academic, 2 = Personal)`;
+    return MESSAGES.subjects.typeNeeded;
   }
 
   const responses = [];
@@ -864,7 +660,7 @@ async function handleAddSubject(user, phone, rawText) {
 
     // Check if next part is 1 or 2
     if (!['1', '2', 'academic', 'personal'].includes(typeVal)) {
-      responses.push(`❌ Invalid type for * ${name} *.Use 1(Academic) or 2(Personal).`);
+      responses.push(MESSAGES.subjects.invalidType(name));
       i += 1; // Try to recover by shifting 1
       continue;
     }
@@ -912,7 +708,7 @@ async function handleListSubjects(user) {
     .order('created_at', { ascending: true });
 
   if (error || !subjects || subjects.length === 0) {
-    return `I don't see any subjects in your list yet. 📚\n\nWant to add one? Just say something like *"Add academic subject Law"* or *"Track personal subject Guitar"*!`;
+    return MESSAGES.subjects.empty;
   }
 
   // Hierarchical Filter
@@ -925,28 +721,28 @@ async function handleListSubjects(user) {
   });
 
   if (filteredSubjects.length === 0) {
-    return `I don't see any subjects for your current semester yet. 📖\n\nYou can add one by telling me the name and whether it's Academic or Personal.`;
+    return MESSAGES.subjects.emptySemester;
   }
 
   const academic = filteredSubjects.filter(s => s.type === 'academic');
   const personal = filteredSubjects.filter(s => s.type === 'personal');
-  let msg = `📚 * Your Subjects:*\n`;
+  let msg = MESSAGES.subjects.listHeader;
 
   if (academic.length) {
-    msg += `\n🎓 * Academic:*\n`;
+    msg += MESSAGES.subjects.listAcademic;
     academic.forEach((s, i) => { msg += `  ${i + 1}. ${s.name} \n`; });
   }
   if (personal.length) {
-    msg += `\n💼 * Personal:*\n`;
+    msg += MESSAGES.subjects.listPersonal;
     personal.forEach((s, i) => { msg += `  ${i + 1}. ${s.name} \n`; });
   }
 
-  msg += `\nYou're currently tracking **${filteredSubjects.length}** subject${filteredSubjects.length !== 1 ? 's' : ''} in this semester scope. 🎓`;
+  msg += MESSAGES.subjects.listFooter(filteredSubjects.length, filteredSubjects.length !== 1);
   return msg;
 }
 
 async function handleDeleteSubject(user, subjectName) {
-  if (!subjectName) return `Please provide a subject name.\nExample: * delete subject Python * `;
+  if (!subjectName) return MESSAGES.subjects.deletePrompt;
 
   const uc = getUserClient(user.whatsapp_number);
 
@@ -958,7 +754,7 @@ async function handleDeleteSubject(user, subjectName) {
     .eq('is_active', true);
 
   if (!subjects || subjects.length === 0) {
-    return `I couldn't find a subject named *"${subjectName}"* in your active list. 📚`;
+    return MESSAGES.subjects.notFound(subjectName);
   }
 
   // Hierarchical Filter
@@ -971,7 +767,7 @@ async function handleDeleteSubject(user, subjectName) {
   });
 
   if (validSubjects.length === 0) {
-    return `I found *"${subjectName}"*, but it doesn't seem to be in your current semester context. 📖`;
+    return MESSAGES.subjects.wrongContext(subjectName);
   }
 
   const subject = validSubjects[0];
@@ -984,10 +780,10 @@ async function handleDeleteSubject(user, subjectName) {
 
   if (error) {
     console.error('❌ deleteSubject:', error);
-    return `I'm sorry, I couldn't remove that subject for now. Please try again!`;
+    return MESSAGES.subjects.deleteError;
   }
 
-  return `Done! I've removed *"${subject.name}"* from your active list. 🗑️\n\n_(Don't worry, your history is still safe for your stats)_`;
+  return MESSAGES.subjects.deleteSuccess(subject.name);
 }
 
 // ============================================================================
@@ -1006,7 +802,7 @@ async function logAttendance(user, subjectName, status) {
     .ilike('name', `% ${subjectName.trim()}% `);
 
   if (!subjects || subjects.length === 0) {
-    return `I couldn't find a subject named *"${subjectName.trim()}"* in your list. 📚`;
+    return MESSAGES.attendance.notFound(subjectName.trim());
   }
 
   // Hierarchical Filter
@@ -1019,13 +815,13 @@ async function logAttendance(user, subjectName, status) {
   });
 
   if (validSubjects.length === 0) {
-    return `I found *"${subjectName.trim()}"*, but it doesn't seem to be in your current semester context. 📖`;
+    return MESSAGES.attendance.wrongContext(subjectName.trim());
   }
 
   const subject = validSubjects[0];
 
   if (subject.type !== 'academic') {
-    return `I noticed *${subject.name}* is a personal subject. I only track attendance for your academic classes! 🎓`;
+    return MESSAGES.attendance.academicOnly(subject.name);
   }
 
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -1040,7 +836,7 @@ async function logAttendance(user, subjectName, status) {
     .maybeSingle();
 
   if (existing) {
-    return `You've already marked *${subject.name}* as *${existing.status}* for today! 😊`;
+    return MESSAGES.attendance.alreadyMarked(subject.name, existing.status);
   }
 
   const { error } = await uc
@@ -1054,10 +850,14 @@ async function logAttendance(user, subjectName, status) {
 
   if (error) {
     console.error('❌ logAttendance:', error);
-    return `I'm sorry, I couldn't mark your attendance for *${subject.name}* right now. Please try again!`;
+    return MESSAGES.attendance.error(subject.name);
   }
 
-  const prefix = status === 'present' ? `Great job! I've marked you present for *${subject.name}*. 🎓\n\n` : `Got it. I've marked you absent for *${subject.name}*. ✍️\n\n`;
+  const prefix = status === 'present'
+    ? MESSAGES.attendance.presentPrefix(subject.name)
+    : status === 'absent'
+      ? MESSAGES.attendance.absentPrefix(subject.name)
+      : MESSAGES.attendance.deemedPrefix(subject.name);
   return await buildAttendanceSummary(uc, user, subject, prefix);
 }
 
@@ -1079,7 +879,7 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '') {
   const totalDeemed = actualDeemed; // Assuming deemed is not in legacy
   const totalCounted = totalPresent + totalAbsent + totalDeemed;
 
-  if (totalCounted === 0) return `${prefix}${subject.name}: 0 classes so far.`;
+  if (totalCounted === 0) return MESSAGES.attendance.summaryNoData(subject.name);
 
   // Formula: (Present + Deemed) / Total
   const pct = ((totalPresent + totalDeemed) / totalCounted) * 100;
@@ -1089,8 +889,8 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '') {
 
   const emoji = pct >= targetPct ? '✅' : pct >= (targetPct - 15) ? '⚠️' : '🔴';
 
-  let msg = `${prefix}${emoji} * ${subject.name}*: ${totalPresent}/${totalCounted} (${pct.toFixed(1)}%)`;
-  if (totalDeemed > 0) msg += ` _(incl. ${totalDeemed} deemed)_`;
+  let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, totalPresent, totalCounted, pct.toFixed(1));
+  if (totalDeemed > 0) msg += MESSAGES.attendance.deemedNote(totalDeemed);
 
   // Dynamic calculations based on total expected lectures
   if (subject.expected_total_lectures > 0) {
@@ -1102,7 +902,7 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '') {
     const bunksLeft = maxAllowedMisses - netAbsent;
 
     if (bunksLeft >= 0) {
-      msg += `\n💡 You can still skip *${bunksLeft}* class${bunksLeft !== 1 ? 'es' : ''} and stay above your goal!`;
+      msg += MESSAGES.attendance.bunksLeft(bunksLeft, bunksLeft !== 1);
     } else {
       // How many more present to reach target?
       // (Present + x + Deemed) / (Total + x) >= Target
@@ -1112,19 +912,19 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '') {
       // x >= (T*Total - (P + D)) / (1 - T)
       const t = targetPct / 100;
       const x = Math.ceil((t * totalCounted - (totalPresent + totalDeemed)) / (1 - t));
-      msg += `\n🚨 Warning: You need to attend the next **${x}** class${x !== 1 ? 'es' : ''} to get back on track!`;
+      msg += MESSAGES.attendance.trackWarning(x, x !== 1);
     }
   } else if (pct < targetPct) {
     const t = targetPct / 100;
     const x = Math.ceil((t * totalCounted - (totalPresent + totalDeemed)) / (1 - t));
-    if (x > 0) msg += `\n💡 You should attend the next **${x}** class${x !== 1 ? 'es' : ''} to reach your ${targetPct}% goal.`;
+    if (x > 0) msg += MESSAGES.attendance.onTrackTip(x, x !== 1, targetPct);
   }
 
   return msg;
 }
 
 async function handleAttended(user, rawText) {
-  if (!rawText) return `Just let me know which subjects you attended today! 🎓\n\n(e.g., *"attended Math"* or *"present in Law"*)`;
+  if (!rawText) return MESSAGES.attendance.attendedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
   const responses = [];
   for (const s of subjects) {
@@ -1134,7 +934,7 @@ async function handleAttended(user, rawText) {
 }
 
 async function handleMissed(user, rawText) {
-  if (!rawText) return `I hope everything is okay! Which class did you miss? ✍️\n\n(e.g., *"missed Economics"*) `;
+  if (!rawText) return MESSAGES.attendance.missedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
   const responses = [];
   for (const s of subjects) {
@@ -1143,7 +943,7 @@ async function handleMissed(user, rawText) {
   return responses.join('\n\n');
 }
 async function handleDeemed(user, rawText) {
-  if (!rawText) return `If a class was cancelled or you were given a holiday, just let me know which ones! 🏖️\n\n(e.g., *"deemed Law"*)`;
+  if (!rawText) return MESSAGES.attendance.deemedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
   const responses = [];
   for (const s of subjects) {
@@ -1152,7 +952,7 @@ async function handleDeemed(user, rawText) {
   return responses.join('\n\n');
 }
 async function handleUndoAttendance(user, subjectName) {
-  if (!subjectName) return `Please provide a subject name.\nExample: *undo Contract Law*`;
+  if (!subjectName) return MESSAGES.attendance.undoPrompt;
 
   const uc = getUserClient(user.whatsapp_number);
   const today = new Date().toISOString().split('T')[0];
@@ -1164,7 +964,7 @@ async function handleUndoAttendance(user, subjectName) {
     .eq('is_active', true)
     .ilike('name', `%${subjectName.trim()}%`);
 
-  if (!subjects || subjects.length === 0) return `❌ Subject *"${subjectName}"* not found.`;
+  if (!subjects || subjects.length === 0) return MESSAGES.attendance.notFound(subjectName.trim());
 
   const validSubjects = subjects.filter(s => {
     if (s.type === 'personal') return true;
@@ -1174,7 +974,7 @@ async function handleUndoAttendance(user, subjectName) {
     return semesterId === user.current_semester_id;
   });
 
-  if (validSubjects.length === 0) return `❌ Subject not in current context.`;
+  if (validSubjects.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
   const subject = validSubjects[0];
 
   const { error } = await uc
@@ -1184,16 +984,16 @@ async function handleUndoAttendance(user, subjectName) {
     .eq('subject_id', subject.id)
     .eq('lecture_date', today);
 
-  if (error) return `I'm sorry, I couldn't undo that for you right now.`;
+  if (error) return MESSAGES.attendance.undoError;
 
-  return await buildAttendanceSummary(uc, user, subject, `🔄 No problem, I've removed today's log for *${subject.name}*.\n\n`);
+  return await buildAttendanceSummary(uc, user, subject, MESSAGES.attendance.undoSuccessPrefix(subject.name));
 }
 
 /** Updates legacy missed or attended counters: update missed <subj>, <count> */
 async function handleUpdateLegacy(user, column, rawText) {
   const parts = rawText.split(',').map(s => s.trim());
   if (parts.length < 2 || isNaN(parts[1])) {
-    return `Format: *update ${column === 'legacy_missed_lectures' ? 'missed' : 'attended'} <subject>, <count>*\nExample: *update missed Math, 5*`;
+    return MESSAGES.attendance.updateLegacyPrompt(column);
   }
 
   const subjectName = parts[0];
@@ -1208,7 +1008,7 @@ async function handleUpdateLegacy(user, column, rawText) {
     .ilike('name', `%${subjectName}%`);
 
   if (!subjects || subjects.length === 0) {
-    return `I couldn't find a subject named *"${subjectName}"* in your list. 📚`;
+    return MESSAGES.attendance.notFound(subjectName);
   }
 
   const validSubjects = subjects.filter(s => {
@@ -1219,7 +1019,7 @@ async function handleUpdateLegacy(user, column, rawText) {
     return semesterId === user.current_semester_id;
   });
 
-  if (validSubjects.length === 0) return `❌ Subject not in current context.`;
+  if (validSubjects.length === 0) return MESSAGES.attendance.wrongContext(subjectName);
 
   const subject = validSubjects[0];
   const updates = {};
@@ -1232,17 +1032,15 @@ async function handleUpdateLegacy(user, column, rawText) {
 
   if (error) {
     console.error('❌ update legacy error:', error);
-    return `I'm sorry, I couldn't update your history for *${subject.name}*. Please try again.`;
+    return MESSAGES.attendance.updateLegacyError(subject.name);
   }
 
-  return `Fixed! I've updated *${subject.name}* to ${count} ${column === 'legacy_missed_lectures' ? 'missed' : 'attended'} classes in your history. ✍️`;
+  return MESSAGES.attendance.updateLegacySuccess(subject.name, count, column);
 }
 
 async function handleStats(user) {
   if (!user.academics_enabled) {
-    return `I only track attendance stats for academic subjects! 📊
-
-You have personal tracking enabled. Would you like to check your *subjects* list instead?`;
+    return MESSAGES.stats.academicOnly;
   }
 
   const uc = getUserClient(user.whatsapp_number);
@@ -1257,10 +1055,10 @@ You have personal tracking enabled. Would you like to check your *subjects* list
   const subjects = rawSubjects?.filter(s => s.source_course_id?.semester_id === user.current_semester_id) || [];
 
   if (!subjects || subjects.length === 0) {
-    return `You haven't added any academic subjects for this semester yet! 📊🎓\n\nYou can add one by telling me something like *"Add subject Math"*!`;
+    return MESSAGES.stats.noSubjects;
   }
 
-  let msg = `📊 *Attendance Stats (Target: ${user.target_attendance_pct || 75}%):*\n\n`;
+  let msg = MESSAGES.stats.header(user.target_attendance_pct || 75);
   let hasData = false;
 
   for (const subject of subjects) {
@@ -1269,11 +1067,11 @@ You have personal tracking enabled. Would you like to check your *subjects* list
       hasData = true;
       msg += summaryStr + '\n\n';
     } else {
-      msg += `⬜ *${subject.name}*: No data yet\n\n`;
+      msg += `${MESSAGES.stats.noDataEmoji} *${subject.name}*: ${MESSAGES.stats.noDataNote}\n\n`;
     }
   }
 
-  if (!hasData) return `I don't have any attendance logs for your subjects yet! 📊\n\nTry telling me something like *"I was present in Math"* to get started.`;
+  if (!hasData) return MESSAGES.stats.empty;
   return msg.trim();
 }
 
@@ -1282,7 +1080,7 @@ You have personal tracking enabled. Would you like to check your *subjects* list
 // ============================================================================
 
 async function handleStartTimer(user, subjectName) {
-  if (!subjectName) return `Please provide a subject name.\nExample: *start Contract Law*`;
+  if (!subjectName) return MESSAGES.timers.startPrompt;
 
   const uc = getUserClient(user.whatsapp_number);
 
@@ -1295,7 +1093,7 @@ async function handleStartTimer(user, subjectName) {
     .maybeSingle();
 
   if (running) {
-    return `⚠️ You already have an active timer for *${running.subjects?.name || 'a subject'}*.\n\nPlease reply with *stop* before starting a new one.`;
+    return MESSAGES.timers.alreadyRunning(running.subjects?.name);
   }
 
   const { data: subjects } = await uc
@@ -1306,7 +1104,7 @@ async function handleStartTimer(user, subjectName) {
     .ilike('name', `%${subjectName.trim()}%`);
 
   if (!subjects || subjects.length === 0) {
-    return `❌ Subject *"${subjectName.trim()}"* not found.\n\nView subjects: *subjects*`;
+    return MESSAGES.timers.notFound(subjectName.trim());
   }
 
   // Hierarchical Filter
@@ -1319,7 +1117,7 @@ async function handleStartTimer(user, subjectName) {
   });
 
   if (validSubjects.length === 0) {
-    return `❌ Subject *"${subjectName.trim()}"* exists but is not in your current semester context.`;
+    return MESSAGES.timers.wrongContext(subjectName.trim());
   }
 
   const subject = validSubjects[0];
@@ -1334,12 +1132,10 @@ async function handleStartTimer(user, subjectName) {
 
   if (error) {
     console.error('❌ startTimer error:', error);
-    return `I'm sorry, I couldn't start the timer. Could you try again?`;
+    return MESSAGES.timers.startError;
   }
 
-  return `⏱️ *Study session started for ${subject.name}!*
-
-I'll keep track of the time for you. Just tell me *"stop"* or *"done studying"* when you're finished! 💪`;
+  return MESSAGES.timers.started(subject.name);
 }
 
 async function handleStopTimer(user) {
@@ -1354,7 +1150,7 @@ async function handleStopTimer(user) {
     .maybeSingle();
 
   if (!running) {
-    return `ℹ️ You don't have an active timer.`;
+    return MESSAGES.timers.noActive;
   }
 
   const endedAt = new Date();
@@ -1371,13 +1167,10 @@ async function handleStopTimer(user) {
 
   if (error) {
     console.error('❌ stopTimer error:', error);
-    return `I'm sorry, I couldn't stop the timer. Could you try again?`;
+    return MESSAGES.timers.stopError;
   }
 
-  return `⏹️ *Great focus!* You've finished your session for *${running.subjects?.name || 'Subject'}*.
-
-⏱️ Duration: **${hrs}h ${mins}m**
-I've saved this to your study history. Take a well-deserved break! 💪✨`;
+  return MESSAGES.timers.stopped(running.subjects?.name, hrs, mins);
 }
 
 // ============================================================================
@@ -1385,7 +1178,7 @@ I've saved this to your study history. Take a well-deserved break! 💪✨`;
 // ============================================================================
 
 async function handleAddTask(user, rawText) {
-  if (!rawText) return `Please provide a task title.\nFormat: *add task <title> [due <YYYY-MM-DD>]*\nExample: *add task Submit assignment due 2026-03-10*`;
+  if (!rawText) return MESSAGES.tasks.addPrompt;
 
   let title = rawText.trim();
   let dueDate = null;
@@ -1420,16 +1213,16 @@ async function handleAddTask(user, rawText) {
 
   if (error) {
     console.error('❌ addTask error:', error);
-    return `I'm sorry, I couldn't add that task for you right now.`;
+    return MESSAGES.tasks.addError;
   }
 
-  const dueStr = task.due_date ? ` (due ${new Date(task.due_date).toLocaleDateString('en-IN')})` : '';
-  return `Consider it done! I've added *"${task.title}"*${dueStr} to your list. ✅`;
+  const dueStr = task.due_date ? MESSAGES.tasks.dueNote(new Date(task.due_date).toLocaleDateString('en-IN')) : '';
+  return MESSAGES.tasks.addSuccess(task.title, dueStr);
 }
 
 async function handleCompleteTask(user, numberStr) {
   const taskIndex = parseInt(numberStr, 10) - 1;
-  if (isNaN(taskIndex) || taskIndex < 0) return `Please provide a valid task number.\nExample: *done 1*`;
+  if (isNaN(taskIndex) || taskIndex < 0) return MESSAGES.tasks.donePrompt;
 
   const uc = getUserClient(user.whatsapp_number);
 
@@ -1441,7 +1234,7 @@ async function handleCompleteTask(user, numberStr) {
     .eq('is_completed', false)
     .order('due_date', { ascending: true, nullsFirst: false });
 
-  if (!rawTasks || rawTasks.length === 0) return `You don't have any pending tasks right now! 📋`;
+  if (!rawTasks || rawTasks.length === 0) return MESSAGES.tasks.empty;
 
   // Hierarchical Filter (exact match to handleListTasks)
   const tasks = rawTasks.filter(t => {
@@ -1453,7 +1246,7 @@ async function handleCompleteTask(user, numberStr) {
       : sub.source_course_id?.semester_id;
     return semesterId === user.current_semester_id;
   });
-  if (taskIndex >= tasks.length) return `I couldn't find task #${taskIndex + 1} in your list. You have ${tasks.length} task(s) pending.`;
+  if (taskIndex >= tasks.length) return MESSAGES.tasks.notFound(taskIndex + 1, tasks.length);
 
   const targetTask = tasks[taskIndex];
 
@@ -1467,10 +1260,10 @@ async function handleCompleteTask(user, numberStr) {
 
   if (error) {
     console.error('❌ completeTask error:', error);
-    return `I'm sorry, I couldn't mark that task as finished.`;
+    return MESSAGES.tasks.doneError;
   }
 
-  return `Nice work! I've checked off *"${targetTask.title}"* for you. 🎉💪`;
+  return MESSAGES.tasks.doneSuccess(targetTask.title);
 }
 
 async function handleListTasks(user) {
@@ -1484,7 +1277,7 @@ async function handleListTasks(user) {
     .order('due_date', { ascending: true, nullsFirst: false });
 
   if (error || !tasks || tasks.length === 0) {
-    return `You're all caught up! You have no pending tasks right now. 📋✨`;
+    return MESSAGES.tasks.listCaughtUp;
   }
 
   // Hierarchical Filter
@@ -1499,21 +1292,21 @@ async function handleListTasks(user) {
   });
 
   if (filteredTasks.length === 0) {
-    return `📋 No pending tasks for the current semester!`;
+    return MESSAGES.tasks.emptySemester;
   }
 
   const priorityEmoji = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
 
-  let msg = `📋 *Pending Tasks (${filteredTasks.length}):*\n\n`;
+  let msg = MESSAGES.tasks.listHeader(filteredTasks.length);
   filteredTasks.forEach((t, i) => {
     const p = priorityEmoji[t.priority] || '🟡';
     const due = t.due_date
-      ? ` _(due ${new Date(t.due_date).toLocaleDateString('en-IN')})_`
+      ? MESSAGES.tasks.dueNote(new Date(t.due_date).toLocaleDateString('en-IN'))
       : '';
     msg += `${i + 1}. ${p} ${t.title}${due}\n`;
   });
 
-  msg += `\nYou have **${filteredTasks.length}** task${filteredTasks.length !== 1 ? 's' : ''} to work on. You've got this! 💪`;
+  msg += MESSAGES.tasks.listFooter(filteredTasks.length, filteredTasks.length !== 1);
   return msg;
 }
 
@@ -1525,7 +1318,7 @@ async function handleAddGrade(user, rawText) {
   // Parsing standard: add grade Math, MidSem, 25, 30, [weigtage]
   const parts = rawText.split(',').map(p => p.trim());
   if (parts.length < 4) {
-    return `I'd love to save your marks! Just tell me the subject, the exam type, and your score. 🎓✨\n\n(e.g., *"I got 25/30 in Math assignment"* or *"add grade Law, MidSem, 40, 50"*)`;
+    return MESSAGES.grades.addPrompt;
   }
 
   const [subjectName, gradeTypeRaw, marksStr, maxMarksStr, weightageStr] = parts;
@@ -1541,7 +1334,7 @@ async function handleAddGrade(user, rawText) {
   let weightage = parseFloat(weightageStr);
   if (isNaN(weightage)) weightage = null;
 
-  if (isNaN(marks) || isNaN(maxMarks)) return `I need the marks and max marks to be numbers so I can calculate your performance! 📊`;
+  if (isNaN(marks) || isNaN(maxMarks)) return MESSAGES.grades.numError;
 
   const uc = getUserClient(user.whatsapp_number);
 
@@ -1552,7 +1345,7 @@ async function handleAddGrade(user, rawText) {
     .eq('is_active', true)
     .ilike('name', `%${subjectName}%`);
 
-  if (!subjects || subjects.length === 0) return `❌ Subject *"${subjectName}"* not found.`;
+  if (!subjects || subjects.length === 0) return MESSAGES.grades.notFound(subjectName);
   const subject = subjects[0];
 
   const { data: insertData, error } = await uc
@@ -1571,14 +1364,11 @@ async function handleAddGrade(user, rawText) {
 
   if (error) {
     console.error('❌ add grade error:', error);
-    return `I'm sorry, I couldn't save that grade for you right now.`;
+    return MESSAGES.grades.addError;
   }
 
   const p = ((marks / maxMarks) * 100).toFixed(1);
-  return `Great work! I've saved your *${gradeTypeRaw.toUpperCase()}* marks for *${subject.name}*. 🎓✨
-
-Score: **${marks}/${maxMarks}** (${p}%)
-Keep it up! 💪`;
+  return MESSAGES.grades.addSuccess(gradeTypeRaw, subject.name, marks, maxMarks, p);
 }
 
 async function handleViewGrades(user) {
@@ -1589,7 +1379,7 @@ async function handleViewGrades(user) {
     .select('marks, max_marks, grade_type, subject_id, subjects!inner(name, type, source_course_id(semester_id))')
     .eq('profile_id', user.id);
 
-  if (error || !grades || grades.length === 0) return `I don't see any grades in your record yet. 📊✨\n\nOnce you add some, I can show you your performance overview!`;
+  if (error || !grades || grades.length === 0) return MESSAGES.grades.empty;
 
   // Hierarchical Filter
   const filteredGrades = grades.filter(g => {
@@ -1601,7 +1391,7 @@ async function handleViewGrades(user) {
     return semesterId === user.current_semester_id;
   });
 
-  if (filteredGrades.length === 0) return `I don't see any grades for your current semester yet! 📖✨`;
+  if (filteredGrades.length === 0) return MESSAGES.grades.emptySemester;
 
   // Aggregate by subject
   const map = {};
@@ -1612,14 +1402,14 @@ async function handleViewGrades(user) {
     map[sName].total += Number(g.max_marks);
   });
 
-  let msg = `🎓 *Here is a look at your grades:* \n\n`;
+  let msg = MESSAGES.grades.header;
   let overallObtained = 0;
   let overallTotal = 0;
 
   for (const [name, stats] of Object.entries(map)) {
     if (stats.total > 0) {
       const p = ((stats.obtained / stats.total) * 100).toFixed(1);
-      msg += `*${name}:* ${stats.obtained}/${stats.total} (${p}%)\n`;
+      msg += MESSAGES.grades.subjectLine(name, stats.obtained, stats.total, p);
       overallObtained += stats.obtained;
       overallTotal += stats.total;
     }
@@ -1627,7 +1417,7 @@ async function handleViewGrades(user) {
 
   if (overallTotal > 0) {
     const overallP = ((overallObtained / overallTotal) * 100).toFixed(1);
-    msg += `\nAcross all subjects, your current average is **${overallP}%**. Keep pushing! 🚀`;
+    msg += MESSAGES.grades.footer(overallP);
   }
 
   return msg;
@@ -1636,7 +1426,7 @@ async function handleViewGrades(user) {
 async function handleRenameSubject(user, text) {
   // rename subject Old, New
   const parts = text.split(',').map(s => s.trim());
-  if (parts.length < 2) return `Format: *rename subject <old>, <new>*\nExample: *rename subject Contract, Contract Law*`;
+  if (parts.length < 2) return MESSAGES.subjects.renamePrompt;
 
   const [oldName, newName] = parts;
   const uc = getUserClient(user.whatsapp_number);
@@ -1648,7 +1438,7 @@ async function handleRenameSubject(user, text) {
     .eq('is_active', true)
     .ilike('name', oldName);
 
-  if (!subjects || subjects.length === 0) return `❌ Active subject *"${oldName}"* not found.`;
+  if (!subjects || subjects.length === 0) return MESSAGES.subjects.notFound(oldName);
 
   const validSubjects = subjects.filter(s => {
     if (s.type === 'personal') return true;
@@ -1666,8 +1456,8 @@ async function handleRenameSubject(user, text) {
     .update({ name: newName })
     .eq('id', subject.id);
 
-  if (error) return `I'm sorry, I couldn't rename that subject. Please ensure the new name is unique and try again!`;
-  return `Consider it done! I've renamed *"${subject.name}"* to *"${newName}"* across your profile. ✏️`;
+  if (error) return MESSAGES.subjects.renameError;
+  return MESSAGES.subjects.renameSuccess(subject.name, newName);
 }
 
 async function handleArchiveSemester(user) {
@@ -1682,23 +1472,17 @@ async function handleArchiveSemester(user) {
     .eq('is_active', true)
     .select('id');
 
-  if (error) return `I'm sorry, I couldn't archive your semester subjects right now. Please try again later!`;
+  if (error) return MESSAGES.subjects.archiveError;
 
   // Wipe the current semester ID
   await updateProfile(user.whatsapp_number, { current_semester_id: null });
 
   const num = subjects ? subjects.length : 0;
-  return `📦 *Semester Archived!*
-
-I've soft-archived your **${num}** academic subjects and cleared your current semester setup. 
-
-Your past attendance and grades are all safely stored! When you're ready to start your next semester, just tell me *"setup"* and we'll get you ready for the new classes. 🎓🚀`;
+  return MESSAGES.subjects.archiveSuccess(num);
 }
 
 async function handleExport(user) {
-  return `📁 Your data export functionality is available via the dashboard! 
-  
-Please visit ${WEBSITE_URL} and go to your **Settings** page to securely download all your raw data (Subjects, Grades, Timers, Attendance) as a CSV file.`;
+  return MESSAGES.general.export;
 }
 
 // ============================================================================
@@ -1709,27 +1493,13 @@ function handleHelp(user) {
   const hasAcademic = user?.academics_enabled;
   const hasPersonal = user?.personal_enabled;
 
-  let msg = `👋 *Hi! I'm Ryuma, your personal study assistant.* 🎓\n\n`;
-  msg += `I'm here to help you stay organized. You don't need to remember specific commands — you can just talk to me! 😊\n\n`;
-
-  msg += `*Here are some things you can tell me:*\n`;
-  msg += `📖 *"Add academic subject Math"* or *"Track guitar as a personal skill"*\n`;
+  let msg = MESSAGES.general.helpHeader;
 
   if (hasAcademic) {
-    msg += `🎓 *"I went to Law class"* or *"I missed Economics today"*\n`;
-    msg += `📊 *"How are my stats?"* or *"What is my attendance like?"*\n`;
-    msg += `📝 *"I got 25/30 in my Physics quiz"* or *"Show my grades"*\n`;
+    msg += MESSAGES.general.helpAcademic;
   }
 
-  msg += `⏱️ *"Start a timer for History"* or *"Done studying"*\n`;
-  msg += `📋 *"Add a task: Submit project by Friday"* or *"Finish task 1"*\n\n`;
-
-  msg += `*Need more?*\n`;
-  msg += `👤 Say *"profile"* to see your current setup.\n`;
-  msg += `⚙️ Say *"setup"* if you want to redo your profile or start a new semester.\n`;
-  msg += `📁 Say *"export"* to get a link to download all your data.\n\n`;
-
-  msg += `You can also manage everything on your dashboard: ${WEBSITE_URL} 💻`;
+  msg += MESSAGES.general.helpCommon;
   return msg;
 }
 
@@ -1739,27 +1509,27 @@ function handleHelp(user) {
 
 async function handleProfile(user) {
   const uc = getUserClient(user.whatsapp_number);
-  let msg = `👤 *Your Profile*\n\n`;
-  msg += `*Name:* ${user.display_name}\n`;
+  let msg = MESSAGES.general.profileHeader;
+  msg += MESSAGES.general.profileName(user.display_name);
 
-  if (user.personal_enabled) msg += `*Personal Track:* Active\n`;
+  if (user.personal_enabled) msg += MESSAGES.general.profilePersonal;
 
   if (user.academics_enabled) {
-    msg += `*Academic Track:* Active\n`;
-    msg += `*Target Attendance:* ${user.target_attendance_pct || 75}%\n`;
+    msg += MESSAGES.general.profileAcademic;
+    msg += MESSAGES.general.profileTarget(user.target_attendance_pct || 75);
 
     // Fetch university/program details
     if (user.current_university_id) {
       const { data: uni } = await uc.from('universities').select('name').eq('id', user.current_university_id).maybeSingle();
-      if (uni) msg += `*University:* ${uni.name}\n`;
+      if (uni) msg += MESSAGES.general.profileUniversity(uni.name);
     }
     if (user.current_program_id) {
       const { data: prog } = await uc.from('programs').select('name').eq('id', user.current_program_id).maybeSingle();
-      if (prog) msg += `*Program:* ${prog.name}\n`;
+      if (prog) msg += MESSAGES.general.profileProgram(prog.name);
     }
   }
 
-  msg += `\nIf you ever need to change any of this, just say *"setup"*! 😊`;
+  msg += MESSAGES.general.profileFooter;
   return msg;
 }
 
@@ -1777,44 +1547,46 @@ async function processMessage(phone, text) {
     const lower = text.trim().toLowerCase();
     const session = getSession(phone);
 
-    // ── Active session (onboarding or mid-command disambiguation) ─────────
-    if (session) {
-      touchSession(phone);
-      const result = await handleOnboarding(user, session, text.trim());
-      if (result) return result;
-    }
+    const deps = {
+      getUserClient,
+      getOrCreateUser,
+      updateProfile,
+      createSubject,
+      seedDefaultCategories,
+      setSession,
+      clearSession,
+      WEBSITE_URL
+    };
 
-    // ── Brand-new user ─────────────────────────────────────────────────────
-    if (needsOnboarding(user) && !session) {
-      return startOnboarding(phone);
-    }
-
-    // ── setup / reset ──────────────────────────────────────────────────────
+    // ── Onboarding / Setup Logic ───────────────────────────────────────────
     if (lower === 'setup' || lower === 'reset') {
-      // Reset via user-scoped client — RLS UPDATE policy allows this
       await updateProfile(phone, { display_name: PLACEHOLDER_NAME });
-      return startOnboarding(phone);
+      clearSession(phone);
+      return startOnboarding(phone, deps);
+    }
+
+    if (session) {
+      if (lower === 'cancel' || lower === 'stop') {
+        clearSession(phone);
+        return `Onboarding cancelled. Let me know when you're ready to start by typing "setup"!`;
+      }
+      touchSession(phone);
+      const res = await handleOnboarding(user, session, text.trim(), deps);
+      if (res) return res;
+    }
+
+    if (needsOnboarding(user)) {
+      return startOnboarding(phone, deps);
     }
 
     // ── Profile commands ───────────────────────────────────────────────────
     if (lower === 'profile') return await handleProfile(user);
     if (lower === 'export') return await handleExport(user);
 
-    // ── Greetings ──────────────────────────────────────────────────────────
-    if (['hi', 'hello', 'hey', 'start'].includes(lower) && !lower.startsWith('start ')) {
+    // ── Greetings & Help ──────────────────────────────────────────────────
+    if (['hi', 'hello', 'hey', 'help', '?', 'start'].includes(lower) && !lower.startsWith('start ')) {
       return handleHelp(user);
     }
-
-    // ── Help ───────────────────────────────────────────────────────────────
-    if (lower === 'help' || lower === 'menu') {
-      return handleHelp(user);
-    }
-
-    // ── Category commands ──────────────────────────────────────────────────
-    if (lower.startsWith('add category ')) return await handleAddCategory(user, text.substring(13).trim());
-    if (lower === 'categories' || lower === 'category') return await handleListCategories(user);
-    if (lower.startsWith('delete category ')) return await handleDeleteCategory(user, text.substring(16).trim());
-
     // ── Subject commands ───────────────────────────────────────────────────
     if (lower.startsWith('add subject ')) return await handleAddSubject(user, phone, text.substring(12).trim());
     if (lower.startsWith('rename subject ')) return await handleRenameSubject(user, text.substring(15).trim());
@@ -1855,11 +1627,11 @@ async function processMessage(phone, text) {
     }
 
     // ── Unknown ────────────────────────────────────────────────────────────
-    return `Hmm, I'm not sure I understood that correctly. 🤔\n\nYou can say *"help"* to see some of the things you can ask me, or visit your dashboard at ${WEBSITE_URL}!`;
+    return MESSAGES.general.unknown;
 
   } catch (err) {
     console.error('❌ processMessage error:', err);
-    return `❌ Something went wrong. Please try again.\n\nIf this keeps happening, visit ${WEBSITE_URL}`;
+    return MESSAGES.general.error;
   }
 }
 
@@ -1871,17 +1643,26 @@ async function sendMessage(to, body) {
   const url = `https://graph.facebook.com/v18.0/${PHONE_NUMBER_ID}/messages`;
   console.log(`📤 Sending to ${to}`);
 
+  const payload = {
+    messaging_product: 'whatsapp',
+    to,
+  };
+
+  if (typeof body === 'object') {
+    payload.type = 'interactive';
+    payload.interactive = body;
+  } else {
+    payload.type = 'text';
+    payload.text = { body };
+  }
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${WHATSAPP_TOKEN}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to,
-      text: { body },
-    }),
+    body: JSON.stringify(payload),
   });
 
   const data = await res.json();
@@ -1928,7 +1709,17 @@ app.post('/webhook', async (req, res) => {
     if (messages && messages.length > 0) {
       const message = messages[0];
       const from = message.from;       // raw digits e.g. "918767689904"
-      const text = message.text?.body;
+      let text = message.text?.body;
+
+      // Handle Interactive Replies
+      if (message.type === 'interactive') {
+        const interactive = message.interactive;
+        if (interactive.type === 'button_reply') {
+          text = interactive.button_reply.id;
+        } else if (interactive.type === 'list_reply') {
+          text = interactive.list_reply.id;
+        }
+      }
 
       console.log(`📱 From : ${from}`);
       console.log(`💬 Text : ${text}`);
