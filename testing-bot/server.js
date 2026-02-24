@@ -262,16 +262,26 @@ function getUserClient(phone) {
 // ============================================================================
 
 const sessions = new Map();
-const processedMessages = new Set(); // To prevent duplicate processing of retries
+const userCache = new Map(); // profile caching to reduce DB hits
+const processedMessages = new Map(); // msgId -> timestamp for TTL deduplication
 const SESSION_TTL = 60 * 60 * 1000; // 1 hour
+const MESSAGE_DEDUPE_TTL = 5 * 60 * 1000; // 5 minutes
+const USER_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 setInterval(() => {
   const now = Date.now();
+  // Clean old sessions
   for (const [k, s] of sessions) {
     if (now - s.lastActivity > SESSION_TTL) sessions.delete(k);
   }
-  // Clear processed messages cache occasionally
-  processedMessages.clear();
+  // Clean old processed message IDs
+  for (const [mid, ts] of processedMessages) {
+    if (now - ts > MESSAGE_DEDUPE_TTL) processedMessages.delete(mid);
+  }
+  // Clean old user profile cache
+  for (const [phone, entry] of userCache) {
+    if (now - entry.timestamp > USER_CACHE_TTL) userCache.delete(phone);
+  }
 }, 5 * 60 * 1000);
 
 function getSession(phone) { return sessions.get(phone) || null; }
@@ -302,9 +312,17 @@ function needsOnboarding(user) {
  * After this function, every subsequent operation uses getUserClient().
  */
 async function getOrCreateUser(phone) {
-  console.log(`\n👤 getOrCreateUser: ${phone}`);
+  const now = Date.now();
+  if (userCache.has(phone)) {
+    const entry = userCache.get(phone);
+    if (now - entry.timestamp < USER_CACHE_TTL) {
+      console.log(`⚡ Profile Cache Hit: ${phone}`);
+      return entry.data;
+    }
+  }
 
-  // Admin SELECT — safe, we immediately hand off to user-scoped client after
+  console.log(`\n👤 DB Profile Fetch: ${phone}`);
+
   const { data: existing, error: fetchErr } = await supabaseAdmin
     .from('profiles')
     .select('*')
@@ -312,6 +330,7 @@ async function getOrCreateUser(phone) {
     .maybeSingle();
 
   if (existing) {
+    userCache.set(phone, { data: existing, timestamp: now });
     console.log('✅ Existing user:', existing.display_name);
     return existing;
   }
@@ -323,15 +342,14 @@ async function getOrCreateUser(phone) {
 
   console.log('🆕 Creating new user...');
 
-  // Admin INSERT — no RLS INSERT policy exists by design (schema note line ~487)
   const { data: newUser, error: createErr } = await supabaseAdmin
     .from('profiles')
     .insert([{
       whatsapp_number: phone,
-      display_name: PLACEHOLDER_NAME, // sentinel for "needs onboarding"
+      display_name: PLACEHOLDER_NAME,
       timezone: 'Asia/Kolkata',
       academics_enabled: false,
-      personal_enabled: false,            // override schema default of true
+      personal_enabled: false,
     }])
     .select()
     .single();
@@ -341,10 +359,9 @@ async function getOrCreateUser(phone) {
     throw createErr;
   }
 
+  userCache.set(phone, { data: newUser, timestamp: now });
   console.log('✅ New user created:', newUser.id);
   return newUser;
-
-  // ── Admin is DONE here. All subsequent DB access uses getUserClient(). ──
 }
 
 /**
@@ -353,7 +370,6 @@ async function getOrCreateUser(phone) {
  */
 async function updateProfile(phone, updates) {
   const uc = getUserClient(phone);
-
   const { data, error } = await uc
     .from('profiles')
     .update(updates)
@@ -362,6 +378,9 @@ async function updateProfile(phone, updates) {
     .single();
 
   if (error) { console.error('❌ updateProfile error:', error); throw error; }
+
+  // Clear cache on update to avoid stale data
+  userCache.delete(phone);
   return data;
 }
 
@@ -1198,99 +1217,74 @@ async function handleProfile(user) {
 // ============================================================================
 
 async function processMessage(phone, text) {
-  console.log(`\n📄 Processing from ${phone}: "${text}"`);
-
+  const startTime = Date.now();
   try {
-    // getOrCreateUser is the ONLY place the admin client is used.
-    // Every handler below gets a user-scoped client via getUserClient().
     const user = await getOrCreateUser(phone);
+    const authTime = Date.now();
+
     const lower = text.trim().toLowerCase();
     const session = getSession(phone);
+    const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL };
 
-    const deps = {
-      getUserClient,
-      getOrCreateUser,
-      updateProfile,
-      createSubject,
-      seedDefaultCategories,
-      setSession,
-      clearSession,
-      WEBSITE_URL
-    };
-
-    // ── Onboarding / Setup Logic ───────────────────────────────────────────
     if (lower === 'setup' || lower === 'reset') {
       await updateProfile(phone, { display_name: PLACEHOLDER_NAME });
       clearSession(phone);
       return startOnboarding(phone, deps);
     }
 
+    let reply;
     if (session) {
       if (lower === 'cancel' || lower === 'stop') {
         clearSession(phone);
         return `Onboarding cancelled. Let me know when you're ready to start by typing "setup"!`;
       }
       touchSession(phone);
-      const res = await handleOnboarding(user, session, text.trim(), deps);
-      if (res) return res;
+      reply = await handleOnboarding(user, session, text.trim(), deps);
+      if (reply) return reply;
     }
 
-    if (needsOnboarding(user)) {
-      return startOnboarding(phone, deps);
-    }
+    if (needsOnboarding(user)) return startOnboarding(phone, deps);
 
-    // ── Profile commands ───────────────────────────────────────────────────
-    if (lower === 'profile') return await handleProfile(user);
+    // Profile & Help Match
+    if (lower === 'profile') reply = await handleProfile(user);
+    else if (['hi', 'hello', 'hey', 'help', '?', 'start'].includes(lower) && !lower.startsWith('start ')) reply = handleHelp(user);
 
-    // ── Greetings & Help ──────────────────────────────────────────────────
-    if (['hi', 'hello', 'hey', 'help', '?', 'start'].includes(lower) && !lower.startsWith('start ')) {
-      return handleHelp(user);
-    }
-    // ── Subject commands ───────────────────────────────────────────────────
-    if (lower.startsWith('add subject ')) return await handleAddSubject(user, phone, text.substring(12).trim());
-    if (lower.startsWith('add ')) return await handleAddSubject(user, phone, text.substring(4).trim());
-    if (lower.startsWith('rename subject ')) return await handleRenameSubject(user, text.substring(15).trim());
-    if (lower.startsWith('delete subject ')) return await handleDeleteSubject(user, text.substring(15).trim());
-    if (['subjects', 'subject', 'list'].includes(lower)) return await handleListSubjects(user);
+    // Command Routing
+    else if (lower.startsWith('add subject ')) reply = await handleAddSubject(user, phone, text.substring(12).trim());
+    else if (lower.startsWith('add ')) reply = await handleAddSubject(user, phone, text.substring(4).trim());
+    else if (lower.startsWith('rename subject ')) reply = await handleRenameSubject(user, text.substring(15).trim());
+    else if (lower.startsWith('delete subject ')) reply = await handleDeleteSubject(user, text.substring(15).trim());
+    else if (['subjects', 'subject', 'list'].includes(lower)) reply = await handleListSubjects(user);
+    else if (lower.startsWith('setup total ')) reply = await handleSetupLectures(user, text.substring(12).trim());
+    else if (lower.startsWith('setup missed ')) reply = await handleSetupLectures(user, text.substring(13).trim());
+    else if (lower.startsWith('start ')) reply = await handleStartTimer(user, text.substring(6).trim());
+    else if (lower === 'stop') reply = await handleStopTimer(user);
+    else if (lower === 'present all') reply = await handleMarkAll(user, 'present');
+    else if (lower === 'absent all') reply = await handleMarkAll(user, 'absent');
+    else if (lower === 'deemed all') reply = await handleMarkAll(user, 'deemed');
+    else if (lower === 'undo all') reply = await handleUndoAll(user);
+    else if (lower.startsWith('attended ')) reply = await handleAttended(user, text.substring(9).trim());
+    else if (lower.startsWith('missed ')) reply = await handleMissed(user, text.substring(7).trim());
+    else if (lower.startsWith('deemed ')) reply = await handleDeemed(user, text.substring(7).trim());
+    else if (lower.startsWith('undo ')) reply = await handleUndoAttendance(user, text.substring(5).trim());
+    else if (lower === 'stats' || lower === 'attendance') reply = await handleStats(user);
+    else if (lower.startsWith('add task ')) reply = await handleAddTask(user, text.substring(9).trim());
+    else if (lower === 'tasks' || lower === 'task') reply = await handleListTasks(user);
+    else if (lower.startsWith('done ')) reply = await handleCompleteTask(user, text.substring(5).trim());
 
-    // Setup lectures (total/missed)
-    if (lower.startsWith('setup total ')) return await handleSetupLectures(user, text.substring(6).trim());
-    if (lower.startsWith('setup missed ')) return await handleSetupLectures(user, text.substring(6).trim());
-
-    // ── Timer commands ─────────────────────────────────────────────────────
-    if (lower.startsWith('start ')) return await handleStartTimer(user, text.substring(6).trim());
-    if (lower === 'stop') return await handleStopTimer(user);
-
-    // ── Attendance commands ────────────────────────────────────────────────
-    if (lower === 'present all') return await handleMarkAll(user, 'present');
-    if (lower === 'absent all') return await handleMarkAll(user, 'absent');
-    if (lower === 'deemed all') return await handleMarkAll(user, 'deemed');
-    if (lower === 'undo all') return await handleUndoAll(user);
-
-    if (lower.startsWith('attended ')) return await handleAttended(user, text.substring(9).trim());
-    if (lower.startsWith('missed ')) return await handleMissed(user, text.substring(7).trim());
-    if (lower.startsWith('deemed ')) return await handleDeemed(user, text.substring(7).trim());
-    if (lower.startsWith('undo ')) return await handleUndoAttendance(user, text.substring(5).trim());
-    if (lower === 'stats' || lower === 'attendance') return await handleStats(user);
-
-    // ── Task commands ──────────────────────────────────────────────────────
-    if (lower.startsWith('add task ')) return await handleAddTask(user, text.substring(9).trim());
-    if (lower === 'tasks' || lower === 'task') return await handleListTasks(user);
-    if (lower.startsWith('done ')) return await handleCompleteTask(user, text.substring(5).trim());
-
-    // ── Heuristic Intent Parsing (Fallback) ──────────────────────────────
-    const inferredCommand = await parseIntent(text);
-    if (inferredCommand && inferredCommand !== lower) {
-      console.log(`💡 Heuristic Match: "${text}" -> "${inferredCommand}"`);
-      const reply = await processMessage(phone, inferredCommand);
-
-      if (reply && !reply.includes('🤔 I didn\'t understand')) {
-        return reply; // Return the reply directly - no technical prefix
+    // NLP Fallback
+    if (!reply) {
+      const parseStart = Date.now();
+      const inferred = await parseIntent(text);
+      if (inferred && inferred !== lower) {
+        console.log(`💡 AI Intent: "${text}" -> "${inferred}" (${Date.now() - parseStart}ms)`);
+        reply = await processMessage(phone, inferred);
       }
     }
 
-    // ── Unknown ────────────────────────────────────────────────────────────
-    return MESSAGES.general.unknown;
+    const finalReply = reply || MESSAGES.general.unknown;
+    console.log(`⏱️ Total Time: ${Date.now() - startTime}ms (Auth: ${authTime - startTime}ms)`);
+    return finalReply;
 
   } catch (err) {
     console.error('❌ processMessage error:', err);
@@ -1361,6 +1355,7 @@ app.get('/webhook', (req, res) => {
 });
 
 app.post('/webhook', async (req, res) => {
+  const webhookArrival = Date.now();
   const entry = req.body.entry?.[0];
   const changes = entry?.changes?.[0];
   const value = changes?.value;
@@ -1374,16 +1369,15 @@ app.post('/webhook', async (req, res) => {
     const from = message.from;
     const msgId = message.id;
 
-    // 2. Deduplication check
+    // 2. Deduplication check (TTL-map based)
     if (processedMessages.has(msgId)) {
       console.log(`♻️  Duplicate message ${msgId} ignored`);
       return;
     }
-    processedMessages.add(msgId);
+    processedMessages.set(msgId, webhookArrival);
 
     try {
       let text = message.text?.body;
-
       if (message.type === 'interactive') {
         const interactive = message.interactive;
         if (interactive.type === 'button_reply') text = interactive.button_reply.id;
@@ -1391,10 +1385,12 @@ app.post('/webhook', async (req, res) => {
       }
 
       if (text) {
-        console.log(`\n📨 Incoming: ${from} -> "${text}"`);
+        console.log(`\n📨 Webhook Arrived: ${new Date(webhookArrival).toLocaleTimeString()}`);
         const phone = from.startsWith('+') ? from : `+${from}`;
         const reply = await processMessage(phone, text);
+        const replyDone = Date.now();
         await sendMessage(from, reply);
+        console.log(`📦 WhatsApp Pipeline: ${Date.now() - webhookArrival}ms (Response generated in ${replyDone - webhookArrival}ms)`);
       }
     } catch (err) {
       console.error('❌ Webhook processing error:', err);
