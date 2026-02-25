@@ -4,10 +4,10 @@ import { parseIntent } from './nlp.ts';
 import { startOnboarding, handleOnboarding } from './setup.ts';
 const PLACEHOLDER_NAME = 'New User';
 // --- HELPERS ---
-export function needsOnboarding(user) {
+export function needsOnboarding(user: any) {
   return user.display_name === PLACEHOLDER_NAME;
 }
-export async function getOrCreateUser(phone) {
+export async function getOrCreateUser(phone: string) {
   const { data: existing } = await supabaseAdmin.from('profiles').select('*').eq('whatsapp_number', phone).maybeSingle();
   if (existing) return existing;
   const { data: newUser, error } = await supabaseAdmin.from('profiles').insert([
@@ -22,13 +22,13 @@ export async function getOrCreateUser(phone) {
   if (error) throw error;
   return newUser;
 }
-export async function updateProfile(phone, updates) {
+export async function updateProfile(phone: string, updates: any) {
   const uc = await getUserClient(phone);
   const { data, error } = await uc.from('profiles').update(updates).eq('whatsapp_number', phone).select().single();
   if (error) throw error;
   return data;
 }
-export async function seedDefaultCategories(phone) {
+export async function seedDefaultCategories(phone: string) {
   const uc = await getUserClient(phone);
   const { data: profile } = await uc.from('profiles').select('id').eq('whatsapp_number', phone).single();
   if (!profile) return;
@@ -125,7 +125,7 @@ async function findOrCreateAcademicCourse(uc, semesterId, courseName) {
   if (error) throw error;
   return created.id;
 }
-async function createSubject(user, subjectName, type, total = null, missed = 0, attended = 0, categoryName = null) {
+async function createSubject(user: any, subjectName: string, type: string, total: number | null = null, missed: number = 0, attended: number = 0, categoryName: string | null = null) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: dup } = await uc.from('subjects').select('name, type').eq('profile_id', user.id).ilike('name', subjectName.trim()).eq('is_active', true).maybeSingle();
   if (dup) return MESSAGES.subjects.duplicate(dup.name, dup.type);
@@ -533,144 +533,114 @@ async function handleStopTimer(user) {
   }).eq('id', running.id);
   return MESSAGES.timers.stopped(running.subjects?.name, Math.floor(mins / 60), mins % 60);
 }
+// --- PROFILE HANDLER ---
+async function handleProfile(user: any, uc: any) {
+  let msg = MESSAGES.general.profileHeader + MESSAGES.general.profileName(user.display_name);
+  if (user.personal_enabled) msg += MESSAGES.general.profilePersonal;
+  if (user.academics_enabled) {
+    msg += MESSAGES.general.profileAcademic + MESSAGES.general.profileTarget(user.target_attendance_pct || 75);
+    if (user.current_university_id) {
+      const { data: uni } = await uc.from('universities').select('name').eq('id', user.current_university_id).maybeSingle();
+      if (uni) msg += MESSAGES.general.profileUniversity(uni.name);
+    }
+    if (user.current_semester_id) {
+      const { data: sem } = await uc.from('semesters').select('name, semester_number').eq('id', user.current_semester_id).maybeSingle();
+      if (sem) msg += MESSAGES.general.profileSemester(sem.name || `Semester ${sem.semester_number}`);
+    }
+  }
+  return msg + MESSAGES.general.profileFooter;
+}
+
+// --- HELP HANDLER ---
+function handleHelp(user: any) {
+  if (user.academics_enabled && user.personal_enabled) return MESSAGES.general.helpBoth;
+  if (user.personal_enabled) return MESSAGES.general.helpPersonal;
+  return MESSAGES.general.help;
+}
+
+// --- ATTENDANCE SUMMARY HANDLER ---
+async function handleStats(user: any, uc: any) {
+  if (!user.academics_enabled) return MESSAGES.stats.academicOnly;
+  const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
+  const filtered = raw?.filter((s: any) => Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
+  if (filtered.length === 0) return MESSAGES.stats.noSubjects;
+  const { data: logs } = await uc.from('attendance_logs').select('subject_id, status').eq('profile_id', user.id).in('subject_id', filtered.map((x: any) => x.id));
+  let msg = MESSAGES.stats.header(user.target_attendance_pct || 75), hasData = false;
+  for (const s of filtered) {
+    const sLogs = logs?.filter((l: any) => l.subject_id === s.id) || [];
+    const sum = await buildAttendanceSummary(uc, user, s, '', sLogs);
+    if (!sum.includes('0 classes so far.')) {
+      hasData = true;
+      msg += sum + '\n\n';
+    } else msg += `${MESSAGES.stats.noDataEmoji} *${s.name}*: ${MESSAGES.stats.noDataNote}\n\n`;
+  }
+  return hasData ? msg.trim() : MESSAGES.stats.empty;
+}
+
+async function handleAttendanceBatch(user: any, text: string, status: 'present' | 'absent' | 'deemed') {
+  const results = [];
+  const rawText = text.substring(status === 'present' ? 9 : 7).trim();
+  for (const item of rawText.split(',').map(s => s.trim()).filter(Boolean)) {
+    const res = await logAttendance(user, item, status);
+    results.push(res || MESSAGES.attendance.notFound(item));
+  }
+  return results.join('\n\n');
+}
+
+async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
+  const today = new Date().toISOString().split('T')[0];
+  const item = text.substring(5).trim();
+  const { data: s } = await uc.from('subjects').select('id, name').eq('profile_id', user.id).ilike('name', item).eq('is_active', true).maybeSingle();
+  if (!s) return MESSAGES.attendance.notFound(item);
+  const { error } = await uc.from('attendance_logs').delete().eq('profile_id', user.id).eq('subject_id', s.id).eq('lecture_date', today);
+  if (error) return MESSAGES.attendance.undoError;
+  return MESSAGES.attendance.undoSuccess(s.name);
+}
+
 // --- ROUTING ---
-export async function processMessage(phone, text) {
+export async function processMessage(phone: string, text: string) {
   const user = await getOrCreateUser(phone);
   const lower = text.trim().toLowerCase();
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
-  const deps = {
-    getUserClient,
-    getOrCreateUser,
-    updateProfile,
-    createSubject,
-    seedDefaultCategories,
-    setSession,
-    clearSession,
-    WEBSITE_URL
-  };
+  const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL };
+
   if (lower === 'setup' || lower === 'reset') {
-    await updateProfile(phone, {
-      display_name: PLACEHOLDER_NAME
-    });
+    await updateProfile(phone, { display_name: PLACEHOLDER_NAME });
     await clearSession(phone);
     return startOnboarding(phone, deps);
   }
+
   if (session) {
-    if ([
-      'cancel',
-      'stop'
-    ].includes(lower)) {
+    if (['cancel', 'stop'].includes(lower)) {
       await clearSession(phone);
       return `Onboarding cancelled. Type "setup" to restart!`;
     }
     const reply = await handleOnboarding(user, session, text.trim(), deps);
     if (reply) return reply;
   }
-  if (needsOnboarding(user)) {
-    console.log(`🆕 [needsOnboarding] Starting onboarding for ${phone}`);
-    return startOnboarding(phone, deps);
-  }
-  // Replicate Routing Order exactly as in fixed server.js
-  console.log(`🔍 [processMessage] Routing message: "${text}" for ${phone}`);
-  let reply = null;
-  if (lower === 'profile') reply = await (async ()=>{
-    let msg = MESSAGES.general.profileHeader + MESSAGES.general.profileName(user.display_name);
-    if (user.personal_enabled) msg += MESSAGES.general.profilePersonal;
-    if (user.academics_enabled) {
-      msg += MESSAGES.general.profileAcademic + MESSAGES.general.profileTarget(user.target_attendance_pct || 75);
-      if (user.current_university_id) {
-        const { data: uni } = await uc.from('universities').select('name').eq('id', user.current_university_id).maybeSingle();
-        if (uni) msg += MESSAGES.general.profileUniversity(uni.name);
-      }
-      if (user.current_semester_id) {
-        const { data: sem } = await uc.from('semesters').select('name, semester_number').eq('id', user.current_semester_id).maybeSingle();
-        if (sem) msg += MESSAGES.general.profileSemester(sem.name || `Semester ${sem.semester_number}`);
-      }
-    }
-    return msg + MESSAGES.general.profileFooter;
-  })();
-  else if ([
-    'hi',
-    'hello',
-    'hey',
-    'help',
-    '?',
-    'start'
-  ].includes(lower)) reply = user.academics_enabled && user.personal_enabled ? MESSAGES.general.helpBoth : user.personal_enabled ? MESSAGES.general.helpPersonal : MESSAGES.general.help;
+
+  if (needsOnboarding(user)) return startOnboarding(phone, deps);
+
+  let reply: string | any = null;
+  if (lower === 'profile') reply = await handleProfile(user, uc);
+  else if (['hi', 'hello', 'hey', 'help', '?', 'start'].includes(lower)) reply = handleHelp(user);
   else if (lower.startsWith('add task ')) reply = await handleAddTask(user, text.substring(9).trim());
   else if (lower.startsWith('done ')) reply = await handleCompleteTask(user, text.substring(5).trim());
-  else if ([
-    'tasks',
-    'task'
-  ].includes(lower)) reply = await handleListTasks(user);
+  else if (['tasks', 'task'].includes(lower)) reply = await handleListTasks(user);
   else if (lower.startsWith('add category ')) reply = await handleAddCategory(user, text.substring(13).trim());
   else if (lower.startsWith('delete category ')) reply = await handleDeleteCategory(user, text.substring(16).trim());
-  else if ([
-    'categories',
-    'category',
-    'list categories',
-    'list category'
-  ].includes(lower)) reply = await handleListCategories(user);
+  else if (['categories', 'category', 'list categories', 'list category'].includes(lower)) reply = await handleListCategories(user);
   else if (lower.startsWith('add subject ')) reply = await handleAddSubject(user, phone, text.substring(12).trim());
   else if (lower.startsWith('add ')) reply = await handleAddSubject(user, phone, text.substring(4).trim());
-  else if ([
-    'subjects',
-    'subject',
-    'list'
-  ].includes(lower)) reply = await handleListSubjects(user);
+  else if (['subjects', 'subject', 'list'].includes(lower)) reply = await handleListSubjects(user);
   else if (lower.startsWith('start ')) reply = await handleStartTimer(user, text.substring(6).trim());
   else if (lower === 'stop') reply = await handleStopTimer(user);
-  else if (lower === 'stats' || lower === 'attendance') reply = await (async ()=>{
-    if (!user.academics_enabled) return MESSAGES.stats.academicOnly;
-    const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
-    const filtered = raw?.filter((s)=>Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
-    if (filtered.length === 0) return MESSAGES.stats.noSubjects;
-    const { data: logs } = await uc.from('attendance_logs').select('subject_id, status').eq('profile_id', user.id).in('subject_id', filtered.map((x)=>x.id));
-    let msg = MESSAGES.stats.header(user.target_attendance_pct || 75), hasData = false;
-    for (const s of filtered){
-      const sLogs = logs?.filter((l)=>l.subject_id === s.id) || [];
-      const sum = await buildAttendanceSummary(uc, user, s, '', sLogs);
-      if (!sum.includes('0 classes so far.')) {
-        hasData = true;
-        msg += sum + '\n\n';
-      } else msg += `${MESSAGES.stats.noDataEmoji} *${s.name}*: ${MESSAGES.stats.noDataNote}\n\n`;
-    }
-    return hasData ? msg.trim() : MESSAGES.stats.empty;
-  })();
-  else if (lower.startsWith('attended ')) reply = await (async ()=>{
-    const results = [];
-    for (const item of text.substring(9).split(',').map((s)=>s.trim()).filter(Boolean)){
-      const res = await logAttendance(user, item, 'present');
-      results.push(res || MESSAGES.attendance.notFound(item));
-    }
-    return results.join('\n\n');
-  })();
-  else if (lower.startsWith('missed ')) reply = await (async ()=>{
-    const results = [];
-    for (const item of text.substring(7).split(',').map((s)=>s.trim()).filter(Boolean)){
-      const res = await logAttendance(user, item, 'absent');
-      results.push(res || MESSAGES.attendance.notFound(item));
-    }
-    return results.join('\n\n');
-  })();
-  else if (lower.startsWith('deemed ')) reply = await (async ()=>{
-    const results = [];
-    for (const item of text.substring(7).split(',').map((s)=>s.trim()).filter(Boolean)){
-      const res = await logAttendance(user, item, 'deemed');
-      results.push(res || MESSAGES.attendance.notFound(item));
-    }
-    return results.join('\n\n');
-  })();
-  else if (lower.startsWith('undo ')) reply = await (async ()=>{
-    const today = new Date().toISOString().split('T')[0];
-    const item = text.substring(5).trim();
-    const { data: s } = await uc.from('subjects').select('id, name').eq('profile_id', user.id).ilike('name', item).eq('is_active', true).maybeSingle();
-    if (!s) return MESSAGES.attendance.notFound(item);
-    const { error } = await uc.from('attendance_logs').delete().eq('profile_id', user.id).eq('subject_id', s.id).eq('lecture_date', today);
-    if (error) return MESSAGES.attendance.undoError;
-    return MESSAGES.attendance.undoSuccess(s.name);
-  })();
+  else if (lower === 'stats' || lower === 'attendance') reply = await handleStats(user, uc);
+  else if (lower.startsWith('attended ')) reply = await handleAttendanceBatch(user, text, 'present');
+  else if (lower.startsWith('missed ')) reply = await handleAttendanceBatch(user, text, 'absent');
+  else if (lower.startsWith('deemed ')) reply = await handleAttendanceBatch(user, text, 'deemed');
+  else if (lower.startsWith('undo ')) reply = await handleUndoAttendanceOne(user, uc, text);
   else if (lower.startsWith('rename subject ')) reply = await handleRenameSubject(user, text.substring(15).trim());
   else if (lower.startsWith('delete subject ')) reply = await handleDeleteSubject(user, text.substring(15).trim());
   else if (lower.startsWith('setup total ')) reply = await handleSetupLectures(user, text.substring(12).trim());
@@ -679,6 +649,7 @@ export async function processMessage(phone, text) {
   else if (lower === 'absent all') reply = await handleMarkAll(user, 'absent');
   else if (lower === 'deemed all') reply = await handleMarkAll(user, 'deemed');
   else if (lower === 'undo all') reply = await handleUndoAll(user);
+
   if (!reply) {
     const inferred = await parseIntent(text);
     if (inferred && inferred !== lower) return await processMessage(phone, inferred);

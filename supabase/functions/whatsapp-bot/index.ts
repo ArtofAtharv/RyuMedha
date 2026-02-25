@@ -11,16 +11,20 @@ if (!WA_PHONE_ID) {
 }
 async function sendWhatsAppMessage(to, content) {
   const url = `https://graph.facebook.com/v17.0/${WA_PHONE_ID}/messages`;
-  const body = {
+  const body: any = {
     messaging_product: "whatsapp",
-    to,
-    ...typeof content === "string" ? {
-      type: "text",
-      text: {
-        body: content
-      }
-    } : content
+    to
   };
+  if (typeof content === "string") {
+    body.type = "text";
+    body.text = {
+      body: content
+    };
+  } else {
+    // Transparent wrapper for interactive messages (buttons, lists)
+    body.type = "interactive";
+    body.interactive = content;
+  }
   const res = await fetch(url, {
     method: "POST",
     headers: {
