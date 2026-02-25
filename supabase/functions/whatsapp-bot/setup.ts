@@ -10,14 +10,15 @@ export async function handleOnboarding(user, session, rawText, deps) {
   const uc = await deps.getUserClient(phone);
   const completeSetup = async (selectedIds = [], customName = null)=>{
     console.log(`🚀 [completeSetup] Phone: ${phone}, IDs: ${selectedIds}, Custom: ${customName}`);
-    await deps.updateProfile(phone, {
+    await deps.supabaseAdmin.from('profiles').update({
       academics_enabled: true,
       personal_enabled: data.wantsPersonal || false,
       current_university_id: data.universityId,
       current_program_id: data.programId,
       current_semester_id: data.semesterId,
       target_attendance_pct: data.targetPct
-    });
+    }).eq('whatsapp_number', phone);
+
     const freshUser = await deps.getOrCreateUser(phone);
     const courses = data.availableCourses || [];
     for (const id of selectedIds){
@@ -83,14 +84,21 @@ export async function handleOnboarding(user, session, rawText, deps) {
     const wantsAcademic = track === 'academic' || track === 'both';
     const wantsPersonal = track === 'personal' || track === 'both';
     if (wantsPersonal && !wantsAcademic) {
-      await deps.updateProfile(phone, {
+      await deps.supabaseAdmin.from('profiles').update({
         personal_enabled: true,
         academics_enabled: false
-      });
+      }).eq('whatsapp_number', phone);
       await deps.seedDefaultCategories(phone);
       await deps.clearSession(phone);
       return SETUP_MESSAGES.personalOnlySuccess;
     }
+    
+    // Persist track selection immediately
+    await deps.supabaseAdmin.from('profiles').update({
+      personal_enabled: wantsPersonal,
+      academics_enabled: wantsAcademic
+    }).eq('whatsapp_number', phone);
+
     const { data: unis } = await deps.supabaseAdmin.from('universities').select('id, name').order('name').limit(10);
     await deps.setSession(phone, 'awaiting_university', {
       ...data,
@@ -98,7 +106,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
       wantsPersonal,
       unisList: unis || []
     });
-    return unis?.length ? SETUP_MESSAGES.universityPrompt(unis) : SETUP_MESSAGES.universityPromptFreeText;
+    return (unis && unis.length > 0) ? SETUP_MESSAGES.universityPrompt(unis) : SETUP_MESSAGES.universityPromptFreeText;
   }
   if (step === 'awaiting_university') {
     let university;
@@ -123,6 +131,12 @@ export async function handleOnboarding(user, session, rawText, deps) {
       }
     }
     if (!university) return data.unisList && data.unisList.length > 0 ? SETUP_MESSAGES.universityPrompt(data.unisList) : SETUP_MESSAGES.universityPromptFreeText;
+    
+    // Persist university selection immediately
+    await deps.supabaseAdmin.from('profiles').update({
+      current_university_id: university.id
+    }).eq('whatsapp_number', phone);
+
     const { data: progs } = await deps.supabaseAdmin.from('programs').select('id, name, default_target_attendance').eq('university_id', university.id).order('name').limit(10);
     await deps.setSession(phone, 'awaiting_program', {
       ...data,
@@ -130,7 +144,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
       universityName: university.name,
       progsList: progs || []
     });
-    return progs && progs.length > 0 ? SETUP_MESSAGES.programPrompt(university.name, progs) : SETUP_MESSAGES.programPromptFreeText;
+    return (progs && progs.length > 0) ? SETUP_MESSAGES.programPrompt(university.name, progs) : SETUP_MESSAGES.programPromptFreeText;
   }
   if (step === 'awaiting_program') {
     let program;
@@ -156,6 +170,12 @@ export async function handleOnboarding(user, session, rawText, deps) {
       }
     }
     if (!program) return data.progsList && data.progsList.length > 0 ? SETUP_MESSAGES.programPrompt(data.universityName, data.progsList) : SETUP_MESSAGES.programPromptFreeText;
+    
+    // Persist program selection immediately
+    await deps.supabaseAdmin.from('profiles').update({
+      current_program_id: program.id
+    }).eq('whatsapp_number', phone);
+
     const { data: sems } = await deps.supabaseAdmin.from('semesters').select('id, semester_number, name').eq('program_id', program.id).order('semester_number');
     await deps.setSession(phone, 'awaiting_semester', {
       ...data,
@@ -164,7 +184,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
       defaultTarget: program.default_target_attendance || 75,
       semsList: sems || []
     });
-    return sems && sems.length > 0 ? SETUP_MESSAGES.semesterPrompt(sems) : `📖 *Which semester are you in?* (e.g., type "1" or "5")`;
+    return (sems && sems.length > 0) ? SETUP_MESSAGES.semesterPrompt(sems) : SETUP_MESSAGES.semesterPromptFallback;
   }
   if (step === 'awaiting_semester') {
     let semNum, semId, semName;
@@ -175,6 +195,9 @@ export async function handleOnboarding(user, session, rawText, deps) {
         semNum = s.semester_number;
         semId = s.id;
         semName = s.name || `Semester ${semNum}`;
+      } else if (/^\d+$/.test(id)) {
+        semNum = parseInt(id, 10);
+        semName = `Semester ${semNum}`;
       }
     } else if (/^\d+$/.test(text)) {
       semNum = parseInt(text, 10);
@@ -199,6 +222,11 @@ export async function handleOnboarding(user, session, rawText, deps) {
         semesterId = created.id;
       }
     }
+    // Persist semester selection immediately
+    await deps.supabaseAdmin.from('profiles').update({
+      current_semester_id: semesterId
+    }).eq('whatsapp_number', phone);
+
     await deps.setSession(phone, 'awaiting_target_pct', {
       ...data,
       semesterId,

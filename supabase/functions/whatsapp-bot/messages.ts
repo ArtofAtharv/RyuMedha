@@ -301,6 +301,29 @@ export const SETUP_MESSAGES = {
   },
   semesterInvalid: `Please enter a valid semester number, e.g. *4*.`,
   semesterError: `❌ Error saving semester.`,
+  semesterPromptFallback: {
+    type: 'list',
+    header: { type: 'text', text: '📖 Semester Selection' },
+    body: { text: 'Which Semester are you in?\n\n(Select from the list or just type the number below)' },
+    footer: { text: 'Ryu Medha Onboarding' },
+    action: {
+        button: 'Select Semester',
+        sections: [{ 
+            title: 'Common Semesters', 
+            rows: [
+                { id: 'sem_1', title: 'Semester 1' },
+                { id: 'sem_2', title: 'Semester 2' },
+                { id: 'sem_3', title: 'Semester 3' },
+                { id: 'sem_4', title: 'Semester 4' },
+                { id: 'sem_5', title: 'Semester 5' },
+                { id: 'sem_6', title: 'Semester 6' },
+                { id: 'sem_7', title: 'Semester 7' },
+                { id: 'sem_8', title: 'Semester 8' }
+            ]
+        }]
+    }
+  },
+  semesterPromptFreeText: `📖 *Which semester are you in?* (e.g., type "1" or "5")`,
   targetPrompt: (defaultTarget)=>`🎯 *Attendance Goal*\n\nWhat's the minimum attendance percentage you're aiming for?\n${defaultTarget ? `_(Most students in your program aim for **${defaultTarget}%**)_` : ''}\n\n_(Just send me the number, like **75** or **85**)_`,
   subjectSelectionPrompt: (courses)=>{
     const listText = courses.map((c, i)=>`*${i + 1}*. ${c.course_name}`).join('\n');
