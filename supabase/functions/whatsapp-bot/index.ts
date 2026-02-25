@@ -64,7 +64,10 @@ serve(async (req)=>{
       const value = changes?.value;
       const message = value?.messages?.[0];
       if (message) {
-        const phone = message.from;
+        let phone = message.from;
+        if (phone && !phone.startsWith('+')) {
+          phone = `+${phone}`;
+        }
         const text = message.text?.body || message.button?.text || message.interactive?.button_reply?.id || message.interactive?.list_reply?.id;
         if (text) {
           console.log(`📩 [${phone}]: ${text}`);

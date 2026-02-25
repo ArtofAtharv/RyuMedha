@@ -126,8 +126,8 @@ async function findOrCreateAcademicCourse(semesterId: string, courseName: string
   return created.id;
 }
 async function createSubject(user: any, subjectName: string, type: string, total: number | null = null, missed: number = 0, attended: number = 0, categoryName: string | null = null) {
-  const uc = await getUserClient(user.whatsapp_number);
-  const { data: dup } = await uc.from('subjects').select('name, type').eq('profile_id', user.id).ilike('name', subjectName.trim()).eq('is_active', true).maybeSingle();
+  // Use supabaseAdmin for all subject operations during setup to bypass RLS/JWT issues
+  const { data: dup } = await supabaseAdmin.from('subjects').select('name, type').eq('profile_id', user.id).ilike('name', subjectName.trim()).eq('is_active', true).maybeSingle();
   if (dup) return MESSAGES.subjects.duplicate(dup.name, dup.type);
   if (type === 'academic') {
     if (!user.current_semester_id) return MESSAGES.subjects.setupNeeded;
@@ -137,7 +137,7 @@ async function createSubject(user: any, subjectName: string, type: string, total
     } catch  {
       return MESSAGES.subjects.error;
     }
-    const { data: subject, error } = await uc.from('subjects').insert([
+    const { data: subject, error } = await supabaseAdmin.from('subjects').insert([
       {
         profile_id: user.id,
         type: 'academic',
@@ -154,11 +154,11 @@ async function createSubject(user: any, subjectName: string, type: string, total
   }
   let categoryId = null;
   if (categoryName) {
-    const { data: cat } = await uc.from('subject_categories').select('id').eq('profile_id', user.id).ilike('name', categoryName.trim()).maybeSingle();
+    const { data: cat } = await supabaseAdmin.from('subject_categories').select('id').eq('profile_id', user.id).ilike('name', categoryName.trim()).maybeSingle();
     if (cat) {
       categoryId = cat.id;
     } else {
-      const { data: newCat, error: catErr } = await uc.from('subject_categories').insert([
+      const { data: newCat, error: catErr } = await supabaseAdmin.from('subject_categories').insert([
         {
           profile_id: user.id,
           name: categoryName.trim(),
@@ -169,13 +169,16 @@ async function createSubject(user: any, subjectName: string, type: string, total
       if (!catErr) categoryId = newCat.id;
     }
   }
-  const { data: subject, error } = await uc.from('subjects').insert([
+  const { data: subject, error } = await supabaseAdmin.from('subjects').insert([
     {
       profile_id: user.id,
       type: 'personal',
       name: subjectName.trim(),
       category_id: categoryId,
-      is_active: true
+      is_active: true,
+      expected_total_lectures: total,
+      legacy_missed_lectures: missed,
+      legacy_attended_lectures: attended
     }
   ]).select().single();
   if (error) return MESSAGES.subjects.addError(subjectName.trim());

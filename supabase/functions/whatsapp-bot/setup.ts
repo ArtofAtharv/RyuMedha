@@ -10,24 +10,43 @@ export async function handleOnboarding(user, session, rawText, deps) {
   const uc = await deps.getUserClient(phone);
   const completeSetup = async (selectedIds = [], customName = null)=>{
     console.log(`🚀 [completeSetup] Phone: ${phone}, IDs: ${selectedIds}, Custom: ${customName}`);
-    await deps.supabaseAdmin.from('profiles').update({
+    
+    // Final profile update using admin client
+    const { error: updateErr } = await deps.supabaseAdmin.from('profiles').update({
       academics_enabled: true,
       personal_enabled: data.wantsPersonal || false,
       current_university_id: data.universityId,
       current_program_id: data.programId,
       current_semester_id: data.semesterId,
-      target_attendance_pct: data.targetPct
+      target_attendance_pct: data.targetPct,
+      display_name: data.name // Ensure name is preserved
     }).eq('whatsapp_number', phone);
+    
+    if (updateErr) {
+      console.error(`❌ [completeSetup] Profile update failed:`, updateErr);
+    }
 
-    const freshUser = await deps.getOrCreateUser(phone);
+    // Re-fetch user to get the latest UUIDs and semester ID for createSubject
+    const { data: freshUser } = await deps.supabaseAdmin.from('profiles').select('*').eq('whatsapp_number', phone).single();
+    if (!freshUser) {
+        console.error(`❌ [completeSetup] Could not re-fetch user!`);
+        return SETUP_MESSAGES.onboardingComplete(data.name, data.universityName, data.programName, data.semesterName, data.targetPct);
+    }
+
     const courses = data.availableCourses || [];
     for (const id of selectedIds){
       const course = courses.find((x)=>x.id == id);
-      if (course) await deps.createSubject(freshUser, course.course_name, 'academic');
+      if (course) {
+        console.log(`📚 Enrolling in course: ${course.course_name}`);
+        await deps.createSubject(freshUser, course.course_name, 'academic');
+      }
     }
+    
     if (customName && customName.trim()) {
+      console.log(`➕ Adding custom subject: ${customName}`);
       await deps.createSubject(freshUser, customName.trim(), 'academic');
     }
+    
     if (data.wantsPersonal) await deps.seedDefaultCategories(phone);
     await deps.clearSession(phone);
     return SETUP_MESSAGES.onboardingComplete(data.name, data.universityName, data.programName, data.semesterName, data.targetPct);
@@ -272,10 +291,11 @@ export async function handleOnboarding(user, session, rawText, deps) {
         return await completeSetup(selectedCourseIds);
       }
     }
-    if (lower.includes('not listed') || lower.includes('custom') || lower === 'subjects_add_custom') {
+    // Manual custom add trigger
+    if (lower.includes('not listed') || lower.includes('custom') || lower === 'subjects_add_custom' || lower.includes('➕')) {
       await deps.setSession(phone, 'awaiting_custom_subject_name', {
         ...data,
-        selectedCourseIds: []
+        selectedCourseIds: data.selectedCourseIds || []
       });
       return SETUP_MESSAGES.customSubjectPrompt;
     }
