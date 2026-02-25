@@ -64,7 +64,7 @@ export const authOptions: NextAuthOptions = {
             id: data.profile.id,
             name: data.profile.display_name,
             email: data.profile.email ?? null,
-            phone: phone_number,
+            phone: data.phone_number, // Use normalized phone from Edge Function
             supabaseToken: data.token,
           }
         } catch (err: any) {
