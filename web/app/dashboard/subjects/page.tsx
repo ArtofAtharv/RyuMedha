@@ -260,22 +260,28 @@ export default function SubjectsPage() {
       await supabase
         .from('academic_courses')
         .update({ 
-          instructor_name: editingSubject.instructor_name 
+          instructor_name: editingSubject.instructor_name,
+          expected_total_lectures: Number(editingSubject.expected_total_lectures || 0)
         })
         .eq('id', courseId)
     }
 
-    await supabase
-      .from('subjects')
-      .update({ 
+    const updates: any = { 
         name: editingSubject.name.trim(),
         label: editingSubject.label,
         color_hex: editingSubject.color_hex,
         legacy_attended_lectures: Number(editingSubject.legacy_attended_lectures || 0),
         legacy_missed_lectures: Number(editingSubject.legacy_missed_lectures || 0),
-        expected_total_lectures: Number(editingSubject.expected_total_lectures || 0),
         category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? editingSubject.category_id : null
-      })
+    }
+
+    if (editingSubject.type === 'personal') {
+        updates.expected_total_lectures = Number(editingSubject.expected_total_lectures || 0)
+    }
+
+    await supabase
+      .from('subjects')
+      .update(updates)
       .eq('id', editingSubject.id)
 
     setEditingSubject(null)
@@ -628,7 +634,8 @@ export default function SubjectsPage() {
                   subject={sub} 
                   onEdit={() => setEditingSubject({
                     ...sub, 
-                    instructor_name: sub.source_course_id?.instructor_name || ""
+                    instructor_name: sub.source_course_id?.instructor_name || "",
+                    expected_total_lectures: sub.source_course_id?.expected_total_lectures || sub.expected_total_lectures || 0
                   })}
                   onDelete={() => setSubjectToDelete(sub)}
                   onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
