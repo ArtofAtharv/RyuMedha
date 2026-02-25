@@ -177,7 +177,7 @@ export const SETUP_MESSAGES = {
       }
     }),
   setupChoiceInvalid: `Please use the buttons above to choose your setup method! 🖱️`,
-  websiteSetup: (websiteUrl)=>`Perfect! You can complete your setup on our dashboard here:\n\n${websiteUrl}/setup\n\nYour account is already waiting for you. Just log in with your WhatsApp number and I'll see you on the other side! 💻✨`,
+  websiteSetup: (websiteUrl)=>`Perfect! You can complete your setup on our dashboard here:\n\n${websiteUrl}\n\nYour account is already waiting for you. Just log in with your WhatsApp number and I'll see you on the other side! 💻✨`,
   chatSetup: {
     type: 'button',
     body: {
