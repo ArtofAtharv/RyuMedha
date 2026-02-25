@@ -1,0 +1,48 @@
+﻿node.exe : '\\wsl.local
+host\Ubuntu-24.04\home\
+boss\ryumedha\supabase'
+At C:\Program Files\nod
+ejs\npx.ps1:29 char:3
++   & $NODE_EXE 
+$NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~
+    + CategoryInfo     
+         : 
+NotSpecified: ('\\wsl. 
+   localhos...medha\sup
+abas    e':String) [], 
+RemoteExc    eption
+    + 
+FullyQualifiedErrorId  
+   : NativeCommandError
+ 
+CMD.EXE was started 
+with the above path as 
+the current directory.
+UNC paths are not 
+supported.  Defaulting 
+to Windows directory.
+Pull schema from the remote database
+
+Usage:
+  supabase db pull [migration name] [flags]
+
+Flags:
+      --db-url string     Pulls from the database specified by the connection string (must be percent-encoded).
+  -h, --help              help for pull
+      --linked            Pulls from the linked project. (default true)
+      --local             Pulls from the local database.
+  -p, --password string   Password to your remote Postgres database.
+  -s, --schema strings    Comma separated list of schema to include.
+
+Global Flags:
+      --create-ticket                                  create a support ticket for any CLI error
+      --debug                                          output debug logs to stderr
+      --dns-resolver [ native | https ]                lookup domain names using the specified resolver (default native)
+      --experimental                                   enable experimental features
+      --network-id string                              use the specified docker network instead of a generated one
+  -o, --output [ env | pretty | json | toml | yaml ]   output format of status variables (default pretty)
+      --profile string                                 use a specific profile for connecting to Supabase API (default "supabase")
+      --workdir string                                 path to a Supabase project directory
+      --yes                                            answer yes to all prompts
