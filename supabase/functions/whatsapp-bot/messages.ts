@@ -270,6 +270,7 @@ export const SETUP_MESSAGES = {
     };
   },
   programPromptFreeText: `🎓 *What is the name of your Program?*\n\n(e.g., "B.Tech Computer Science" or "BA LLB")`,
+  programError: `❌ Error saving program. Please try again.`,
   semesterPrompt: (sems)=>{
     const rows = sems.map((s)=>({
         id: `sem_${s.id}`,

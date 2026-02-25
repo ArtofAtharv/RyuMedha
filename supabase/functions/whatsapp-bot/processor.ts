@@ -113,10 +113,10 @@ async function handleDeleteCategory(user, categoryName) {
   return MESSAGES.categories.deleteSuccess(cat.name);
 }
 // --- SUBJECT HANDLERS ---
-async function findOrCreateAcademicCourse(uc, semesterId, courseName) {
-  const { data: existing } = await uc.from('academic_courses').select('id').eq('semester_id', semesterId).ilike('course_name', courseName).maybeSingle();
+async function findOrCreateAcademicCourse(semesterId: string, courseName: string) {
+  const { data: existing } = await supabaseAdmin.from('academic_courses').select('id').eq('semester_id', semesterId).ilike('course_name', courseName).maybeSingle();
   if (existing) return existing.id;
-  const { data: created, error } = await uc.from('academic_courses').insert([
+  const { data: created, error } = await supabaseAdmin.from('academic_courses').insert([
     {
       semester_id: semesterId,
       course_name: courseName
@@ -133,7 +133,7 @@ async function createSubject(user: any, subjectName: string, type: string, total
     if (!user.current_semester_id) return MESSAGES.subjects.setupNeeded;
     let courseId;
     try {
-      courseId = await findOrCreateAcademicCourse(uc, user.current_semester_id, subjectName.trim());
+      courseId = await findOrCreateAcademicCourse(user.current_semester_id, subjectName.trim());
     } catch  {
       return MESSAGES.subjects.error;
     }
@@ -603,7 +603,7 @@ export async function processMessage(phone: string, text: string) {
   const lower = text.trim().toLowerCase();
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
-  const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL };
+  const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin };
 
   if (lower === 'setup' || lower === 'reset') {
     await updateProfile(phone, { display_name: PLACEHOLDER_NAME });

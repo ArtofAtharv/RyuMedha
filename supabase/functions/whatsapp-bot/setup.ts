@@ -91,7 +91,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
       await deps.clearSession(phone);
       return SETUP_MESSAGES.personalOnlySuccess;
     }
-    const { data: unis } = await uc.from('universities').select('id, name').order('name').limit(10);
+    const { data: unis } = await deps.supabaseAdmin.from('universities').select('id, name').order('name').limit(10);
     await deps.setSession(phone, 'awaiting_university', {
       ...data,
       track,
@@ -110,10 +110,10 @@ export async function handleOnboarding(user, session, rawText, deps) {
       if (data.unisList?.[idx]) university = data.unisList[idx];
     }
     if (!university && text) {
-      const { data: existing } = await uc.from('universities').select('id, name').ilike('name', text.trim()).maybeSingle();
+      const { data: existing } = await deps.supabaseAdmin.from('universities').select('id, name').ilike('name', text.trim()).maybeSingle();
       if (existing) university = existing;
       else {
-        const { data: created, error } = await uc.from('universities').insert([
+        const { data: created, error } = await deps.supabaseAdmin.from('universities').insert([
           {
             name: text.trim()
           }
@@ -123,7 +123,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
       }
     }
     if (!university) return data.unisList && data.unisList.length > 0 ? SETUP_MESSAGES.universityPrompt(data.unisList) : SETUP_MESSAGES.universityPromptFreeText;
-    const { data: progs } = await uc.from('programs').select('id, name, default_target_attendance').eq('university_id', university.id).order('name').limit(10);
+    const { data: progs } = await deps.supabaseAdmin.from('programs').select('id, name, default_target_attendance').eq('university_id', university.id).order('name').limit(10);
     await deps.setSession(phone, 'awaiting_program', {
       ...data,
       universityId: university.id,
@@ -142,10 +142,10 @@ export async function handleOnboarding(user, session, rawText, deps) {
       if (data.progsList?.[idx]) program = data.progsList[idx];
     }
     if (!program && text) {
-      const { data: existing } = await uc.from('programs').select('id, name, default_target_attendance').eq('university_id', data.universityId).ilike('name', text.trim()).maybeSingle();
+      const { data: existing } = await deps.supabaseAdmin.from('programs').select('id, name, default_target_attendance').eq('university_id', data.universityId).ilike('name', text.trim()).maybeSingle();
       if (existing) program = existing;
       else {
-        const { data: created, error } = await uc.from('programs').insert([
+        const { data: created, error } = await deps.supabaseAdmin.from('programs').insert([
           {
             university_id: data.universityId,
             name: text.trim()
@@ -156,7 +156,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
       }
     }
     if (!program) return data.progsList && data.progsList.length > 0 ? SETUP_MESSAGES.programPrompt(data.universityName, data.progsList) : SETUP_MESSAGES.programPromptFreeText;
-    const { data: sems } = await uc.from('semesters').select('id, semester_number, name').eq('program_id', program.id).order('semester_number');
+    const { data: sems } = await deps.supabaseAdmin.from('semesters').select('id, semester_number, name').eq('program_id', program.id).order('semester_number');
     await deps.setSession(phone, 'awaiting_semester', {
       ...data,
       programId: program.id,
@@ -185,10 +185,10 @@ export async function handleOnboarding(user, session, rawText, deps) {
     if (!semNum) return data.semsList && data.semsList.length > 0 ? SETUP_MESSAGES.semesterPrompt(data.semsList) : SETUP_MESSAGES.semesterInvalid;
     let semesterId = semId;
     if (!semesterId) {
-      const { data: existing } = await uc.from('semesters').select('id').eq('program_id', data.programId).eq('semester_number', semNum).maybeSingle();
+      const { data: existing } = await deps.supabaseAdmin.from('semesters').select('id').eq('program_id', data.programId).eq('semester_number', semNum).maybeSingle();
       if (existing) semesterId = existing.id;
       else {
-        const { data: created, error } = await uc.from('semesters').insert([
+        const { data: created, error } = await deps.supabaseAdmin.from('semesters').insert([
           {
             program_id: data.programId,
             semester_number: semNum,
@@ -209,7 +209,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
   if (step === 'awaiting_target_pct') {
     const match = text.match(/\d+(\.\d+)?/);
     const pct = match ? parseFloat(match[0]) : data.defaultTarget || 75;
-    const { data: courses } = await uc.from('academic_courses').select('id, course_name').eq('semester_id', data.semesterId).order('course_name').limit(20);
+    const { data: courses } = await deps.supabaseAdmin.from('academic_courses').select('id, course_name').eq('semester_id', data.semesterId).order('course_name').limit(20);
     await deps.setSession(phone, 'awaiting_subjects', {
       ...data,
       targetPct: pct,
