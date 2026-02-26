@@ -25,6 +25,15 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/apple-touch-icon.png",
   },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Ryu Medha",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     title: "Ryu Medha - Academics Tracker",
     url: "https://ryumedha.in",
@@ -42,6 +51,7 @@ export const metadata: Metadata = {
       },
     ],
   },
+  themeColor: "#f97316",
 };
 
 export default function RootLayout({
