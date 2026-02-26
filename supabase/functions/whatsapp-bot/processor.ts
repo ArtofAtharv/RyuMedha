@@ -292,7 +292,7 @@ async function handleListSubjects(user) {
 // --- ATTENDANCE HANDLERS ---
 async function logAttendance(user, subjectName, status) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('subjects').select('id, name, type, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
+  const { data: raw } = await uc.from('subjects').select('id, name, type, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
   if (!raw || raw.length === 0) return null;
   const subjects = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (subjects.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
@@ -303,7 +303,10 @@ async function logAttendance(user, subjectName, status) {
     else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s, i)=>`${i + 1}. ${s.name}`).join('\n'));
   }
   if (subject.type !== 'academic') return MESSAGES.attendance.academicOnly(subject.name);
+  
   const today = new Date().toISOString().split('T')[0];
+  const { data: existing } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id).eq('lecture_date', today).order('created_at', { ascending: false }).limit(1).maybeSingle();
+  
   await uc.from('attendance_logs').insert([
     {
       profile_id: user.id,
@@ -312,11 +315,21 @@ async function logAttendance(user, subjectName, status) {
       status
     }
   ]);
-  const prefix = status === 'present' ? MESSAGES.attendance.presentPrefix(subject.name) : status === 'absent' ? MESSAGES.attendance.absentPrefix(subject.name) : MESSAGES.attendance.deemedPrefix(subject.name);
+
+  let prefix = '';
+  if (existing) {
+    // We need the NEW total for the message
+    const { data: logs } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
+    const totalCount = (logs?.length || 0) + (subject.legacy_attended_lectures || 0) + (subject.legacy_missed_lectures || 0);
+    prefix = MESSAGES.attendance.multiMarked(subject.name, existing.status, status, totalCount);
+  } else {
+    prefix = status === 'present' ? MESSAGES.attendance.presentPrefix(subject.name) : status === 'absent' ? MESSAGES.attendance.absentPrefix(subject.name) : MESSAGES.attendance.deemedPrefix(subject.name);
+  }
+
   return await buildAttendanceSummary(uc, user, subject, prefix);
 }
 async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetchedLogs = null) {
-  const logs = preFetchedLogs || await (async ()=>{
+  const logs = preFetchedLogs || await (async () => {
     const { data } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
     return data;
   })();
@@ -330,14 +343,28 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
   const emoji = pct >= target ? '✅' : pct >= target - 15 ? '⚠️' : '🔴';
   let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present, total, pct.toFixed(1));
   if (deemed > 0) msg += MESSAGES.attendance.deemedNote(deemed);
-  if (subject.expected_total_lectures > 0) {
-    const maxMisses = Math.floor(subject.expected_total_lectures * (1 - target / 100));
-    const bunks = maxMisses - (absent - deemed);
-    if (bunks >= 0) msg += MESSAGES.attendance.bunksLeft(bunks, bunks !== 1);
-    else {
-      const t = target / 100;
-      const x = Math.ceil((t * total - (present + deemed)) / (1 - t));
-      msg += MESSAGES.attendance.trackWarning(x, x !== 1);
+
+  const expectedTotal = subject.expected_total_lectures || subject.source_course_id?.expected_total_lectures || 0;
+
+  if (expectedTotal > 0) {
+    const t = target / 100;
+    const maxMisses = Math.floor(expectedTotal * (1 - t));
+    const netAbsent = Math.max(0, absent - deemed);
+    const bunks = maxMisses - netAbsent;
+    const remaining = Math.max(0, expectedTotal - total);
+    
+    const totalPresentsNeededForGoal = Math.ceil(expectedTotal * t);
+    const needed = Math.max(0, totalPresentsNeededForGoal - (present + deemed));
+
+    if (bunks >= 0) {
+      msg += MESSAGES.attendance.bunksLeft(bunks, bunks !== 1);
+    } else {
+      if (needed > remaining) {
+        const maxPossiblePct = ((present + deemed + remaining) / expectedTotal) * 100;
+        msg += MESSAGES.attendance.impossibleGoal(Math.round(maxPossiblePct));
+      } else {
+        msg += MESSAGES.attendance.trackWarning(needed, needed !== 1);
+      }
     }
   } else if (pct < target) {
     const t = target / 100;
@@ -568,7 +595,7 @@ function handleHelp(user: any) {
 // --- ATTENDANCE SUMMARY HANDLER ---
 async function handleStats(user: any, uc: any) {
   if (!user.academics_enabled) return MESSAGES.stats.academicOnly;
-  const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
+  const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
   const filtered = raw?.filter((s: any) => Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
   if (filtered.length === 0) return MESSAGES.stats.noSubjects;
   const { data: logs } = await uc.from('attendance_logs').select('subject_id, status').eq('profile_id', user.id).in('subject_id', filtered.map((x: any) => x.id));
