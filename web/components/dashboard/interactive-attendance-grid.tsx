@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { AttendanceCard } from "./attendance-card"
 import { useRouter } from "next/navigation"
 import { motion, Variants } from "motion/react"
+import { toast } from "sonner"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -26,7 +27,6 @@ const cardVariants: Variants = {
 export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId, targetPct }: { initialData: any[], subjectsInfo: any[], token: string, profileId: string, targetPct: number }) {
   const [data, setData] = useState(initialData)
   const [isUpdating, setIsUpdating] = useState(false)
-  const [toastMsg, setToastMsg] = useState<string | null>(null)
   const router = useRouter()
 
   const supabase = createClient(
@@ -34,11 +34,6 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   )
-
-  function showToast(msg: string) {
-    setToastMsg(msg)
-    setTimeout(() => setToastMsg(null), 4000)
-  }
 
   function calculateAdvice(totalPresent: number, totalAbsent: number, totalDeemed: number, expectedTotal: number) {
     const totalLogged = totalPresent + totalAbsent + totalDeemed
@@ -227,7 +222,10 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         .limit(1)
         
       if (existingToday && existingToday.length > 0) {
-        showToast("⚠️ You've already marked attendance for this subject today. This will be recorded as a separate lecture slot.")
+        toast.success("✅ Attendance recorded! You can mark multiple lectures for the same day if needed.")
+      } else {
+        const sub = subjectsInfo.find(s => s.id === subjectId)
+        toast.success(`✅ Marked ${targetStatus} for ${sub?.name || 'subject'}`)
       }
       
       // Insert: The backend does not enforce a unique constraint on lecture_date anymore due to our fix
@@ -254,12 +252,6 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
 
   return (
     <>
-      {/* Toast Banner for duplicate attendance warning */}
-      {toastMsg && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400 text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300">
-          {toastMsg}
-        </div>
-      )}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
@@ -288,6 +280,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
               accentColor={subRecord?.color_hex ?? undefined}
               instructorName={instructorName}
               label={subRecord?.label ?? undefined}
+              targetPct={targetPct}
               
               // Granular Advice Props
               bunksRemaining={item.bunks_remaining}

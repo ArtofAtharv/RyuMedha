@@ -434,3 +434,7 @@ BEGIN
     ON CONFLICT (profile_id, name) DO NOTHING;
 END;
 $$ LANGUAGE plpgsql;
+
+
+ALTER TABLE attendance_logs 
+DROP CONSTRAINT IF EXISTS attendance_logs_profile_id_subject_id_lecture_date_key;

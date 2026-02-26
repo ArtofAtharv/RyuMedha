@@ -20,6 +20,7 @@ interface AttendanceCardProps {
   maxPossiblePct?: number
   isPossibleToRecover?: boolean
   remainingLectures?: number
+  targetPct?: number
   onLog?: (subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') => void
 }
 
@@ -50,6 +51,7 @@ export function AttendanceCard({
   maxPossiblePct,
   isPossibleToRecover,
   remainingLectures,
+  targetPct = 75,
   onLog,
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)
@@ -144,20 +146,20 @@ export function AttendanceCard({
                     if (bunksRemaining === 0) {
                       return (
                         <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                          🛑 High risk: Can't afford to skip any lectures.
+                          🛑 High risk: Can't afford to skip any lectures. Attend daily to meet {targetPct}%
                         </p>
                       );
                     }
                     if (skipPct >= 0.6) {
                       return (
                         <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tighter bg-amber-500/10 px-2 py-1 rounded-md inline-block border border-amber-500/20">
-                          ⚠️ Risk alert: You can only skip {bunksRemaining} more lectures. Attend daily to be safe.
+                          ⚠️ Warning: Only {bunksRemaining} skips left to maintain {targetPct}%
                         </p>
                       );
                     }
                     return (
                       <p className="text-[10px] font-bold text-green-600 dark:text-green-400/90 uppercase tracking-tighter bg-green-500/5 px-2 py-1 rounded-md inline-block border border-green-500/10">
-                        ✨ Goal: You can safely miss up to {bunksRemaining} classes
+                        ✨ You can skip {bunksRemaining} lectures and still maintain {targetPct}%
                       </p>
                     );
                   })()}
@@ -167,16 +169,16 @@ export function AttendanceCard({
                   {isPossibleToRecover ? (
                     <div className="space-y-1">
                       <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                        🚨 Goal: Attend {neededToRecover} classes to recover
+                        🚨 Attend {neededToRecover} lectures to meet {targetPct}%
                       </p>
                       <p className="text-[9px] text-muted-foreground font-medium pl-1 italic">
-                        Focus on showing up! You need {neededToRecover} more consecutive classes to reach your goal.
+                        No skips allowed! Focus on showing up daily.
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-1">
                       <p className="text-[9px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                        ⚠️ Attending all lectures daily without fail will make your attendance {Math.round(maxPossiblePct || 0)}%.
+                        ⚠️ Goal: Attending daily will make your attendance {Math.round(maxPossiblePct || 0)}%. Don't skip anymore!
                       </p>
                     </div>
                   )}

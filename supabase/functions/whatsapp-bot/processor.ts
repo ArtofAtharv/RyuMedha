@@ -304,8 +304,6 @@ async function logAttendance(user, subjectName, status) {
   }
   if (subject.type !== 'academic') return MESSAGES.attendance.academicOnly(subject.name);
   const today = new Date().toISOString().split('T')[0];
-  const { data: existing } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id).eq('lecture_date', today).maybeSingle();
-  if (existing) return MESSAGES.attendance.alreadyMarked(subject.name, existing.status);
   await uc.from('attendance_logs').insert([
     {
       profile_id: user.id,
