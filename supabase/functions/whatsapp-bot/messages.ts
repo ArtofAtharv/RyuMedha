@@ -83,7 +83,7 @@ export const MESSAGES = {
     started: (name)=>`⏱️ *Study session started for ${name}!*\n\nI'll keep track of the time for you. Just tell me *"stop"* when you're finished! 💪\n\n Or check the live timer on the *Dashboard:* ${WEBSITE_URL}`,
     noActive: `ℹ️ You don't have an active timer.`,
     stopError: `I'm sorry, I couldn't stop the timer. Could you try again?`,
-    stopped: (name, hrs, mins)=>`⏹️ *Great focus!* You've finished your session for *${name || 'Subject'}*.\n\n⏱️ Duration: **${hrs}h ${mins}m**\nI've saved this to your study history. Take a well-deserved break! 💪✨\n\nYou can view your study history on the *Dashboard:* ${WEBSITE_URL}`
+    stopped: (name, hrs, mins)=>`⏹️ *Great focus!* You've finished your session for *${name || 'Subject'}*.\n\n⏱️ Duration: *${hrs}h ${mins}m*\nI've saved this to your study history. Take a well-deserved break! 💪✨\n\nYou can view your study history on the *Dashboard:* ${WEBSITE_URL}`
   },
   tasks: {
     addPrompt: `Please provide a task title.\nExample: *add task Assignment 1 due on 13th march, 2026*`,
@@ -101,11 +101,11 @@ export const MESSAGES = {
     emptySemester: `📋 No pending tasks for the current semester!`
   },
   general: {
-    export: `📁 Your data export functionality is available via the dashboard! \n  \nPlease visit ${WEBSITE_URL} and go to your **Settings** page to securely download all your raw data (Subjects, Grades, Timers, Attendance) as a CSV file.`,
+    export: `📁 Your data export functionality is available via the dashboard! \n  \nPlease visit ${WEBSITE_URL} and go to your *Settings* page to securely download all your raw data (Subjects, Grades, Timers, Attendance) as a CSV file.`,
     help: `👋 *Hi! I'm Ryuma, your study assistant.* 🎓
 
 Use below keywords in your messages to perform actions:
-👤 *Profile:* setup, reset, profile
+👤 *Profile:* setup or reset, profile
 📚 *Subjects:* list, add [name], delete [name], rename [old] to [new]
 🗓️ *Attendance:* present [name], absent, deemed, undo, stats
 📋 *Tasks:* tasks, add task [title], done [number]
@@ -116,7 +116,7 @@ Use below keywords in your messages to perform actions:
     helpPersonal: `👋 *Hi! I'm Ryuma, your personal tracker.* 💼
 
 Use below keywords in your messages to perform actions:
-👤 *Profile:* setup, reset, profile
+👤 *Profile:* setup or reset, profile
 📚 *Subjects:* list, add [name], delete [name], rename [old] to [new]
 🎨 *Categories:* list categories, add category [name], delete category [name]
 📋 *Tasks:* tasks, add task [title], done [number]
@@ -127,7 +127,7 @@ Use below keywords in your messages to perform actions:
     helpBoth: `👋 *Hi! I'm Ryuma, your all-in-one assistant.* 🎓💼
 
 Use below keywords in your messages to perform actions:
-👤 *Profile:* setup, reset, profile
+👤 *Profile:* setup or reset, profile
 📚 *Subjects:* list, add [name], delete [name], rename [old] to [new]
 🎨 *Categories:* list categories, add category [name]
 🗓️ *Attendance:* present [name], absent, deemed, undo, stats
@@ -150,32 +150,33 @@ Use below keywords in your messages to perform actions:
   }
 };
 export const SETUP_MESSAGES = {
-  welcome: `👋 Hi there! Welcome to *Ryu Medha* — I'm your new personal study assistant. 🎓\n\nI'm here to help you track your classes, manage your tasks, and keep an eye on your grades so you can focus on learning.\n\nTo get started, what should I call you? 😊`,
-  needsName: `I'd love to know your name so I can set things up for you! 😊`,
-  greet: (name)=>({
-      type: 'button',
-      body: {
-        text: `It's great to meet you, *${name}*! 👋\n\nHow would you like to set up your profile?`
-      },
-      action: {
-        buttons: [
-          {
-            type: 'reply',
-            reply: {
-              id: 'setup_here',
-              title: 'Continue here'
-            }
-          },
-          {
-            type: 'reply',
-            reply: {
-              id: 'setup_website',
-              title: 'Use the website'
-            }
+  welcome: {
+    type: 'button',
+    body: {
+      text: `👋 Hi there! Welcome to *Ryu Medha* — I'm Ryuma, your new personal study assistant. 🎓\n\nI'm here to help you track your classes, manage your tasks, and keep an eye on your grades so you can focus on learning.\n\nHow would you like to set up your profile?`
+    },
+    action: {
+      buttons: [
+        {
+          type: 'reply',
+          reply: {
+            id: 'setup_here',
+            title: 'Continue here'
           }
-        ]
-      }
-    }),
+        },
+        {
+          type: 'reply',
+          reply: {
+            id: 'setup_website',
+            title: 'Use the website'
+          }
+        }
+      ]
+    }
+  },
+  askName: `It's great to have you here! 👋\n\nTo get started, what should I call you? 😊`,
+  needsName: `I'd love to know your name so I can set things up for you! 😊`,
+  greet: (name)=>`It's great to meet you, *${name}*! 👋`,
   setupChoiceInvalid: `Please use the buttons above to choose your setup method! 🖱️`,
   websiteSetup: (websiteUrl)=>`Perfect! You can complete your setup on our dashboard here:\n\n${websiteUrl}\n\nYour account is already waiting for you. Just log in with your WhatsApp number and I'll see you on the other side! 💻✨`,
   chatSetup: {
@@ -223,7 +224,7 @@ export const SETUP_MESSAGES = {
         text: '🏛️ University Selection'
       },
       body: {
-        text: 'Which University do you attend?\n\n(Select from the list or just type the name below)'
+        text: 'Which University do you attend?\n\n(Select from the list or if not there, just type the name below)'
       },
       footer: {
         text: 'Ryu Medha Onboarding'
@@ -239,7 +240,7 @@ export const SETUP_MESSAGES = {
       }
     };
   },
-  universityPromptFreeText: `🏛️ *What is the name of your University?*\n\n(e.g., "Delhi University")`,
+  universityPromptFreeText: `🏛️ *What is the name of your University?*\n\n(e.g., "MNLU Mumbai or Delhi University")`,
   universityError: `❌ Error saving university. Please try again.`,
   programPrompt: (uniName, progs)=>{
     const rows = progs.map((p)=>({
@@ -301,37 +302,15 @@ export const SETUP_MESSAGES = {
   },
   semesterInvalid: `Please enter a valid semester number, e.g. *4*.`,
   semesterError: `❌ Error saving semester.`,
-  semesterPromptFallback: {
-    type: 'list',
-    header: { type: 'text', text: '📖 Semester Selection' },
-    body: { text: 'Which Semester are you in?\n\n(Select from the list or just type the number below)' },
-    footer: { text: 'Ryu Medha Onboarding' },
-    action: {
-        button: 'Select Semester',
-        sections: [{ 
-            title: 'Common Semesters', 
-            rows: [
-                { id: 'sem_1', title: 'Semester 1' },
-                { id: 'sem_2', title: 'Semester 2' },
-                { id: 'sem_3', title: 'Semester 3' },
-                { id: 'sem_4', title: 'Semester 4' },
-                { id: 'sem_5', title: 'Semester 5' },
-                { id: 'sem_6', title: 'Semester 6' },
-                { id: 'sem_7', title: 'Semester 7' },
-                { id: 'sem_8', title: 'Semester 8' }
-            ]
-        }]
-    }
-  },
   semesterPromptFreeText: `📖 *Which semester are you in?* (e.g., type "1" or "5")`,
-  targetPrompt: (defaultTarget)=>`🎯 *Attendance Goal*\n\nWhat's the minimum attendance percentage you're aiming for?\n${defaultTarget ? `_(Most students in your program aim for **${defaultTarget}%**)_` : ''}\n\n_(Just send me the number, like **75** or **85**)_`,
+  targetPrompt: (defaultTarget)=>`🎯 *Attendance Goal*\n\nWhat's the minimum attendance percentage you're aiming for?\n${defaultTarget ? `_(Most students in your program aim for *${defaultTarget}%*)_` : ''}\n\n_(Just send me the number, like *75* or *85*)_`,
   subjectSelectionPrompt: (courses)=>{
     const listText = courses.map((c, i)=>`*${i + 1}*. ${c.course_name}`).join('\n');
     const nextNum = courses.length + 1;
     return `📚 *Select Your Courses*\n\nAvailable subjects:\n${listText}\n*${nextNum}*. ➕ Subject not listed\n\n💡 *Tip:* You can type multiple numbers (e.g. *1, 3, 4*) to add them all and finish setup instantly!`;
   },
   customSubjectPrompt: `➕ *What is the name of the subject you'd like to add?*`,
-  onboardingComplete: (name, uni, prog, sem, goal)=>`✨ *You're all set, ${name}!* ✨\n\nI've created your profile with these details:\n🏛️ *${uni}*\n🎓 *${prog}*\n📖 *${sem}*\n🎯 *Goal: ${goal}%*\n\n*You can now start managing your studies:*\n• "I went to class"\n• "How are my stats?"\n\nI'm here whenever you need me. Just type *help* if you ever get stuck. Let's make this semester great! 🚀🎓`,
+  onboardingComplete: (name, uni, prog, sem, goal)=>`✨ *You're all set, ${name}!* ✨\n\nI've created your profile with these details:\n🏛️ *${uni}*\n🎓 *${prog}*\n📖 *${sem}*\n🎯 *Goal: ${goal}%*\n\n*You can now start managing your studies:*\n• "I attended Criminal Law today"\n• "How are my stats?"\n\nI'm here whenever you need me. Just type *help* if you ever get stuck. Let's make this semester great! 🚀🎓`,
   disambiguateType: {
     type: 'button',
     body: {

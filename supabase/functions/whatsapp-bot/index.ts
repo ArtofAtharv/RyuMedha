@@ -72,7 +72,13 @@ serve(async (req)=>{
         if (text) {
           console.log(`📩 [${phone}]: ${text}`);
           const reply = await processMessage(phone, text);
-          await sendWhatsAppMessage(phone, reply);
+          if (Array.isArray(reply)) {
+            for (const r of reply) {
+              await sendWhatsAppMessage(phone, r);
+            }
+          } else if (reply) {
+            await sendWhatsAppMessage(phone, reply);
+          }
         }
       }
       return new Response("OK", {

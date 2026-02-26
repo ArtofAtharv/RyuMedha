@@ -1,6 +1,6 @@
 import { SETUP_MESSAGES } from './messages.ts';
 export function startOnboarding(phone, deps) {
-  deps.setSession(phone, 'awaiting_name', {});
+  deps.setSession(phone, 'awaiting_onboarding_choice', {});
   return SETUP_MESSAGES.welcome;
 }
 export async function handleOnboarding(user, session, rawText, deps) {
@@ -51,23 +51,15 @@ export async function handleOnboarding(user, session, rawText, deps) {
     await deps.clearSession(phone);
     return SETUP_MESSAGES.onboardingComplete(data.name, data.universityName, data.programName, data.semesterName, data.targetPct);
   };
-  if (step === 'awaiting_name') {
-    if (!text) return SETUP_MESSAGES.needsName;
-    await deps.updateProfile(phone, {
-      display_name: text
-    });
-    await deps.setSession(phone, 'awaiting_setup_method', {
-      name: text
-    });
-    return SETUP_MESSAGES.greet(text);
-  }
-  if (step === 'awaiting_setup_method') {
+
+  if (step === 'awaiting_onboarding_choice') {
     const lower = text.toLowerCase();
     if (lower === 'setup_website' || [
       '2',
       'website',
       'web'
     ].includes(lower)) {
+      await deps.updateProfile(phone, { academics_enabled: false, personal_enabled: false }); // Baseline profile
       await deps.clearSession(phone);
       return SETUP_MESSAGES.websiteSetup(deps.WEBSITE_URL);
     }
@@ -77,12 +69,22 @@ export async function handleOnboarding(user, session, rawText, deps) {
       'chat',
       'setup_here'
     ].includes(lower)) {
-      await deps.setSession(phone, 'awaiting_track_selection', {
-        ...data
-      });
-      return SETUP_MESSAGES.chatSetup;
+      await deps.setSession(phone, 'awaiting_name', { ...data });
+      return SETUP_MESSAGES.askName;
     }
     return SETUP_MESSAGES.setupChoiceInvalid;
+  }
+
+  if (step === 'awaiting_name') {
+    if (!text) return SETUP_MESSAGES.needsName;
+    await deps.updateProfile(phone, {
+      display_name: text
+    });
+    await deps.setSession(phone, 'awaiting_track_selection', {
+      ...data,
+      name: text
+    });
+    return [SETUP_MESSAGES.greet(text), SETUP_MESSAGES.chatSetup];
   }
   if (step === 'awaiting_track_selection') {
     const lower = text.toLowerCase();
