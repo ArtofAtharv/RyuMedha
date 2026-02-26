@@ -607,12 +607,12 @@ async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
 }
 
 // --- ROUTING ---
-export async function processMessage(phone: string, text: string) {
+export async function processMessage(phone: string, text: string, metadata: { isInteractive: boolean } = { isInteractive: false }) {
   const user = await getOrCreateUser(phone);
   const lower = text.trim().toLowerCase();
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
-  const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin };
+  const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin, metadata };
 
   if (lower === 'setup' || lower === 'reset') {
     await updateProfile(phone, { display_name: PLACEHOLDER_NAME });

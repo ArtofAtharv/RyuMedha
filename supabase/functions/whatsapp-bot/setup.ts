@@ -43,6 +43,9 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
     return SETUP_MESSAGES.onboardingComplete(data.name, data.universityName, data.programName, data.semesterName, data.targetPct);
   };
 
+  const { metadata } = deps;
+  const isInteractive = metadata?.isInteractive === true;
+
   if (step === 'awaiting_onboarding_choice') {
     const lower = text.toLowerCase();
     if (lower === 'setup_website' || [
@@ -67,6 +70,7 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
   }
 
   if (step === 'awaiting_name') {
+    if (isInteractive) return SETUP_MESSAGES.needsName; // Ignore buttons from previous steps
     if (!text) return SETUP_MESSAGES.needsName;
     await deps.updateProfile(phone, {
       display_name: text
@@ -92,7 +96,10 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
       '3',
       'both'
     ].includes(lower)) track = 'both';
+    
+    // If it's an interactive message that isn't a valid track ID, it's likely from a previous step
     if (!track) return SETUP_MESSAGES.trackChoiceInvalid;
+
     const wantsAcademic = track === 'academic' || track === 'both';
     const wantsPersonal = track === 'personal' || track === 'both';
     if (wantsPersonal && !wantsAcademic) {
@@ -125,10 +132,14 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
     if (text.startsWith('uni_')) {
       const id = text.replace('uni_', '');
       university = (data.unisList || []).find((u: any)=>u.id == id);
-    } else if (/^\d+$/.test(text)) {
+    } else if (/^\d+$/.test(text) && !isInteractive) {
       const idx = parseInt(text, 10) - 1;
       if (data.unisList?.[idx]) university = data.unisList[idx];
     }
+    
+    // If it's an interactive response but not a valid 'uni_' ID, ignore it
+    if (isInteractive && !university) return SETUP_MESSAGES.universityPrompt(data.unisList || []);
+
     if (!university && text) {
       const { data: existing } = await deps.supabaseAdmin.from('universities').select('id, name').ilike('name', text.trim()).maybeSingle();
       if (existing) university = existing;
@@ -163,10 +174,14 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
     if (text.startsWith('prog_')) {
       const id = text.replace('prog_', '');
       program = (data.progsList || []).find((p: any)=>p.id == id);
-    } else if (/^\d+$/.test(text)) {
+    } else if (/^\d+$/.test(text) && !isInteractive) {
       const idx = parseInt(text, 10) - 1;
       if (data.progsList?.[idx]) program = data.progsList[idx];
     }
+
+    // If it's interactive but not a valid 'prog_' ID, ignore it
+    if (isInteractive && !program) return SETUP_MESSAGES.programPrompt(data.universityName, data.progsList || []);
+
     if (!program && text) {
       const { data: existing } = await deps.supabaseAdmin.from('programs').select('id, name, default_target_attendance').eq('university_id', data.universityId).ilike('name', text.trim()).maybeSingle();
       if (existing) program = existing;
@@ -211,12 +226,16 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
         semNum = parseInt(id, 10);
         semName = `Semester ${semNum}`;
       }
-    } else if (/^\d+$/.test(text)) {
+    } else if (/^\d+$/.test(text) && !isInteractive) {
       semNum = parseInt(text, 10);
       semName = `Semester ${semNum}`;
       const existing = (data.semsList || []).find((x: any)=>x.semester_number === semNum);
       if (existing) semId = existing.id;
     }
+
+    // If interactive but not a valid 'sem_' ID, ignore it
+    if (isInteractive && !semNum) return SETUP_MESSAGES.semesterPrompt(data.semsList || []);
+
     if (!semNum) return SETUP_MESSAGES.semesterPrompt(data.semsList || []);
     let semesterId = semId;
     if (!semesterId) {

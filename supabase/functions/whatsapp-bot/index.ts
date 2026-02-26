@@ -68,10 +68,12 @@ serve(async (req)=>{
         if (phone && !phone.startsWith('+')) {
           phone = `+${phone}`;
         }
+        const isInteractive = !!(message.button?.text || message.interactive?.button_reply?.id || message.interactive?.list_reply?.id);
         const text = message.text?.body || message.button?.text || message.interactive?.button_reply?.id || message.interactive?.list_reply?.id;
+        
         if (text) {
-          console.log(`📩 [${phone}]: ${text}`);
-          const reply = await processMessage(phone, text);
+          console.log(`📩 [${phone}] (interactive: ${isInteractive}): ${text}`);
+          const reply = await processMessage(phone, text, { isInteractive });
           if (Array.isArray(reply)) {
             for (const r of reply) {
               await sendWhatsAppMessage(phone, r);
