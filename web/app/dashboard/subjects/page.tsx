@@ -475,7 +475,7 @@ export default function SubjectsPage() {
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
                   
-                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} >
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
                         {selectedCourseIds.length > 0 
@@ -484,7 +484,7 @@ export default function SubjectsPage() {
                         <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0" align="start">
+                    <PopoverContent className="min-w-full p-0" align="start">
                       <div className="p-2 border-b bg-muted/20">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
                       </div>
