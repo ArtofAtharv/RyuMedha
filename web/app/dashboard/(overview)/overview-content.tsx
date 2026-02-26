@@ -6,6 +6,7 @@ import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, Fol
 import { format } from 'date-fns'
 import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-attendance-grid'
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
+import { useState, useEffect } from 'react'
 
 export function OverviewContent({
   profile,
@@ -18,6 +19,11 @@ export function OverviewContent({
 }) {
   const { profile: contextProfile } = useProfile()
   const activeProfile = contextProfile || profile
+  const [mounted, setMounted] = useState(false)
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <>
@@ -100,7 +106,7 @@ export function OverviewContent({
                   Today's Attendance
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Mark your presence for {format(new Date(), "EEEE, MMMM do")}
+                  Mark your presence for {mounted ? format(new Date(), "EEEE, MMMM do") : "..."}
                 </p>
               </div>
             </div>

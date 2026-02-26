@@ -46,23 +46,27 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     let maxAllowedMisses = undefined
 
     if (expectedTotal > 0) {
-      maxAllowedMisses = Math.floor(expectedTotal * (1 - (targetPct / 100)))
+      const t = targetPct / 100
+      maxAllowedMisses = Math.floor(expectedTotal * (1 - t))
       const netAbsent = Math.max(0, totalAbsent - totalDeemed)
       bunksRemaining = maxAllowedMisses - netAbsent
       const remaining = Math.max(0, expectedTotal - totalLogged)
+      
+      const totalPresentsNeededForGoal = Math.ceil(expectedTotal * t)
+      neededToRecover = Math.max(0, totalPresentsNeededForGoal - (totalPresent + totalDeemed))
 
       if (bunksRemaining < 0) {
-        const t = targetPct / 100
-        neededToRecover = Math.ceil((t * totalLogged - (totalPresent + totalDeemed)) / (1 - t))
-        
         if (neededToRecover > remaining) {
           isPossibleToRecover = false
           maxPossiblePct = ((totalPresent + totalDeemed + remaining) / expectedTotal) * 100
         }
       }
-    } else if (pct < targetPct) {
+    } else {
+      // Fallback for subjects with no expected total (dynamic floating calculation)
       const t = targetPct / 100
-      neededToRecover = Math.ceil((t * totalLogged - (totalPresent + totalDeemed)) / (1 - t))
+      if (pct < targetPct) {
+        neededToRecover = Math.ceil((t * totalLogged - (totalPresent + totalDeemed)) / (1 - t))
+      }
     }
 
     return { 
@@ -88,7 +92,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
       const present = existingAtt ? existingAtt.total_present : (sub.legacy_attended_lectures || 0)
       const absent = existingAtt ? existingAtt.total_absent : (sub.legacy_missed_lectures || 0)
       const deemed = existingAtt ? (existingAtt.total_deemed || 0) : 0
-      const expectedTotal = sub.expected_total_lectures || 0
+      const expectedTotal = sub.expected_total_lectures || sub.source_course_id?.expected_total_lectures || 0
 
       const { 
         pct, 
@@ -146,7 +150,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         }
 
         const subInfo = subjectsInfo.find(s => s.id === subjectId)
-        const expectedTotal = subInfo?.expected_total_lectures || 0
+        const expectedTotal = subInfo?.expected_total_lectures || subInfo?.source_course_id?.expected_total_lectures || 0
         const { pct, bunksRemaining, neededToRecover, maxPossiblePct, isPossibleToRecover, maxAllowedMisses, currentMisses, remainingLectures } = calculateAdvice(newPresent, newAbsent, newDeemed, expectedTotal)
 
         return { 
