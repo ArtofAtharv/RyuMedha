@@ -51,13 +51,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Surface 'not_registered' status to client
+    // Surface 'not_registered' status to client
     if (data?.status === 'not_registered') {
-      return NextResponse.json(
-        { 
-          error: `This number (${data.searchedFor || cleanPhone}) is not registered. Send "hi" to our WhatsApp bot first.` 
-        },
-        { status: 404 }
-      )
+      return NextResponse.json({ 
+        not_registered: true,
+        error: `This number (${data.searchedFor || cleanPhone}) is not registered. Send "hi" to our WhatsApp bot first.` 
+      })
     }
 
     return NextResponse.json({

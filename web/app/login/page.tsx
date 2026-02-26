@@ -56,6 +56,7 @@ function LoginPageInner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [expiresIn, setExpiresIn] = useState(300)
+  const [showSignupOverlay, setShowSignupOverlay] = useState(false)
 
   const countdown = useCountdown(expiresIn, step === 'otp')
   const expired = countdown === 0 && step === 'otp'
@@ -71,6 +72,15 @@ function LoginPageInner() {
         body: JSON.stringify({ phone_number: phone.trim() }),
       })
       const data = await res.json()
+      
+      const isNotRegistered = 
+        data.not_registered === true || 
+        (res.status === 404 && (data.status === 'not_registered' || data.error?.toLowerCase().includes('not registered')))
+
+      if (isNotRegistered) {
+        setShowSignupOverlay(true)
+        return
+      }
       if (!res.ok) { setError(data.error ?? 'Failed to send OTP.'); return }
       setExpiresIn(data.expiresIn ?? 300)
       setStep('otp')
@@ -299,6 +309,38 @@ function LoginPageInner() {
           </p>
         </div>
       </div>
+      {/* Signup Overlay */}
+      {showSignupOverlay && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
+          <Card className="w-full max-w-sm shadow-2xl border-primary/20 animate-in zoom-in-95 duration-300">
+            <CardHeader className="text-center space-y-2">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                <MessageCircle className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-xl font-bold">Signup Required</CardTitle>
+              <CardDescription className="text-base">
+                You need to signup from the WhatsApp bot first to use the website dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button 
+                onClick={() => window.open('https://wa.me/message/P4QSZGK7MV2PL1', '_blank')}
+                className="w-full h-12 text-base font-bold gap-2"
+              >
+                <MessageCircle className="h-5 w-5" />
+                Continue to WhatsApp
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowSignupOverlay(false)}
+                className="w-full h-11 text-muted-foreground"
+              >
+                Cancel
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
