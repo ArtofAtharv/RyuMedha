@@ -1,50 +1,41 @@
 import { SETUP_MESSAGES } from './messages.ts';
-export function startOnboarding(phone, deps) {
+export function startOnboarding(phone: string, deps: any) {
   deps.setSession(phone, 'awaiting_onboarding_choice', {});
   return SETUP_MESSAGES.welcome;
 }
-export async function handleOnboarding(user, session, rawText, deps) {
+export async function handleOnboarding(user: any, session: any, rawText: string, deps: any) {
   const { step, data } = session;
   const text = rawText.trim();
   const phone = user.whatsapp_number;
-  const uc = await deps.getUserClient(phone);
-  const completeSetup = async (selectedIds = [], customName = null)=>{
-    console.log(`🚀 [completeSetup] Phone: ${phone}, IDs: ${selectedIds}, Custom: ${customName}`);
+  const completeSetup = async (selectedIds: string[] = [], customNames: string | string[] | null = null)=>{
+    console.log(`🚀 [completeSetup] Phone: ${phone}, IDs: ${selectedIds}, Customs: ${customNames}`);
     
-    // Final profile update using admin client
-    const { error: updateErr } = await deps.supabaseAdmin.from('profiles').update({
+    await deps.supabaseAdmin.from('profiles').update({
       academics_enabled: true,
       personal_enabled: data.wantsPersonal || false,
       current_university_id: data.universityId,
       current_program_id: data.programId,
       current_semester_id: data.semesterId,
       target_attendance_pct: data.targetPct,
-      display_name: data.name // Ensure name is preserved
+      display_name: data.name
     }).eq('whatsapp_number', phone);
     
-    if (updateErr) {
-      console.error(`❌ [completeSetup] Profile update failed:`, updateErr);
-    }
-
-    // Re-fetch user to get the latest UUIDs and semester ID for createSubject
     const { data: freshUser } = await deps.supabaseAdmin.from('profiles').select('*').eq('whatsapp_number', phone).single();
-    if (!freshUser) {
-        console.error(`❌ [completeSetup] Could not re-fetch user!`);
-        return SETUP_MESSAGES.onboardingComplete(data.name, data.universityName, data.programName, data.semesterName, data.targetPct);
-    }
+    if (!freshUser) return SETUP_MESSAGES.onboardingComplete(data.name, data.universityName, data.programName, data.semesterName, data.targetPct);
 
     const courses = data.availableCourses || [];
     for (const id of selectedIds){
-      const course = courses.find((x)=>x.id == id);
-      if (course) {
-        console.log(`📚 Enrolling in course: ${course.course_name}`);
-        await deps.createSubject(freshUser, course.course_name, 'academic');
-      }
+      const course = courses.find((x: any)=>x.id == id);
+      if (course) await deps.createSubject(freshUser, course.course_name, 'academic');
     }
     
-    if (customName && customName.trim()) {
-      console.log(`➕ Adding custom subject: ${customName}`);
-      await deps.createSubject(freshUser, customName.trim(), 'academic');
+    if (customNames) {
+      const names = Array.isArray(customNames) 
+        ? customNames 
+        : (typeof customNames === 'string' ? customNames.split(',').map((n: string) => n.trim()).filter(Boolean) : []);
+      for (const name of names) {
+        await deps.createSubject(freshUser, name, 'academic');
+      }
     }
     
     if (data.wantsPersonal) await deps.seedDefaultCategories(phone);
@@ -127,13 +118,13 @@ export async function handleOnboarding(user, session, rawText, deps) {
       wantsPersonal,
       unisList: unis || []
     });
-    return (unis && unis.length > 0) ? SETUP_MESSAGES.universityPrompt(unis) : SETUP_MESSAGES.universityPromptFreeText;
+    return SETUP_MESSAGES.universityPrompt(unis || []);
   }
   if (step === 'awaiting_university') {
     let university;
     if (text.startsWith('uni_')) {
       const id = text.replace('uni_', '');
-      university = (data.unisList || []).find((u)=>u.id == id);
+      university = (data.unisList || []).find((u: any)=>u.id == id);
     } else if (/^\d+$/.test(text)) {
       const idx = parseInt(text, 10) - 1;
       if (data.unisList?.[idx]) university = data.unisList[idx];
@@ -151,7 +142,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
         university = created;
       }
     }
-    if (!university) return data.unisList && data.unisList.length > 0 ? SETUP_MESSAGES.universityPrompt(data.unisList) : SETUP_MESSAGES.universityPromptFreeText;
+    if (!university) return SETUP_MESSAGES.universityPrompt(data.unisList || []);
     
     // Persist university selection immediately
     await deps.supabaseAdmin.from('profiles').update({
@@ -165,13 +156,13 @@ export async function handleOnboarding(user, session, rawText, deps) {
       universityName: university.name,
       progsList: progs || []
     });
-    return (progs && progs.length > 0) ? SETUP_MESSAGES.programPrompt(university.name, progs) : SETUP_MESSAGES.programPromptFreeText;
+    return SETUP_MESSAGES.programPrompt(university.name, progs || []);
   }
   if (step === 'awaiting_program') {
     let program;
     if (text.startsWith('prog_')) {
       const id = text.replace('prog_', '');
-      program = (data.progsList || []).find((p)=>p.id == id);
+      program = (data.progsList || []).find((p: any)=>p.id == id);
     } else if (/^\d+$/.test(text)) {
       const idx = parseInt(text, 10) - 1;
       if (data.progsList?.[idx]) program = data.progsList[idx];
@@ -190,7 +181,7 @@ export async function handleOnboarding(user, session, rawText, deps) {
         program = created;
       }
     }
-    if (!program) return data.progsList && data.progsList.length > 0 ? SETUP_MESSAGES.programPrompt(data.universityName, data.progsList) : SETUP_MESSAGES.programPromptFreeText;
+    if (!program) return SETUP_MESSAGES.programPrompt(data.universityName, data.progsList || []);
     
     // Persist program selection immediately
     await deps.supabaseAdmin.from('profiles').update({
@@ -205,13 +196,13 @@ export async function handleOnboarding(user, session, rawText, deps) {
       defaultTarget: program.default_target_attendance || 75,
       semsList: sems || []
     });
-    return (sems && sems.length > 0) ? SETUP_MESSAGES.semesterPrompt(sems) : SETUP_MESSAGES.semesterPromptFallback;
+    return SETUP_MESSAGES.semesterPrompt(sems || []);
   }
   if (step === 'awaiting_semester') {
-    let semNum, semId, semName;
+    let semNum: number | undefined, semId: string | undefined, semName: string | undefined;
     if (text.startsWith('sem_')) {
       const id = text.replace('sem_', '');
-      const s = (data.semsList || []).find((x)=>x.id == id);
+      const s = (data.semsList || []).find((x: any)=>x.id == id);
       if (s) {
         semNum = s.semester_number;
         semId = s.id;
@@ -223,10 +214,10 @@ export async function handleOnboarding(user, session, rawText, deps) {
     } else if (/^\d+$/.test(text)) {
       semNum = parseInt(text, 10);
       semName = `Semester ${semNum}`;
-      const existing = (data.semsList || []).find((x)=>x.semester_number === semNum);
+      const existing = (data.semsList || []).find((x: any)=>x.semester_number === semNum);
       if (existing) semId = existing.id;
     }
-    if (!semNum) return data.semsList && data.semsList.length > 0 ? SETUP_MESSAGES.semesterPrompt(data.semsList) : SETUP_MESSAGES.semesterInvalid;
+    if (!semNum) return SETUP_MESSAGES.semesterPrompt(data.semsList || []);
     let semesterId = semId;
     if (!semesterId) {
       const { data: existing } = await deps.supabaseAdmin.from('semesters').select('id').eq('program_id', data.programId).eq('semester_number', semNum).maybeSingle();
@@ -259,7 +250,9 @@ export async function handleOnboarding(user, session, rawText, deps) {
     const match = text.match(/\d+(\.\d+)?/);
     const pct = match ? parseFloat(match[0]) : data.defaultTarget || 75;
     const { data: courses } = await deps.supabaseAdmin.from('academic_courses').select('id, course_name').eq('semester_id', data.semesterId).order('course_name').limit(20);
-    await deps.setSession(phone, 'awaiting_subjects', {
+    
+    const nextStep = courses && courses.length > 0 ? 'awaiting_subjects' : 'awaiting_custom_subject_name';
+    await deps.setSession(phone, nextStep, {
       ...data,
       targetPct: pct,
       availableCourses: courses || [],
@@ -267,13 +260,16 @@ export async function handleOnboarding(user, session, rawText, deps) {
     });
     return courses && courses.length > 0 ? SETUP_MESSAGES.subjectSelectionPrompt(courses) : SETUP_MESSAGES.customSubjectPrompt;
   }
+
   if (step === 'awaiting_subjects') {
     const lower = text.toLowerCase();
     const courses = data.availableCourses || [];
     const notListedIdx = courses.length + 1;
+
+    // Check for numeric selection
     if (/^[\d\s,]+$/.test(text) && !/[a-zA-Z]/.test(text)) {
-      const indices = text.split(/[\s,]+/).map((n)=>parseInt(n.trim(), 10)).filter((n)=>!isNaN(n));
-      const selectedCourseIds = [];
+      const indices = text.split(/[\s,]+/).map((n: string)=>parseInt(n.trim(), 10)).filter((n: number)=>!isNaN(n));
+      const selectedCourseIds: string[] = [];
       let needsCustom = false;
       for (const idx of indices){
         if (idx === notListedIdx) {
@@ -284,31 +280,26 @@ export async function handleOnboarding(user, session, rawText, deps) {
         }
       }
       if (needsCustom) {
-        await deps.setSession(phone, 'awaiting_custom_subject_name', {
-          ...data,
-          selectedCourseIds
-        });
+        await deps.setSession(phone, 'awaiting_custom_subject_name', { ...data, selectedCourseIds });
         return SETUP_MESSAGES.customSubjectPrompt;
       } else if (selectedCourseIds.length > 0) {
         return await completeSetup(selectedCourseIds);
       }
     }
-    // Manual custom add trigger
+
+    // Manual custom trigger
     if (lower.includes('not listed') || lower.includes('custom') || lower === 'subjects_add_custom' || lower.includes('➕')) {
-      await deps.setSession(phone, 'awaiting_custom_subject_name', {
-        ...data,
-        selectedCourseIds: data.selectedCourseIds || []
-      });
+      await deps.setSession(phone, 'awaiting_custom_subject_name', { ...data, selectedCourseIds: data.selectedCourseIds || [] });
       return SETUP_MESSAGES.customSubjectPrompt;
     }
-    return SETUP_MESSAGES.subjectSelectionPrompt(courses);
-  }
-  if (step === 'awaiting_custom_subject_name') {
-    if (/^[\d\s,]+$/.test(text) && !/[a-zA-Z]/.test(text)) {
-      session.step = 'awaiting_subjects';
-      return await handleOnboarding(user, session, rawText, deps);
-    }
+
+    // Treat non-numeric/non-trigger input as custom subject names immediately
     return await completeSetup(data.selectedCourseIds || [], text);
   }
+
+  if (step === 'awaiting_custom_subject_name') {
+    return await completeSetup(data.selectedCourseIds || [], text);
+  }
+
   return null;
 }

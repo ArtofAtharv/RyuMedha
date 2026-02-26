@@ -15,7 +15,7 @@ export const MESSAGES = {
     listHeader: `📚 * Your Enrolled Subjects:*\n`,
     listAcademic: `\n🎓 * Academic:*\n`,
     listPersonal: `\n💼 * Personal:*\n`,
-    listFooter: (count, plural)=>`\nYou're currently tracking **${count}** subject${plural ? 's' : ''}. 🎓`,
+    listFooter: (count, plural)=>`\nYou're currently tracking *${count}* subject${plural ? 's' : ''}. 🎓`,
     deletePrompt: `Please provide a subject name.\nExample: * Delete Contracts Law II * `,
     notFound: (name)=>`I couldn't find a subject named *"${name}"* in your active list. 📚`,
     ambiguity: (name, options)=>`I found multiple matches for *"${name}"*: \n\n${options}\n\nWhich one did you mean? 🤔`,
@@ -55,9 +55,9 @@ export const MESSAGES = {
     summaryLine: (emoji, name, attended, total, pct)=>`${emoji} * ${name}*: ${attended}/${total} (${pct}%)`,
     deemedNote: (count)=>` _(incl. ${count} deemed)_`,
     bunksLeft: (count, plural)=>`\n💡 You can still skip *${count}* class${plural ? 'es' : ''} and stay on your goal!`,
-    onTrackTip: (count, plural, target)=>`\n💡 You should attend the next **${count}** class${plural ? 'es' : ''} to reach your ${target}% goal.`,
-    trackWarning: (count, plural)=>`\n🚨 Warning: You need to attend the next **${count}** class${plural ? 'es' : ''} to get back on track!`,
-    allSuccess: (status, count)=>`Done! Marked **${count}** subjects as *${status}* for today. 🗓️`,
+    onTrackTip: (count, plural, target)=>`\n💡 You should attend the next *${count}* class${plural ? 'es' : ''} to reach your ${target}% goal.`,
+    trackWarning: (count, plural)=>`\n🚨 Warning: You need to attend the next *${count}* class${plural ? 'es' : ''} to get back on track!`,
+    allSuccess: (status, count)=>`Done! Marked *${count}* subjects as *${status}* for today. 🗓️`,
     undoSuccess: (name)=>`🔄 Removed today's log for *${name}*.`,
     undoAllSuccess: `🔄 Done! Removed all attendance logs for today.`,
     undoError: `❌ I couldn't find any attendance to undo for today.`,
@@ -97,7 +97,7 @@ export const MESSAGES = {
     doneSuccess: (title)=>`Nice work! I've checked off *"${title}"* for you. 🎉💪`,
     listCaughtUp: `You're all caught up! You have no pending tasks right now. 📋✨`,
     listHeader: (count)=>`📋 *Pending Tasks (${count}):*\n\n`,
-    listFooter: (count, plural)=>`\nYou have **${count}** task${plural ? 's' : ''} to work on. You've got this! 💪`,
+    listFooter: (count, plural)=>`\nYou have *${count}* task${plural ? 's' : ''} to work on. You've got this! 💪`,
     emptySemester: `📋 No pending tasks for the current semester!`
   },
   general: {
@@ -213,6 +213,7 @@ export const SETUP_MESSAGES = {
   trackChoiceInvalid: `Please use the buttons above to select what you'd like to track! 📚`,
   personalOnlySuccess: `All set! I've enabled *Personal Tracking* for you. ✨\n\nI've already added some common categories like "Creative Skills" and "Language Learning" to get you started. \n\n*Try telling me something like:*\n• "Add subject Spanish"\n• "Add category Photography"\n\nWhenever you need a hand, just type *help*! 🚀`,
   universityPrompt: (unis)=>{
+    if (!unis || unis.length === 0) return `🏛️ *What is the name of your University?*`;
     const rows = unis.map((u)=>({
         id: `uni_${u.id}`,
         title: u.name.substring(0, 24)
@@ -224,7 +225,7 @@ export const SETUP_MESSAGES = {
         text: '🏛️ University Selection'
       },
       body: {
-        text: 'Which University do you attend?\n\n(Select from the list or if not there, just type the name below)'
+        text: 'Which University do you attend?\n\n(Select from the list or just type the name below)'
       },
       footer: {
         text: 'Ryu Medha Onboarding'
@@ -240,9 +241,9 @@ export const SETUP_MESSAGES = {
       }
     };
   },
-  universityPromptFreeText: `🏛️ *What is the name of your University?*\n\n(e.g., "MNLU Mumbai or Delhi University")`,
   universityError: `❌ Error saving university. Please try again.`,
   programPrompt: (uniName, progs)=>{
+    if (!progs || progs.length === 0) return `🎓 *What is the name of your Program at ${uniName}?*`;
     const rows = progs.map((p)=>({
         id: `prog_${p.id}`,
         title: p.name.substring(0, 24)
@@ -270,9 +271,9 @@ export const SETUP_MESSAGES = {
       }
     };
   },
-  programPromptFreeText: `🎓 *What is the name of your Program?*\n\n(e.g., "B.Tech Computer Science" or "BA LLB")`,
   programError: `❌ Error saving program. Please try again.`,
   semesterPrompt: (sems)=>{
+    if (!sems || sems.length === 0) return `📖 *Which semester are you in?* (e.g. 1, 2, 3...)`;
     const rows = sems.map((s)=>({
         id: `sem_${s.id}`,
         title: s.name || `Semester ${s.semester_number}`
@@ -302,14 +303,15 @@ export const SETUP_MESSAGES = {
   },
   semesterInvalid: `Please enter a valid semester number, e.g. *4*.`,
   semesterError: `❌ Error saving semester.`,
-  semesterPromptFreeText: `📖 *Which semester are you in?* (e.g., type "1" or "5")`,
   targetPrompt: (defaultTarget)=>`🎯 *Attendance Goal*\n\nWhat's the minimum attendance percentage you're aiming for?\n${defaultTarget ? `_(Most students in your program aim for *${defaultTarget}%*)_` : ''}\n\n_(Just send me the number, like *75* or *85*)_`,
   subjectSelectionPrompt: (courses)=>{
-    const listText = courses.map((c, i)=>`*${i + 1}*. ${c.course_name}`).join('\n');
+    const listText = courses.length > 0 
+      ? courses.map((c: any, i: number)=>`*${i + 1}*. ${c.course_name}`).join('\n')
+      : "_No pre-defined subjects found_";
     const nextNum = courses.length + 1;
-    return `📚 *Select Your Courses*\n\nAvailable subjects:\n${listText}\n*${nextNum}*. ➕ Subject not listed\n\n💡 *Tip:* You can type multiple numbers (e.g. *1, 3, 4*) to add them all and finish setup instantly!`;
+    return `📚 *Select Your Courses*\n\nAvailable subjects:\n${listText}\n*${nextNum}*. ➕ Subject not listed\n\n💡 *Tip:* You can type multiple numbers (e.g. *1, 3, 4*) OR just type the subject names separated by commas (e.g. ADR, IPR, German)!`;
   },
-  customSubjectPrompt: `➕ *What is the name of the subject you'd like to add?*`,
+  customSubjectPrompt: `➕ *What are the names of the subjects you'd like to add?*\n\n(You can list multiple subjects separated by commas, e.g. ADR, IPR, German)`,
   onboardingComplete: (name, uni, prog, sem, goal)=>`✨ *You're all set, ${name}!* ✨\n\nI've created your profile with these details:\n🏛️ *${uni}*\n🎓 *${prog}*\n📖 *${sem}*\n🎯 *Goal: ${goal}%*\n\n*You can now start managing your studies:*\n• "I attended Criminal Law today"\n• "How are my stats?"\n\nI'm here whenever you need me. Just type *help* if you ever get stuck. Let's make this semester great! 🚀🎓`,
   disambiguateType: {
     type: 'button',

@@ -2,10 +2,16 @@ import { MESSAGES, WEBSITE_URL } from './messages.ts';
 import { getUserClient, supabaseAdmin, getSession, setSession, clearSession } from './db.ts';
 import { parseIntent } from './nlp.ts';
 import { startOnboarding, handleOnboarding } from './setup.ts';
-const PLACEHOLDER_NAME = 'New User';
+const PLACEHOLDER_NAME = '';
 // --- HELPERS ---
 export function needsOnboarding(user: any) {
-  return user.display_name === PLACEHOLDER_NAME;
+  // If no name, definitely need onboarding
+  if (!user.display_name || user.display_name === PLACEHOLDER_NAME) return true;
+  // If academics are enabled but no semester is set, they are stuck mid-onboarding
+  if (user.academics_enabled && !user.current_semester_id) return true;
+  // If no track is enabled at all, they haven't finished track selection
+  if (!user.academics_enabled && !user.personal_enabled) return true;
+  return false;
 }
 export async function getOrCreateUser(phone: string) {
   const { data: existing } = await supabaseAdmin.from('profiles').select('*').eq('whatsapp_number', phone).maybeSingle();
@@ -621,9 +627,16 @@ export async function processMessage(phone: string, text: string) {
     }
     const reply = await handleOnboarding(user, session, text.trim(), deps);
     if (reply) return reply;
+    // If handleOnboarding returned nothing but we have a session, 
+    // it usually means a missing message reference or invalid step.
+    // We should NOT fall through to main logic if needsOnboarding is still true.
   }
 
-  if (needsOnboarding(user)) return startOnboarding(phone, deps);
+  if (needsOnboarding(user)) {
+    // If they have a session but handleOnboarding didn't return a reply, 
+    // maybe resume from the current step or restart.
+    return startOnboarding(phone, deps);
+  }
 
   let reply: string | any = null;
   if (lower === 'profile') reply = await handleProfile(user, uc);
