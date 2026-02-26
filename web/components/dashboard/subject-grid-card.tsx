@@ -132,7 +132,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
 
       {/* --- ADD EXAM DATE MODAL (Inline) --- */}
       {isExamModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-sm bg-background shadow-xl border-border/50">
             <CardContent className="p-5 space-y-4">
               <div className="flex justify-between items-center pb-2 border-b">
@@ -153,7 +153,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
                   <DatePicker
                     date={examDate || undefined}
                     setDate={(d) => setExamDate(d as Date)}
-                    className="w-full text-foreground/80 h-10 border-muted"
+                    className="w-full text-foreground/80 h-10 border-muted z-100"
                   />
                 </div>
               </div>
