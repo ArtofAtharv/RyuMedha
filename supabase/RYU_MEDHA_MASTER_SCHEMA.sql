@@ -122,6 +122,7 @@ CREATE TABLE academic_courses (
     course_type TEXT,
     credits DECIMAL(3,1),
     course_name TEXT NOT NULL,
+    expected_total_lectures INTEGER DEFAULT 0,
     UNIQUE(semester_id, course_code)
 );
 
@@ -309,32 +310,50 @@ CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE TO public US
 CREATE POLICY "Users can view own categories" ON subject_categories FOR SELECT TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can update own categories" ON subject_categories FOR UPDATE TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can delete own categories" ON subject_categories FOR DELETE TO public USING ((profile_id = get_profile_id_from_jwt()));
+CREATE POLICY "Users can insert own categories" ON subject_categories FOR INSERT TO public WITH CHECK ((profile_id = get_profile_id_from_jwt()));
 
 CREATE POLICY "Users can view own subjects" ON subjects FOR SELECT TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can update own subjects" ON subjects FOR UPDATE TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can delete own subjects" ON subjects FOR DELETE TO public USING ((profile_id = get_profile_id_from_jwt()));
+CREATE POLICY "Users can insert own subjects" ON subjects FOR INSERT TO public WITH CHECK ((profile_id = get_profile_id_from_jwt()));
 
 CREATE POLICY "Users can view own attendance" ON attendance_logs FOR SELECT TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can update own attendance" ON attendance_logs FOR UPDATE TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can delete own attendance" ON attendance_logs FOR DELETE TO public USING ((profile_id = get_profile_id_from_jwt()));
+CREATE POLICY "Users can insert own attendance" ON attendance_logs FOR INSERT TO public WITH CHECK ((profile_id = get_profile_id_from_jwt()));
 
 CREATE POLICY "Users can view own grades" ON grades FOR SELECT TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can update own grades" ON grades FOR UPDATE TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can delete own grades" ON grades FOR DELETE TO public USING ((profile_id = get_profile_id_from_jwt()));
+CREATE POLICY "Users can insert own grades" ON grades FOR INSERT TO public WITH CHECK ((profile_id = get_profile_id_from_jwt()));
 
 CREATE POLICY "Users can view own timers" ON study_timers FOR SELECT TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can update own timers" ON study_timers FOR UPDATE TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can delete own timers" ON study_timers FOR DELETE TO public USING ((profile_id = get_profile_id_from_jwt()));
+CREATE POLICY "Users can insert own timers" ON study_timers FOR INSERT TO public WITH CHECK ((profile_id = get_profile_id_from_jwt()));
 
 CREATE POLICY "Users can view own tasks" ON tasks FOR SELECT TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can update own tasks" ON tasks FOR UPDATE TO public USING ((profile_id = get_profile_id_from_jwt()));
 CREATE POLICY "Users can delete own tasks" ON tasks FOR DELETE TO public USING ((profile_id = get_profile_id_from_jwt()));
+CREATE POLICY "Users can insert own tasks" ON tasks FOR INSERT TO public WITH CHECK ((profile_id = get_profile_id_from_jwt()));
 
 -- Public Read Access
 CREATE POLICY "Public Read Access" ON universities FOR SELECT TO public USING (true);
 CREATE POLICY "Public Read Access" ON programs FOR SELECT TO public USING (true);
 CREATE POLICY "Public Read Access" ON semesters FOR SELECT TO public USING (true);
 CREATE POLICY "Public Read Access" ON academic_courses FOR SELECT TO public USING (true);
+
+-- Authenticated Insert Access for Shared Hierarchy
+CREATE POLICY "Authenticated users can insert universities" ON universities FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert programs" ON programs FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert semesters" ON semesters FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Authenticated users can insert academic courses" ON academic_courses FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Authenticated Update Access for Shared Hierarchy
+CREATE POLICY "Authenticated users can update universities" ON universities FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can update programs" ON programs FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can update semesters" ON semesters FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Authenticated users can update academic courses" ON academic_courses FOR UPDATE TO authenticated USING (true);
 
 -- STEP 8: VIEWS
 -- ============================================================================
@@ -351,6 +370,7 @@ SELECT
     COUNT(*) FILTER (WHERE al.status = 'cancelled') AS total_cancelled,
     (s.legacy_attended_lectures + s.legacy_missed_lectures) + 
      COUNT(*) FILTER (WHERE al.status IN ('present', 'absent', 'deemed')) AS total_lectures,
+    COALESCE(ac.expected_total_lectures, s.expected_total_lectures) AS expected_total,
     ROUND(
         (
             (s.legacy_attended_lectures + COUNT(*) FILTER (WHERE al.status = 'present') + COUNT(*) FILTER (WHERE al.status = 'deemed'))::NUMERIC / 
@@ -358,8 +378,9 @@ SELECT
         ) * 100, 2
     ) AS attendance_percentage
 FROM subjects s
+LEFT JOIN academic_courses ac ON s.source_course_id = ac.id
 LEFT JOIN attendance_logs al ON al.subject_id = s.id
-GROUP BY al.profile_id, al.subject_id, s.name, s.type, s.legacy_attended_lectures, s.legacy_missed_lectures;
+GROUP BY al.profile_id, al.subject_id, s.name, s.type, s.legacy_attended_lectures, s.legacy_missed_lectures, ac.expected_total_lectures, s.expected_total_lectures;
 
 CREATE OR REPLACE VIEW active_study_sessions AS
 SELECT st.id, st.profile_id, st.subject_id, s.name AS subject_name, s.type AS subject_type, st.started_at,
