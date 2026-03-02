@@ -19,66 +19,65 @@ export default async function SampleDashboardPage() {
   // 1. Fetch Profile
   const { data: profile } = await supabase
     .from('profiles')
-    .select('id, display_name, current_semester')
+    .select('*')
     .eq('whatsapp_number', session.user.phone)
     .single()
 
   const profileId = profile?.id || ''
-  const displayName = profile?.display_name || session.user.name || ''
-  const currentSemester = profile?.current_semester || null
-
+  
   // 2. Fetch ALL active subjects
   const { data: subjectsData } = await supabase
     .from('subjects')
-    .select('id, name, color_hex, type, is_active, label, expected_total_lectures, legacy_attended_lectures, legacy_missed_lectures, category_id, source_course_id(*)')
+    .select('*, source_course_id(*)')
+    .eq('profile_id', profileId)
     .eq('is_active', true)
     .order('name')
 
   // 3. Fetch attendance logs
   const { data: attendanceLogs } = await supabase
     .from('attendance_logs')
-    .select('id, subject_id, status, lecture_date')
+    .select('*')
     .eq('profile_id', profileId)
-    .in('status', ['present', 'absent'])
 
   // 4. Fetch grades
   const { data: gradesData } = await supabase
     .from('grades')
-    .select('id, subject_id, grade_type, marks, max_marks')
+    .select('*')
     .eq('profile_id', profileId)
 
   // 5. Fetch tasks
   const { data: tasksData } = await supabase
     .from('tasks')
-    .select('id, title, priority, due_date, subject_id, is_completed, has_reminder, created_at')
+    .select('*, subjects(name, type)')
     .eq('profile_id', profileId)
     .order('due_date', { ascending: true })
 
-  // 6. Fetch study timer totals
+  // 6. Fetch study timers
   const { data: timersData } = await supabase
     .from('study_timers')
-    .select('started_at, ended_at, total_pause_seconds')
+    .select('*, subjects(id, name, type)')
     .eq('profile_id', profileId)
-    .not('ended_at', 'is', null)
+    .order('started_at', { ascending: false })
 
-  const totalStudySecs = timersData?.reduce((acc, t) => {
-    const start = new Date(t.started_at).getTime()
-    const end = new Date(t.ended_at).getTime()
-    const grossSecs = Math.floor((end - start) / 1000)
-    const netSecs = Math.max(0, grossSecs - (t.total_pause_seconds || 0))
-    return acc + netSecs
-  }, 0) || 0
+  const totalStudySecs = (timersData || [])
+    .filter(t => t.ended_at)
+    .reduce((acc, t) => {
+      const start = new Date(t.started_at).getTime()
+      const end = new Date(t.ended_at).getTime()
+      const grossSecs = Math.floor((end - start) / 1000)
+      const netSecs = Math.max(0, grossSecs - (t.total_pause_seconds || 0))
+      return acc + netSecs
+    }, 0)
 
   return (
     <SampleDashboardContent 
-       profileId={profileId}
-       displayName={displayName}
-       currentSemester={currentSemester}
+       profile={profile}
        token={token}
        subjects={subjectsData || []}
        attendanceLogs={attendanceLogs || []}
        grades={gradesData || []}
        tasks={tasksData || []}
+       timers={timersData || []}
        totalStudySecs={totalStudySecs}
     />
   )

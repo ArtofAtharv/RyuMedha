@@ -6,38 +6,41 @@ import { motion } from "motion/react";
 import { createClient } from '@supabase/supabase-js';
 import { 
   HiCheckCircle, HiClock, HiBookOpen, HiClipboardCheck, 
-  HiCollection, HiAcademicCap, HiFolder
+  HiCollection, HiAcademicCap, HiFolder, HiUser, HiLightningBolt
 } from "react-icons/hi";
 
-import SubjectGrid from "@/components/sample-ui/subjectCard";
-import AttendanceView from "@/components/sample-ui/AttendanceView";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+import RichAttendanceView from "@/components/sample-ui/RichAttendanceView";
 import GradesTab from "@/components/sample-ui/GradesTab";
 import TasksTab from "@/components/sample-ui/TasksTab";
+import TimersTab from "@/components/sample-ui/TimersTab";
+import SubjectsTab from "@/components/sample-ui/SubjectsTab";
+import ProfileTab from "@/components/sample-ui/ProfileTab";
 
-const tabs = ["Attendance", "Grades", "Tasks"] as const;
+const tabs = ["Attendance", "Grades", "Tasks", "Timers", "Subjects", "Profile"] as const;
 type TabType = (typeof tabs)[number];
 
 interface Props {
-  profileId: string;
-  displayName: string;
-  currentSemester: number | null;
+  profile: any;
   token: string;
   subjects: any[];
   attendanceLogs: any[];
   grades: any[];
   tasks: any[];
+  timers: any[];
   totalStudySecs: number;
 }
 
 export default function SampleDashboardContent({ 
-  profileId,
-  displayName,
-  currentSemester,
+  profile,
   token,
   subjects,
   attendanceLogs,
   grades,
   tasks,
+  timers,
   totalStudySecs
 }: Props) { 
   const router = useRouter();
@@ -46,10 +49,14 @@ export default function SampleDashboardContent({
   const activeTab = tabs.includes(tabParam as TabType) ? (tabParam as TabType) : tabs[0];
   const pathname = usePathname();
 
+  const profileId = profile?.id || '';
+  const displayName = profile?.display_name || 'Student';
+  const currentSemester = profile?.current_semester || null;
+
   const academicSubjects = useMemo(() => subjects.filter(s => s.type === 'academic'), [subjects]);
   const personalSubjects = useMemo(() => subjects.filter(s => s.type === 'personal'), [subjects]);
   
-  // Attendance stats (mirrors main dashboard exactly)
+  // Attendance stats
   const attendanceStats = useMemo(() => {
     let totalClasses = 0;
     let totalAttended = 0;
@@ -108,7 +115,6 @@ export default function SampleDashboardContent({
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  // Mark All Present — uses Supabase directly
   const handleMarkAllPresent = async () => {
     if (isMarking || !profileId) return;
     setIsMarking(true);
@@ -124,7 +130,6 @@ export default function SampleDashboardContent({
       let count = 0;
       
       for (const sub of academicSubjects) {
-        // Check if already marked today
         const { data: existing } = await supabase
           .from('attendance_logs')
           .select('id')
@@ -154,148 +159,92 @@ export default function SampleDashboardContent({
   const activeSubject = subjects.find((s: any) => s.id === activeSubjectId);
 
   return (
-    <div className="flex flex-col items-center bg-zinc-50 font-sans dark:bg-zinc-950 min-h-screen p-4 md:p-8 transition-all">
+    <div className="flex flex-col items-center bg-zinc-50 font-sans dark:bg-black min-h-screen p-6 md:p-12 transition-all selection:bg-purple-500/30">
         <div className="max-w-6xl w-full">
           
-          {/* Greeting */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mt-4"
-          >
-            <h1 className="text-2xl font-black tracking-tight dark:text-white">
-              Welcome back{displayName ? `, ${displayName}` : ''}
-            </h1>
-            <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
-              Here's your academic overview
-            </p>
-          </motion.div>
+          {/* Dashboard Header */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12 px-2">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div className="flex items-center gap-3 mb-3">
+                 <div className="w-10 h-10 rounded-xl bg-zinc-900 dark:bg-white flex items-center justify-center text-white dark:text-black shadow-xl">
+                    <HiLightningBolt className="text-xl" />
+                 </div>
+                 <div className="h-[1px] w-8 bg-zinc-200 dark:bg-zinc-800" />
+                 <span className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-400">Terminal 01</span>
+              </div>
+              <h1 className="text-4xl font-black tracking-tighter dark:text-white flex items-center gap-4 italic uppercase">
+                <span>RyuMedha</span>
+                <span className="text-zinc-200 dark:text-zinc-800 not-italic font-thin">/</span>
+                <span className="text-zinc-400 dark:text-zinc-500">Core</span>
+              </h1>
+            </motion.div>
+
+            <motion.div 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="group flex items-center gap-4 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 pl-4 pr-6 py-3 rounded-[2rem] shadow-2xl shadow-zinc-200/50 dark:shadow-none hover:border-purple-500/30 transition-all cursor-default"
+            >
+              <div className="relative">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-sm shadow-lg group-hover:scale-110 transition-transform">
+                  {displayName.charAt(0)}
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-zinc-900" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-black dark:text-white uppercase tracking-widest leading-none">{displayName}</span>
+                <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-[0.3em] mt-2">Protocol: Lvl {currentSemester ?? "0"}</span>
+              </div>
+            </motion.div>
+          </div>
 
           {/* TOP SUMMARY CARDS */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 w-full"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 w-full"
           >
-
-            {/* Semester */}
-            <div className="bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-5 rounded-2xl border">
-              <h3 className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
-                <HiAcademicCap className="text-purple-500" /> Semester
-              </h3>
-              <p className="text-zinc-900 dark:text-zinc-50 text-3xl font-black mt-1">
-                {currentSemester ?? "—"}
-              </p>
-              <p className="text-zinc-500 dark:text-zinc-400 text-[10px] font-medium mt-2">
-                Current Semester
-              </p>
-            </div>
-
-            {/* Total Subjects */}
-            <div className="bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-5 rounded-2xl border">
-              <h3 className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
-                <HiBookOpen className="text-purple-500" /> Subjects
-              </h3>
-              <p className="text-zinc-900 dark:text-zinc-50 text-3xl font-black mt-1">
-                {academicSubjects.length}
-              </p>
-              <p className="text-zinc-500 dark:text-zinc-400 text-[10px] font-medium mt-2">
-                {personalSubjects.length > 0 ? `+ ${personalSubjects.length} personal` : 'Academic'}
-              </p>
-            </div>
-
-            {/* Overall Attendance */}
-            <div className="bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-5 rounded-2xl border">
-              <h3 className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
-                <HiClipboardCheck className="text-purple-500" /> Attendance
-              </h3>
-              <p className="text-zinc-900 dark:text-zinc-50 text-3xl font-black mt-1">
-                {attendanceStats.toFixed(0)}%
-              </p>
-              <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-1.5 rounded-full mt-3">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${Math.min(attendanceStats, 100)}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="bg-gradient-to-r from-violet-600 via-purple-600 to-pink-500 h-1.5 rounded-full"
-                />
-              </div>
-            </div>
-
-            {/* SGPA */}
-            <div className="bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-5 rounded-2xl border">
-              <h3 className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
-                <HiCollection className="text-purple-500" /> SGPA
-              </h3>
-              <p className="text-zinc-900 dark:text-zinc-50 text-3xl font-black mt-1">
-                {sgpa}
-              </p>
-              <p className="text-zinc-500 dark:text-zinc-400 text-[10px] font-medium mt-2">
-                Grade Point Average
-              </p>
-            </div>
-
-            {/* Activity */}
-            <div className="bg-white border-zinc-200 dark:bg-zinc-900 dark:border-zinc-800 p-5 rounded-2xl border">
-              <h3 className="text-zinc-500 dark:text-zinc-400 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5">
-                <HiClock className="text-purple-500" /> Activity
-              </h3>
-              <p className="text-zinc-900 dark:text-zinc-50 text-3xl font-black mt-1">
-                {pendingTasksCount}
-              </p>
-              <p
-                className="text-purple-600 dark:text-purple-400 text-[10px] font-bold mt-2 hover:underline cursor-pointer"
-                onClick={() => handleTabChange("Tasks")}
-              >
-                pending • {totalStudyHours}h studied
-              </p>
-            </div>
-
+            <StatCard icon={<HiAcademicCap />} label="Phase" value={currentSemester ?? "—"} sublabel="Registry Path" color="text-purple-500" />
+            <StatCard icon={<HiBookOpen />} label="Tracks" value={academicSubjects.length} sublabel={`${personalSubjects.length} Sub-systems`} color="text-blue-500" />
+            <StatCard icon={<HiClipboardCheck />} label="Integrity" value={`${attendanceStats.toFixed(0)}%`} progress={attendanceStats} color="text-emerald-500" />
+            <StatCard icon={<HiCollection />} label="Efficiency" value={sgpa} sublabel="Aggregated PT" color="text-orange-500" />
+            <StatCard 
+              icon={<HiClock />} 
+              label="Engagement" 
+              value={pendingTasksCount} 
+              sublabel={`${totalStudyHours}h Focus`} 
+              color="text-pink-500" 
+              onClick={() => handleTabChange("Tasks")} 
+            />
           </motion.div>
           
-          {/* TAB BUBBLE NAVIGATION & ACTION BUTTONS */}
-          <div className="mt-8 w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs sm:text-sm font-medium">
-            <div className="bg-zinc-200 dark:bg-zinc-800 flex rounded-full p-1 relative">
+          {/* TAB NAVIGATION */}
+          <div className="mt-16 flex justify-center">
+            <div className="flex flex-wrap items-center gap-3 bg-zinc-200/30 dark:bg-zinc-900/40 p-2 rounded-[2.5rem] w-fit border border-zinc-100 dark:border-zinc-800 backdrop-blur-xl shadow-inner">
               {tabs.map((tab) => (
                 <button
                   key={tab}
                   onClick={() => handleTabChange(tab)}
-                  className={`relative z-10 cursor-pointer text-center py-2 px-4 font-medium transition-colors duration-300 ${
+                  className={`relative cursor-pointer py-3.5 px-8 text-[10px] font-black uppercase tracking-[0.2em] transition-all duration-300 rounded-[1.8rem] ${
                     activeTab === tab
-                      ? "text-black dark:text-white"
-                      : "text-zinc-600 dark:text-zinc-400 hover:text-black dark:hover:text-white"
+                      ? "text-white"
+                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
                   }`}
                 >
                   {activeTab === tab && (
                     <motion.span
-                      layoutId="sample-bubble"
-                      className="absolute inset-0 z-0 bg-white dark:bg-black rounded-full shadow-sm"
-                      transition={{
-                        type: "spring",
-                        bounce: 0.2,
-                        duration: 0.6,
-                      }}
+                      layoutId="sample-tab-indicator"
+                      className="absolute inset-0 z-0 bg-zinc-900 dark:bg-purple-600 shadow-2xl shadow-purple-500/40"
+                      transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                      style={{borderRadius: '1.8rem'}}
                     />
                   )}
                   <span className="relative z-10">{tab}</span>
                 </button>
               ))}
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                disabled={isMarking}
-                onClick={handleMarkAllPresent}
-                className={`px-4 py-2 rounded-xl flex items-center gap-2 transition-all text-xs sm:text-sm font-medium border ${
-                  isMarking
-                    ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed opacity-50"
-                    : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-purple-600 hover:bg-purple-50 dark:hover:bg-zinc-800"
-                }`}
-              >
-                <HiCheckCircle className={isMarking ? "animate-pulse" : ""} />
-                {isMarking ? "Marking..." : "Mark All Present"}
-              </button>
             </div>
           </div>
           
@@ -304,23 +253,51 @@ export default function SampleDashboardContent({
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="mt-6 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 min-h-[400px]"
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-10 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-[3.5rem] p-10 min-h-[600px] shadow-2xl shadow-zinc-200/40 dark:shadow-none relative overflow-hidden"
           >
+            {/* Background elements for the content area */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/5 blur-[120px] rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 blur-[100px] rounded-full translate-y-1/2 -translate-x-1/2" />
+
             {activeTab === "Attendance" && (
-              <>
-                 {searchParams.get("view") === "attendance" && activeSubject ? (
-                   <AttendanceView 
-                     subject={activeSubject} 
-                     attendanceLogs={attendanceLogs.filter(l => l.subject_id === activeSubject.id)} 
-                     token={token}
-                     profileId={profileId} 
-                   />
-                 ) : (
-                   <SubjectGrid subjects={academicSubjects} token={token} />
-                 )}
-              </>
+              <div className="space-y-12">
+                <div className="flex flex-col sm:flex-row justify-between items-end gap-6 px-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                       <div className="w-2 h-2 rounded-full bg-zinc-400 opacity-50" />
+                       <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-400">Classroom Validation</span>
+                    </div>
+                    <h2 className="text-3xl font-black tracking-tighter dark:text-white uppercase italic">Presence Log</h2>
+                  </div>
+                  <Button
+                    disabled={isMarking}
+                    onClick={handleMarkAllPresent}
+                    className="h-16 px-10 bg-zinc-900 dark:bg-white text-white dark:text-black rounded-[1.5rem] font-black uppercase tracking-[0.3em] text-[10px] hover:scale-105 active:scale-95 transition-all shadow-2xl shadow-zinc-500/20 flex items-center gap-4"
+                  >
+                    <HiCheckCircle className={`text-2xl ${isMarking ? "animate-pulse" : ""}`} />
+                    {isMarking ? "Syncing..." : "Protocol All"}
+                  </Button>
+                </div>
+
+                <RichAttendanceView 
+                  initialData={subjects.map(sub => {
+                    const subjectLogs = attendanceLogs.filter(log => log.subject_id === sub.id);
+                    return {
+                      subject_id: sub.id,
+                      total_present: subjectLogs.filter(log => log.status === 'present').length + (sub.legacy_attended_lectures || 0),
+                      total_absent: subjectLogs.filter(log => log.status === 'absent').length + (sub.legacy_missed_lectures || 0),
+                      total_deemed: subjectLogs.filter(log => log.status === 'deemed').length + (sub.legacy_deemed_lectures || 0)
+                    };
+                  })}
+                  subjectsInfo={subjects}
+                  token={token}
+                  profileId={profileId}
+                  targetPct={75}
+                />
+              </div>
             )}
+            
             {activeTab === "Grades" && (
               <GradesTab 
                 subjects={academicSubjects} 
@@ -329,6 +306,7 @@ export default function SampleDashboardContent({
                 profileId={profileId} 
               />
             )}
+            
             {activeTab === "Tasks" && (
               <TasksTab 
                 subjects={subjects} 
@@ -337,8 +315,72 @@ export default function SampleDashboardContent({
                 profileId={profileId} 
               />
             )}
+ 
+            {activeTab === "Timers" && (
+              <TimersTab 
+                subjects={subjects}
+                timers={timers}
+                profile={profile}
+                token={token}
+              />
+            )}
+ 
+            {activeTab === "Subjects" && (
+              <SubjectsTab 
+                subjects={subjects}
+                profile={profile}
+                token={token}
+              />
+            )}
+ 
+            {activeTab === "Profile" && (
+              <ProfileTab 
+                profile={profile}
+                token={token}
+              />
+            )}
           </motion.div>
         </div>
     </div>
+  );
+}
+
+function StatCard({ icon, label, value, sublabel, color, progress, onClick }: any) {
+  return (
+    <motion.div 
+      whileHover={{ y: -5, scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+    >
+      <Card className={`bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 p-6 rounded-[2.5rem] shadow-sm hover:shadow-2xl transition-all cursor-pointer group relative overflow-hidden ${onClick ? 'hover:border-purple-500/30' : ''}`}>
+        <div className={`w-12 h-12 rounded-2xl bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform ${color} border border-zinc-100 dark:border-zinc-800 shadow-sm`}>
+          {icon}
+        </div>
+        <h3 className="text-zinc-400 dark:text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1.5">
+          {label}
+        </h3>
+        <p className="text-zinc-900 dark:text-white text-3xl font-black leading-none tracking-tighter uppercase">
+          {value}
+        </p>
+        
+        {progress !== undefined ? (
+          <div className="w-full bg-zinc-100 dark:bg-zinc-950 h-2 rounded-full mt-5 overflow-hidden border border-zinc-200/50 dark:border-zinc-800">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(progress, 100)}%` }}
+              transition={{ duration: 1.5, ease: "circOut" }}
+              className="bg-gradient-to-r from-purple-600 to-pink-500 h-full rounded-full"
+            />
+          </div>
+        ) : (
+          <p className="text-zinc-400 dark:text-zinc-600 text-[10px] font-bold uppercase tracking-widest mt-4">
+            {sublabel}
+          </p>
+        )}
+
+        {/* Neural subtle glow */}
+        <div className={`absolute -bottom-8 -right-8 w-24 h-24 blur-3xl opacity-0 group-hover:opacity-10 transition-opacity rounded-full ${color.replace('text-', 'bg-')}`} />
+      </Card>
+    </motion.div>
   );
 }
