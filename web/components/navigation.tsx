@@ -5,11 +5,17 @@ import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import Link from "next/dist/client/link";
 import { LogoutButton } from "./logout-button";
 import { usePathname } from "next/navigation";
+import SampleUINavigation from "./sample-ui-navigation";
 
 
 export default function Navigation() {
 
   const pathname = usePathname();
+
+  // Show Gamified premium navbar for sample UI
+  if (pathname.startsWith("/sample_ui")) {
+    return <SampleUINavigation />;
+  }
 
   const getTargetHref = () => {
     if (pathname === "/dashboard") return "/dashboard/profile";
