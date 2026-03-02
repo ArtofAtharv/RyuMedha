@@ -57,11 +57,17 @@ export default async function SampleDashboardPage() {
   // 6. Fetch study timer totals
   const { data: timersData } = await supabase
     .from('study_timers')
-    .select('duration_seconds')
+    .select('started_at, ended_at, total_pause_seconds')
     .eq('profile_id', profileId)
     .not('ended_at', 'is', null)
 
-  const totalStudySecs = timersData?.reduce((acc, t) => acc + (t.duration_seconds || 0), 0) || 0
+  const totalStudySecs = timersData?.reduce((acc, t) => {
+    const start = new Date(t.started_at).getTime()
+    const end = new Date(t.ended_at).getTime()
+    const grossSecs = Math.floor((end - start) / 1000)
+    const netSecs = Math.max(0, grossSecs - (t.total_pause_seconds || 0))
+    return acc + netSecs
+  }, 0) || 0
 
   return (
     <SampleDashboardContent 

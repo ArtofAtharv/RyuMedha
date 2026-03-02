@@ -402,7 +402,13 @@ export default function TimersPage() {
                       </div>
                       <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
                         <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium border border-border/50">
-                          {formatTime(Math.max(0, h.duration_seconds - (h.total_pause_seconds || 0)))}
+                          {(() => {
+                            const start = new Date(h.started_at).getTime()
+                            const end = new Date(h.ended_at).getTime()
+                            const grossSecs = Math.floor((end - start) / 1000)
+                            const netSecs = Math.max(0, grossSecs - (h.total_pause_seconds || 0))
+                            return formatTime(netSecs)
+                          })()}
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0">
                           <Trash2 className="w-4 h-4"/>
