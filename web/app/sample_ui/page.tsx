@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { HiArrowRight, HiLightningBolt, HiShieldCheck, HiChartBar, HiStar } from "react-icons/hi";
 import { TypingAnimation } from "@/components/ui/typing-animation";
-import { motion } from "motion/react";
+import { motion, Variants } from "motion/react";
 
 export default function PremiumLandingPage() {
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
@@ -14,7 +14,7 @@ export default function PremiumLandingPage() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } },
   };
@@ -61,7 +61,7 @@ export default function PremiumLandingPage() {
               deleteSpeed={100}
               pauseDelay={1500}
               loop
-              cursorStyle="_"
+              cursorStyle="underscore"
             /></span>
             <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-cyan-400 pb-2">
