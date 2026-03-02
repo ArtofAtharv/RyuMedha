@@ -10,6 +10,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Clock, Play, Square, Pause, History, Trash2 } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
+import { motion, AnimatePresence, Variants } from "motion/react"
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+}
 
 export default function TimersPage() {
   const { profile } = useProfile()
@@ -267,10 +281,10 @@ export default function TimersPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
-      <div>
+      <motion.div variants={itemVariants} initial="hidden" animate="show">
         <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Study Timers</span></h1>
         <p className="text-muted-foreground mt-1">Track your dedicated study sessions live.</p>
-      </div>
+      </motion.div>
 
       {subjects.length === 0 ? (
         <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-500">
@@ -314,10 +328,11 @@ export default function TimersPage() {
           </Card>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-6">
+        <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid md:grid-cols-2 gap-6">
         
         {/* Active Timer / Start Form */}
-        <Card className="border-2 border-primary/20">
+        <motion.div variants={itemVariants}>
+          <Card className="border-2 border-primary/20 h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary"/> Active Session
@@ -370,9 +385,11 @@ export default function TimersPage() {
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
         {/* History */}
-        <Card>
+        <motion.div variants={itemVariants}>
+        <Card className="h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-muted-foreground">
               <History className="w-5 h-5"/> Recent Sessions
@@ -380,13 +397,21 @@ export default function TimersPage() {
           </CardHeader>
           <CardContent>
             {history.length > 0 ? (
-              <div className="space-y-3">
+              <motion.div layout className="space-y-3">
+                <AnimatePresence mode="popLayout">
                 {history
                   .filter(h => !h.subjects || 
                                (h.subjects.type === 'academic' && profile?.academics_enabled) || 
                                (h.subjects.type === 'personal' && profile?.personal_enabled))
                   .map(h => (
-                    <div key={h.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded-lg bg-card gap-3">
+                    <motion.div 
+                      key={h.id} 
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded-lg bg-card gap-3 hover:border-primary/50 transition-colors shadow-sm"
+                    >
                       <div>
                         <p className="font-semibold">{h.subjects?.name}</p>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
@@ -410,20 +435,22 @@ export default function TimersPage() {
                             return formatTime(netSecs)
                           })()}
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0">
+                        <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 bg-muted/40 hover:bg-destructive/10 rounded-md">
                           <Trash2 className="w-4 h-4"/>
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-              </div>
+                  </AnimatePresence>
+              </motion.div>
             ) : (
               <p className="text-sm text-muted-foreground italic">No study sessions recorded yet.</p>
             )}
           </CardContent>
         </Card>
+        </motion.div>
 
-      </div>
+      </motion.div>
       )}
     </div>
   )

@@ -16,6 +16,7 @@ import {
   Plus, Trash2, X, Check
 } from "lucide-react"
 import { toast } from "sonner"
+import { motion, AnimatePresence } from "motion/react"
 
 export default function SetupPage() {
   const router = useRouter()
@@ -389,9 +390,16 @@ export default function SetupPage() {
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 3 ? 'bg-primary' : 'bg-primary/20'}`} />
         </div>
 
-        <Card className="border-border/50 shadow-2xl shadow-primary/5 bg-card/50 backdrop-blur-xl overflow-hidden">
+        <Card className="border-border/50 shadow-2xl shadow-primary/5 bg-card/50 backdrop-blur-xl overflow-hidden relative">
+          <AnimatePresence mode="wait">
           {step === 1 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <motion.div 
+              key="step1"
+              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform rotate-3 shadow-lg shadow-primary/10">
                   <User className="w-7 h-7 text-primary" />
@@ -437,11 +445,17 @@ export default function SetupPage() {
                   Next <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </CardContent>
-            </div>
+            </motion.div>
           )}
 
           {step === 2 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <motion.div 
+              key="step2"
+              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform -rotate-3 shadow-lg shadow-primary/10">
                   <School className="w-7 h-7 text-primary" />
@@ -668,11 +682,17 @@ export default function SetupPage() {
                   </Button>
                 </div>
               </CardContent>
-            </div>
+            </motion.div>
           )}
 
           {step === 3 && (
-            <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+            <motion.div 
+              key="step3"
+              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
+              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
+              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+            >
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform rotate-6 shadow-lg shadow-primary/10">
                   <Sparkles className="w-7 h-7 text-primary" />
@@ -748,8 +768,9 @@ export default function SetupPage() {
                   </Button>
                 </div>
               </CardContent>
-            </div>
+            </motion.div>
           )}
+          </AnimatePresence>
         </Card>
       </div>
     </div>
@@ -758,7 +779,9 @@ export default function SetupPage() {
 
 function TrackOption({ icon, label, selected, onClick }: { icon: any, label: string, selected: boolean, onClick: () => void }) {
   return (
-    <div 
+    <motion.div 
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 group ${selected ? 'border-primary bg-primary/5 shadow-inner' : 'border-border/50 bg-background hover:bg-muted/50'}`}
     >
@@ -766,6 +789,6 @@ function TrackOption({ icon, label, selected, onClick }: { icon: any, label: str
         {icon}
       </div>
       <span className={`text-xs font-bold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
-    </div>
+    </motion.div>
   )
 }

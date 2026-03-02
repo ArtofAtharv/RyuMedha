@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DatePicker } from "@/components/ui/date-picker"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar as CalIcon, X, Plus } from "lucide-react"
 // Helper function locally re-implemented since we're pulling this out of the main page
 function hexToGradient(hex: string) {
@@ -142,46 +143,39 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
         </Link>
         </CardContent>
 
-        {/* --- ADD EXAM DATE MODAL (Inline) --- */}
-        {isExamModalOpen && (
-          <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-full max-w-sm">
-              <Card className="bg-background/80 backdrop-blur-xl shadow-2xl border-primary/20 rounded-2xl overflow-hidden">
-                <div className="h-1 w-full bg-primary/50" />
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex justify-between items-center pb-3 border-b border-border/50">
-                    <h3 className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date</h3>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-full" onClick={() => setIsExamModalOpen(false)}>
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
+        {/* --- ADD EXAM DATE MODAL (Dialog) --- */}
+        <Dialog open={isExamModalOpen} onOpenChange={setIsExamModalOpen}>
+          <DialogContent className="sm:max-w-sm p-0 bg-background/80 backdrop-blur-xl border-primary/20 overflow-hidden">
+            <div className="h-1 w-full bg-primary/50" />
+            <div className="p-5 space-y-4">
+              <DialogHeader className="flex flex-row justify-between items-center pb-3 border-b border-border/50">
+                <DialogTitle className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date</DialogTitle>
+              </DialogHeader>
 
-                  <div className="space-y-4 pt-2">
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
-                      <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
-                    </div>
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
+                  <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
+                </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
-                      <DatePicker
-                        date={examDate || undefined}
-                        setDate={(d) => setExamDate(d as Date)}
-                        className="w-full h-11 border-border/50 rounded-xl"
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
+                  <DatePicker
+                    date={examDate || undefined}
+                    setDate={(d) => setExamDate(d as Date)}
+                    className="w-full h-11 border-border/50 rounded-xl"
+                  />
+                </div>
+              </div>
 
-                  <div className="pt-4">
-                    <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl gradient-accent shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
-                      Save Mission
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-        )}
+              <div className="pt-4">
+                <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl gradient-accent shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
+                  Save Mission
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
       </Card>
     </motion.div>

@@ -7,6 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
 import { BookOpen, FolderOpen } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
+import { motion, Variants } from "motion/react"
+
+const container: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const item: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+}
 
 export default function GradesPage() {
   const { profile } = useProfile()
@@ -142,10 +156,10 @@ export default function GradesPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
-      <div>
+      <motion.div variants={item} initial="hidden" animate="show">
         <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Grades & Scores</span></h1>
         <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
-      </div>
+      </motion.div>
 
       {subjects.length === 0 ? (
         <div className="space-y-10 animate-in fade-in duration-500">
@@ -170,15 +184,16 @@ export default function GradesPage() {
           </section>
         </div>
       ) : (
-        <>
+        <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
           {/* Academic Section */}
           {profile?.academics_enabled && (
-            <section className="space-y-4">
+            <motion.section variants={item} className="space-y-4">
               <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
           
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
                 {/* Academic Summary Card — first item in the grid */}
-                <Card className="gradient-accent text-white border-0 shadow-lg sm:col-span-2 lg:col-span-1">
+                <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+                  <Card className="gradient-accent text-white border-0 shadow-lg h-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5"/> Academic</CardTitle>
                     <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
@@ -191,16 +206,18 @@ export default function GradesPage() {
                     </div>
                   </CardContent>
                 </Card>
+                </motion.div>
 
                 {subjects.filter(s => s.type === 'academic').map(sub => {
                   const subjectGrades = grades.filter(g => g.subject_id === sub.id)
                   return (
-                    <GradeSubjectCard 
-                      key={sub.id}
-                      subject={sub}
-                      existingGrades={subjectGrades}
-                      onSave={handleSaveGrades}
-                    />
+                    <motion.div key={sub.id} variants={item} whileHover={{ scale: 1.02, y: -2 }}>
+                      <GradeSubjectCard 
+                        subject={sub}
+                        existingGrades={subjectGrades}
+                        onSave={handleSaveGrades}
+                      />
+                    </motion.div>
                   )
                 })}
                 
@@ -210,17 +227,18 @@ export default function GradesPage() {
                   </div>
                 )}
               </div>
-            </section>
+            </motion.section>
           )}
 
       {/* Personal Section */}
       {profile?.personal_enabled && (
-        <section className="space-y-4">
+        <motion.section variants={item} className="space-y-4">
           <h2 className="text-xl font-bold flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal Track Scores</h2>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
             {/* Personal Summary Card — first item in the grid */}
-            <Card className="gradient-accent text-white border-0 shadow-sm sm:col-span-2 lg:col-span-1">
+            <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+              <Card className="gradient-accent text-white border-0 shadow-sm h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5"/> Personal</CardTitle>
                 <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
@@ -233,17 +251,19 @@ export default function GradesPage() {
                 </div>
               </CardContent>
             </Card>
+            </motion.div>
 
             {subjects.filter(s => s.type === 'personal').map(sub => {
               const subjectGrades = grades.filter(g => g.subject_id === sub.id)
               return (
-                <GradeSubjectCard 
-                  key={sub.id}
-                  subject={{...sub, name: sub.label || sub.name}} 
-                  existingGrades={subjectGrades}
-                  onSave={handleSaveGrades}
-                  isPersonal
-                />
+                <motion.div key={sub.id} variants={item} whileHover={{ scale: 1.02, y: -2 }}>
+                  <GradeSubjectCard 
+                    subject={{...sub, name: sub.label || sub.name}} 
+                    existingGrades={subjectGrades}
+                    onSave={handleSaveGrades}
+                    isPersonal
+                  />
+                </motion.div>
               )
             })}
             
@@ -253,7 +273,7 @@ export default function GradesPage() {
               </div>
             )}
           </div>
-        </section>
+        </motion.section>
       )}
 
       {isSyncing && (
@@ -261,7 +281,7 @@ export default function GradesPage() {
           Syncing to database...
         </div>
       )}
-      </>
+      </motion.div>
       )}
     </div>
   )
