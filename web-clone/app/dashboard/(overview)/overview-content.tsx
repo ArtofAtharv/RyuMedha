@@ -113,7 +113,7 @@ export function OverviewContent({
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-primary/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-primary/10 text-primary">
@@ -134,7 +134,7 @@ export function OverviewContent({
             </motion.div>
 
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-primary/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-accent/10 text-accent">
@@ -151,7 +151,7 @@ export function OverviewContent({
             </motion.div>
             
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-primary/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-orange-500/10 text-orange-500">
@@ -168,7 +168,7 @@ export function OverviewContent({
             </motion.div>
 
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-primary/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-primary/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-500">
@@ -226,7 +226,7 @@ export function OverviewContent({
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-accent/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-accent/10 text-accent">
@@ -243,7 +243,7 @@ export function OverviewContent({
             </motion.div>
 
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-accent/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-orange-500/10 text-orange-500">
@@ -264,7 +264,7 @@ export function OverviewContent({
             </motion.div>
 
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-accent/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-blue-500/10 text-blue-500">
@@ -281,7 +281,7 @@ export function OverviewContent({
             </motion.div>
             
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>
-              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-accent/10">
+              <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 hover:border-accent/50 transition-colors shadow-sm hover:shadow-black/20 dark:hover:shadow-white/10">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                   <span className="flex items-center space-x-2">
                     <div className="p-1.5 rounded-md bg-zinc-500/10 text-zinc-500">

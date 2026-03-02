@@ -63,16 +63,16 @@ export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background/95 backdrop-blur-md border border-border/50 p-3 rounded-xl shadow-xl text-foreground">
-          <p className="font-bold mb-2 text-foreground">{label}</p>
+        <div className="bg-background/95 backdrop-blur-md border border-border/50 p-3 rounded-xl shadow-xl text-slate-900 dark:text-slate-100">
+          <p className="font-bold mb-2 text-slate-900 dark:text-slate-100">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center gap-2 text-sm font-medium">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
-              <span className="capitalize text-muted-foreground">{entry.name}:</span>
-              <span className="text-foreground">{entry.value}h</span>
+              <div className="w-3 h-3 rounded-full border border-border/20 shadow-sm" style={{ backgroundColor: entry.color }} />
+              <span className="capitalize text-slate-600 dark:text-slate-400">{entry.name}:</span>
+              <span className="text-slate-900 dark:text-slate-100">{entry.value}h</span>
             </div>
           ))}
-          <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-black text-foreground">
+          <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-black text-slate-900 dark:text-slate-100">
             <span>Total:</span>
             <span>{Number(payload.reduce((sum: number, entry: any) => sum + entry.value, 0)).toFixed(1)}h</span>
           </div>
@@ -99,12 +99,12 @@ export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
             <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorPomodoro" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.2}/>
                 </linearGradient>
                 <linearGradient id="colorStopwatch" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.2}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.4} />

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Clock, Play, Square, Pause, History, Trash2, Timer } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Clock, Play, Square, Pause, History, Trash2, Timer, Pencil, Settings2 } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
 import { motion, AnimatePresence, Variants } from "motion/react"
@@ -43,8 +44,18 @@ export default function TimersPage() {
   const [pomoIsActive, setPomoIsActive] = useState(false)
   const [pomoEvents, setPomoEvents] = useState<any[]>([])
   
+  // Pomodoro Settings
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
+  const [pomoDurationOpts, setPomoDurationOpts] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 })
+  const [tempOpts, setTempOpts] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 })
+
   // Audio for alarm
   const [alarmAudio, setAlarmAudio] = useState<HTMLAudioElement | null>(null)
+
+  // Edit Timer State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingTimerId, setEditingTimerId] = useState<string | null>(null)
+  const [editSubjectId, setEditSubjectId] = useState("")
 
   useEffect(() => {
     setAlarmAudio(new Audio('/alarm.mp3')) // Expecting a simple ding sound
@@ -101,17 +112,17 @@ export default function TimersPage() {
   useEffect(() => {
     if (!pomoIsActive) return
     const interval = setInterval(() => {
-      setPomoTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          handlePomoComplete()
-          return 0
-        }
-        return prev - 1
-      })
+      setPomoTimeLeft((prev) => prev - 1)
     }, 1000)
     return () => clearInterval(interval)
-  }, [pomoIsActive, pomoMode, selectedSubject])
+  }, [pomoIsActive])
+
+  useEffect(() => {
+    if (pomoIsActive && pomoTimeLeft <= 0) {
+      handlePomoComplete()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pomoTimeLeft, pomoIsActive])
 
   async function fetchData(supabase: any, pid: string | null) {
     if (!pid) return
@@ -306,7 +317,26 @@ export default function TimersPage() {
   async function deleteTimer(id: string) {
     if (!supabaseClient) return
     await supabaseClient.from('study_timers').delete().eq('id', id)
+    toast.success("Timer deleted")
     fetchData(supabaseClient, profileId)
+  }
+
+  const openEditModal = (timerId: string, currentSubjectId: string) => {
+    setEditingTimerId(timerId)
+    setEditSubjectId(currentSubjectId || "")
+    setIsEditModalOpen(true)
+  }
+
+  const saveTimerEdit = async () => {
+    if (!editingTimerId || !editSubjectId) return
+    try {
+      await supabaseClient.from('study_timers').update({ subject_id: editSubjectId }).eq('id', editingTimerId)
+      toast.success("Timer subject updated!")
+      setIsEditModalOpen(false)
+      fetchData(supabaseClient, profileId)
+    } catch(e) {
+      toast.error("Failed to update timer")
+    }
   }
 
   const formatTime = (secs: number) => {
@@ -323,12 +353,27 @@ export default function TimersPage() {
   }
 
   // --- Pomodoro Handlers ---
+  const openPomoSettings = () => {
+    setTempOpts(pomoDurationOpts)
+    setIsSettingsModalOpen(true)
+  }
+
+  const savePomoSettings = () => {
+    setPomoDurationOpts(tempOpts)
+    setIsSettingsModalOpen(false)
+    setPomoIsActive(false)
+    if (pomoMode === 'pomodoro') setPomoTimeLeft(tempOpts.pomodoro * 60)
+    if (pomoMode === 'shortBreak') setPomoTimeLeft(tempOpts.shortBreak * 60)
+    if (pomoMode === 'longBreak') setPomoTimeLeft(tempOpts.longBreak * 60)
+    toast.success("Timer settings updated")
+  }
+
   const handlePomoModeSwitch = (mode: 'pomodoro'|'shortBreak'|'longBreak') => {
     setPomoIsActive(false)
     setPomoMode(mode)
-    if (mode === 'pomodoro') setPomoTimeLeft(25 * 60)
-    if (mode === 'shortBreak') setPomoTimeLeft(5 * 60)
-    if (mode === 'longBreak') setPomoTimeLeft(15 * 60)
+    if (mode === 'pomodoro') setPomoTimeLeft(pomoDurationOpts.pomodoro * 60)
+    if (mode === 'shortBreak') setPomoTimeLeft(pomoDurationOpts.shortBreak * 60)
+    if (mode === 'longBreak') setPomoTimeLeft(pomoDurationOpts.longBreak * 60)
     setPomoEvents([])
   }
 
@@ -366,7 +411,7 @@ export default function TimersPage() {
           subject_id: selectedSubject,
           started_at: startLog,
           ended_at: now,
-          duration_seconds: 25 * 60, // A successful pomodoro is exactly 25 mins
+          duration_seconds: pomoDurationOpts.pomodoro * 60,
           total_pause_seconds: 0, // Ignoring pause math for pure pomodoros for simplicity, rely on events log
           timer_type: 'pomodoro',
           events: finalEvents
@@ -555,6 +600,9 @@ export default function TimersPage() {
                             return formatTime(netSecs)
                           })()}
                         </div>
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(h.id, h.subject_id)} className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0 bg-muted/40 hover:bg-primary/10 rounded-md">
+                          <Pencil className="w-4 h-4"/>
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 bg-muted/40 hover:bg-destructive/10 rounded-md">
                           <Trash2 className="w-4 h-4"/>
                         </Button>
@@ -584,6 +632,12 @@ export default function TimersPage() {
                     'bg-blue-500/10 border-blue-500/20'
                   }`}>
                     
+                    <div className="absolute top-4 right-4 z-10">
+                      <Button variant="ghost" size="icon" onClick={openPomoSettings} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                        <Settings2 className="w-5 h-5"/>
+                      </Button>
+                    </div>
+
                     {/* Subject Selector (Only show if in Pomodoro Mode, breaks don't need subjects) */}
                     <div className="absolute top-4 w-full px-6 flex justify-center">
                       <div className="w-full max-w-[200px]">
@@ -660,7 +714,10 @@ export default function TimersPage() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
-                                <span className="font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md text-sm">25m</span>
+                                <span className="font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md text-sm">{Math.floor(h.duration_seconds / 60)}m</span>
+                                <Button variant="ghost" size="icon" onClick={() => openEditModal(h.id, h.subject_id)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                                  <Pencil className="w-4 h-4"/>
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                                   <Trash2 className="w-4 h-4"/>
                                 </Button>
@@ -681,6 +738,80 @@ export default function TimersPage() {
 
       </motion.div>
       )}
+
+      {/* Edit Timer Dialog */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Edit Timer Subject</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Re-assign Subject</Label>
+              <Select value={editSubjectId} onValueChange={setEditSubjectId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects
+                    .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
+                    .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                  }
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+            <Button onClick={saveTimerEdit} className="gradient-accent text-white border-0">Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Pomodoro Settings Dialog */}
+      <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+        <DialogContent className="sm:max-w-sm rounded-xl">
+          <DialogHeader>
+            <DialogTitle>Timer Settings</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Pomodoro (minutes)</Label>
+              <input 
+                type="number" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={tempOpts.pomodoro} 
+                onChange={e => setTempOpts({...tempOpts, pomodoro: parseInt(e.target.value) || 1})} 
+                min="1" max="120" 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Short Break (minutes)</Label>
+              <input 
+                type="number" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={tempOpts.shortBreak} 
+                onChange={e => setTempOpts({...tempOpts, shortBreak: parseInt(e.target.value) || 1})} 
+                min="1" max="60" 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Long Break (minutes)</Label>
+              <input 
+                type="number" 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={tempOpts.longBreak} 
+                onChange={e => setTempOpts({...tempOpts, longBreak: parseInt(e.target.value) || 1})} 
+                min="1" max="60" 
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSettingsModalOpen(false)}>Cancel</Button>
+            <Button onClick={savePomoSettings} className="gradient-accent text-white border-0">Save Settings</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
