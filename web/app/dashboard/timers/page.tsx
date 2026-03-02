@@ -57,14 +57,14 @@ export default function TimersPage() {
       const start = new Date(activeTimer.started_at).getTime()
       const pauseStart = new Date(activeTimer.pause_started_at).getTime()
       const totalPauseSecs = activeTimer.total_pause_seconds || 0
-      setElapsed(Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
+      setElapsed(Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs))
       return
     }
 
     const interval = setInterval(() => {
       const start = new Date(activeTimer.started_at).getTime()
       const totalPauseSecs = activeTimer.total_pause_seconds || 0
-      setElapsed(Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+      setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs))
     }, 1000)
     return () => clearInterval(interval)
   }, [activeTimer])
@@ -92,10 +92,12 @@ export default function TimersPage() {
       const totalPauseSecs = active.total_pause_seconds || 0
       if (active.pause_started_at) {
         const pauseStart = new Date(active.pause_started_at).getTime()
-        setElapsed(Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
+        setElapsed(Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs))
       } else {
-        setElapsed(Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+        setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs))
       }
+    } else {
+      setElapsed(0)
     }
 
     // Recent    // History
@@ -127,11 +129,8 @@ export default function TimersPage() {
     const validSubjectIds = new Set(subs.map((s: any) => s.id))
     setHistory((hist || []).filter((h: any) => validSubjectIds.has(h.subject_id)))
 
-    // Final check for active timer - if it's from another semester, we might want to hide it or keep it?
-    // Usually, an active timer should stay visible, but if the user switches semester, it's safer to filter it.
-    if (active && !validSubjectIds.has(active.subject_id)) {
-      setActiveTimer(null)
-    }
+    // We no longer hide active timers from other semesters.
+    // This ensures they can be stopped regardless of the current view.
     if (subs && subs.length > 0 && !selectedSubject) {
       // Find the first subject that the user is actually allowed to see
       // Cannot reliably use profile context on first render inside fetching logic unless passed in
@@ -140,11 +139,21 @@ export default function TimersPage() {
   }
 
   async function startTimer() {
-    console.log("Timer Start Clicked!", { selectedSubject, activeTimer, profileId, supabaseClient: !!supabaseClient })
     if (!selectedSubject || activeTimer) {
-      console.log("Blocking start: ", { noSubject: !selectedSubject, hasActiveTimer: !!activeTimer })
       return
     }
+
+    // Safety check: close any extra stuck timers BEFORE starting a new one
+    try {
+      await supabaseClient
+        .from('study_timers')
+        .update({ ended_at: new Date().toISOString() })
+        .eq('profile_id', profileId)
+        .is('ended_at', null)
+    } catch (e) {
+      console.warn("Safety check failed (likely CORS/PATCH issue), proceeding anyway:", e)
+    }
+
     const { error } = await supabaseClient
       .from('study_timers')
       .insert([{
@@ -159,27 +168,27 @@ export default function TimersPage() {
       return
     }
     
-    console.log("Timer started successfully in database.")
-    
-    // Safety check: close any extra stuck timers
-    await supabaseClient
-      .from('study_timers')
-      .update({ ended_at: new Date().toISOString() })
-      .eq('profile_id', profileId)
-      .is('ended_at', null)
-      .neq('subject_id', selectedSubject) // assuming the one we just started is for the selected subject. Wait, it might close the one we just started if we don't differentiate.
-      // A better way is to rely on fetchData to grab the latest.
-
-    fetchData(supabaseClient, profileId)
+    toast.success("Timer started!")
+    await fetchData(supabaseClient, profileId)
   }
 
   async function pauseTimer() {
     if (!activeTimer || activeTimer.pause_started_at) return
-    await supabaseClient
-      .from('study_timers')
-      .update({ pause_started_at: new Date().toISOString() })
-      .eq('id', activeTimer.id)
-    fetchData(supabaseClient, profileId)
+    try {
+      const { error } = await supabaseClient
+        .from('study_timers')
+        .update({ pause_started_at: new Date().toISOString() })
+        .eq('id', activeTimer.id)
+      
+      if (error) {
+        toast.error("Failed to pause timer", { description: "Is the server allowing PATCH requests?" })
+        return
+      }
+      
+      await fetchData(supabaseClient, profileId)
+    } catch (e) {
+      toast.error("An error occurred while pausing")
+    }
   }
 
   async function resumeTimer() {
@@ -188,14 +197,24 @@ export default function TimersPage() {
     const pauseDuration = Math.floor((Date.now() - pauseStart) / 1000)
     const newTotalPause = (activeTimer.total_pause_seconds || 0) + pauseDuration
 
-    await supabaseClient
-      .from('study_timers')
-      .update({ 
-        pause_started_at: null,
-        total_pause_seconds: newTotalPause
-      })
-      .eq('id', activeTimer.id)
-    fetchData(supabaseClient, profileId)
+    try {
+      const { error } = await supabaseClient
+        .from('study_timers')
+        .update({ 
+          pause_started_at: null,
+          total_pause_seconds: newTotalPause
+        })
+        .eq('id', activeTimer.id)
+        
+      if (error) {
+        toast.error("Failed to resume timer", { description: "Is the server allowing PATCH requests?" })
+        return
+      }
+      
+      await fetchData(supabaseClient, profileId)
+    } catch (e) {
+      toast.error("An error occurred while resuming")
+    }
   }
 
   async function stopTimer() {
@@ -208,17 +227,28 @@ export default function TimersPage() {
       finalPauseSecs += Math.floor((Date.now() - pauseStart) / 1000)
     }
 
-    await supabaseClient
-      .from('study_timers')
-      .update({ 
-        ended_at: new Date().toISOString(),
-        pause_started_at: null,
-        total_pause_seconds: finalPauseSecs
-      })
-      .eq('id', activeTimer.id)
-    
-    setActiveTimer(null)
-    fetchData(supabaseClient, profileId)
+    try {
+      const { error } = await supabaseClient
+        .from('study_timers')
+        .update({ 
+          ended_at: new Date().toISOString(),
+          pause_started_at: null,
+          total_pause_seconds: finalPauseSecs
+        })
+        .eq('id', activeTimer.id)
+      
+      if (error) {
+        toast.error("Failed to stop timer", { description: "Is the server allowing PATCH requests?" })
+        return
+      }
+
+      toast.success("Timer stopped!")
+      setActiveTimer(null)
+      setElapsed(0)
+      await fetchData(supabaseClient, profileId)
+    } catch (e) {
+      toast.error("An error occurred while stopping")
+    }
   }
 
   async function deleteTimer(id: string) {

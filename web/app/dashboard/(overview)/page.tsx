@@ -65,7 +65,7 @@ export default async function DashboardPage() {
       .eq('is_completed', false),
     supabase
       .from('study_timers')
-      .select('duration_seconds, subject_id, subjects(type)')
+      .select('duration_seconds, total_pause_seconds, subject_id, subjects(type)')
       .eq('profile_id', profile?.id)
       .not('ended_at', 'is', null),
     supabase
@@ -167,8 +167,9 @@ export default async function DashboardPage() {
   timersData?.forEach(t => {
     // @ts-ignore
     const type = t.subjects?.type
-    if (type === 'academic') academicStudySecs += (t.duration_seconds || 0)
-    else if (type === 'personal') personalStudySecs += (t.duration_seconds || 0)
+    const netSecs = Math.max(0, (t.duration_seconds || 0) - (t.total_pause_seconds || 0))
+    if (type === 'academic') academicStudySecs += netSecs
+    else if (type === 'personal') personalStudySecs += netSecs
   })
 
   const academicStudyHours = (academicStudySecs / 3600).toFixed(1)
