@@ -7,6 +7,7 @@ import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, Fol
 import { format } from 'date-fns'
 import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-attendance-grid'
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
+import { StudyAnalyticsChart } from '@/components/dashboard/study-analytics-chart'
 import { useState, useEffect } from 'react'
 import { motion, Variants } from "motion/react"
 
@@ -184,6 +185,10 @@ export function OverviewContent({
             </motion.div>
           </div>
 
+          <motion.div variants={item} className="col-span-2 md:col-span-4 h-[350px]">
+            <StudyAnalyticsChart timersData={academicOverviewData.timersSessionData} />
+          </motion.div>
+
           <motion.div variants={item} className="space-y-4 pt-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 p-4 rounded-2xl bg-gradient-to-r from-card/80 to-transparent border border-border/50 backdrop-blur-md">
               <div>
@@ -252,6 +257,10 @@ export function OverviewContent({
                   <p className="text-xs text-muted-foreground mt-1 font-medium">personal to-dos</p>
                 </CardContent>
               </Card>
+            </motion.div>
+
+            <motion.div variants={item} className="col-span-2 md:col-span-4 h-[350px]">
+              <StudyAnalyticsChart timersData={personalOverviewData.timersSessionData} />
             </motion.div>
 
             <motion.div variants={item} whileHover={{ scale: 1.02, y: -2 }} transition={{ type: "spring", stiffness: 400 }}>

@@ -188,7 +188,6 @@ CREATE TABLE grades (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Study Timers
 CREATE TABLE study_timers (
     notes TEXT,
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -199,7 +198,9 @@ CREATE TABLE study_timers (
     duration_seconds INTEGER,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     total_pause_seconds INTEGER DEFAULT 0,
-    pause_started_at TIMESTAMPTZ
+    pause_started_at TIMESTAMPTZ,
+    timer_type TEXT DEFAULT 'stopwatch',
+    events JSONB
 );
 
 -- Tasks
