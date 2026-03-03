@@ -50,7 +50,7 @@ export function OverviewContent({
       className="space-y-8"
     >
       {/* ─── GAMIFICATION HERO / PLAYER PROFILE ─── */}
-      <motion.section variants={item}>
+      <motion.section variants={item} className="hidden">
         <Card className="overflow-hidden border-2 border-primary/20 bg-background/50 backdrop-blur-xl shadow-2xl relative group">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-50 z-0"></div>
           <CardContent className="p-6 relative z-10">
