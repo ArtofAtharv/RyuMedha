@@ -83,7 +83,7 @@ export function OverviewContent({
                 </div>
                 
                 <div className="space-y-1 max-w-md mx-auto md:mx-0">
-                  <div className="flex justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex gap-2 justify-between text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     <span>Novice Scholar</span>
                     <span>{xp} XP / {level * 100} XP</span>
                   </div>
