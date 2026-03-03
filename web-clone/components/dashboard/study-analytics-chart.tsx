@@ -99,30 +99,30 @@ export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
             <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorPomodoro" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.9}/>
+                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.6}/>
                 </linearGradient>
                 <linearGradient id="colorStopwatch" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.2}/>
+                  <stop offset="5%" stopColor="var(--color-primary)" stopOpacity={0.9}/>
+                  <stop offset="95%" stopColor="var(--color-primary)" stopOpacity={0.6}/>
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.4} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" opacity={0.4} />
               <XAxis 
                 dataKey="label" 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
                 dy={10}
               />
               <YAxis 
                 axisLine={false} 
                 tickLine={false} 
-                tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }}
                 dx={-10}
                 tickFormatter={(val) => `${val}h`}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted)/0.5)', radius: 8 }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-muted)', opacity: 0.5, radius: 8 }} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Bar 
                 dataKey="pomodoro" 

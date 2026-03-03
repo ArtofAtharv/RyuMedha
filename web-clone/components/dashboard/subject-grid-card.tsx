@@ -44,7 +44,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className="h-full"
     >
-      <Card className="relative overflow-hidden group hover:shadow-xl hover:shadow-black/15 dark:hover:shadow-white/15 transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
+      <Card className="relative overflow-hidden group transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
         {/* Top Subtle Gradient Bar */}
         <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
 
