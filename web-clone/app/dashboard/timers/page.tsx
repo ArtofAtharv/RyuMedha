@@ -39,10 +39,13 @@ export default function TimersPage() {
   const [elapsed, setElapsed] = useState(0)
 
   // Pomodoro State
+  const [activePomodoroDB, setActivePomodoroDB] = useState<any>(null)
   const [pomoMode, setPomoMode] = useState<'pomodoro'|'shortBreak'|'longBreak'>('pomodoro')
   const [pomoTimeLeft, setPomoTimeLeft] = useState(25 * 60)
   const [pomoIsActive, setPomoIsActive] = useState(false)
-  const [pomoEvents, setPomoEvents] = useState<any[]>([])
+  
+  // Tabs State
+  const [activeTab, setActiveTab] = useState("stopwatch")
   
   // Pomodoro Settings
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
@@ -59,7 +62,14 @@ export default function TimersPage() {
 
   useEffect(() => {
     setAlarmAudio(new Audio('/alarm.mp3')) // Expecting a simple ding sound
+    const savedTab = localStorage.getItem("ryumedha_timers_tab")
+    if (savedTab) setActiveTab(savedTab)
   }, [])
+  
+  const handleTabChange = (val: string) => {
+    setActiveTab(val)
+    localStorage.setItem("ryumedha_timers_tab", val)
+  }
 
   useEffect(() => {
     async function init() {
@@ -108,21 +118,67 @@ export default function TimersPage() {
     return () => clearInterval(interval)
   }, [activeTimer])
 
-  // Local Pomodoro Interval
+  // Pomodoro DB -> Local UI Sync
   useEffect(() => {
-    if (!pomoIsActive) return
-    const interval = setInterval(() => {
-      setPomoTimeLeft((prev) => prev - 1)
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [pomoIsActive])
-
-  useEffect(() => {
-    if (pomoIsActive && pomoTimeLeft <= 0) {
-      handlePomoComplete()
+    if (activePomodoroDB) {
+      setPomoMode('pomodoro') // Enforce pomodoro mode if DB says it's running
+      if (activePomodoroDB.subject_id && !selectedSubject) {
+         setSelectedSubject(activePomodoroDB.subject_id)
+      }
+      
+      const start = new Date(activePomodoroDB.started_at).getTime()
+      const totalPauseSecs = activePomodoroDB.total_pause_seconds || 0
+      const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
+      
+      if (activePomodoroDB.pause_started_at) {
+        setPomoIsActive(false)
+        const pauseStart = new Date(activePomodoroDB.pause_started_at).getTime()
+        const elapsed = Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
+        setPomoTimeLeft(Math.max(0, target - elapsed))
+      } else {
+        setPomoIsActive(true)
+        const elapsed = Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+        setPomoTimeLeft(Math.max(0, target - elapsed))
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pomoTimeLeft, pomoIsActive])
+  }, [activePomodoroDB, pomoDurationOpts.pomodoro])
+
+  // Local/DB Pomodoro Interval
+  useEffect(() => {
+    if (!pomoIsActive) return
+    
+    const interval = setInterval(() => {
+      if (pomoMode === 'pomodoro' && activePomodoroDB) {
+          // DB driven countdown
+          const start = new Date(activePomodoroDB.started_at).getTime()
+          const totalPauseSecs = activePomodoroDB.total_pause_seconds || 0
+          const elapsed = Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+          const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
+          const left = target - elapsed
+          
+          if (left <= 0) {
+            setPomoTimeLeft(0)
+            setPomoIsActive(false)
+            handlePomoComplete(activePomodoroDB)
+          } else {
+            setPomoTimeLeft(left)
+          }
+      } else {
+          // Local break countdown
+          setPomoTimeLeft((prev) => {
+            const next = prev - 1
+            if (next <= 0) {
+               setTimeout(() => handlePomoComplete(), 0)
+               return 0
+            }
+            return next
+          })
+      }
+    }, 1000)
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pomoIsActive, pomoMode, activePomodoroDB, pomoDurationOpts.pomodoro])
 
   async function fetchData(supabase: any, pid: string | null) {
     if (!pid) return
@@ -134,19 +190,24 @@ export default function TimersPage() {
       .eq('profile_id', pid)
       .is('ended_at', null)
       .order('started_at', { ascending: false })
-      .limit(1)
       
     if (fetchActiveErr) {
       console.error("fetchActiveErr:", fetchActiveErr)
     }
 
-    const active = activeList && activeList.length > 0 ? activeList[0] : null
-    setActiveTimer(active)
-    if (active) {
-      const start = new Date(active.started_at).getTime()
-      const totalPauseSecs = active.total_pause_seconds || 0
-      if (active.pause_started_at) {
-        const pauseStart = new Date(active.pause_started_at).getTime()
+    // Stopwatch Active
+    const activeSw = activeList?.find((t: any) => t.timer_type === 'stopwatch') || null
+    setActiveTimer(activeSw)
+    
+    // Pomodoro Active
+    const activePomo = activeList?.find((t: any) => t.timer_type === 'pomodoro') || null
+    setActivePomodoroDB(activePomo)
+
+    if (activeSw) {
+      const start = new Date(activeSw.started_at).getTime()
+      const totalPauseSecs = activeSw.total_pause_seconds || 0
+      if (activeSw.pause_started_at) {
+        const pauseStart = new Date(activeSw.pause_started_at).getTime()
         setElapsed(Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs))
       } else {
         setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs))
@@ -369,57 +430,118 @@ export default function TimersPage() {
   }
 
   const handlePomoModeSwitch = (mode: 'pomodoro'|'shortBreak'|'longBreak') => {
+    if (activePomodoroDB && mode !== 'pomodoro') {
+       toast.error("You have an active Pomodoro session running!")
+       return
+    }
     setPomoIsActive(false)
     setPomoMode(mode)
     if (mode === 'pomodoro') setPomoTimeLeft(pomoDurationOpts.pomodoro * 60)
     if (mode === 'shortBreak') setPomoTimeLeft(pomoDurationOpts.shortBreak * 60)
     if (mode === 'longBreak') setPomoTimeLeft(pomoDurationOpts.longBreak * 60)
-    setPomoEvents([])
   }
 
-  const togglePomo = () => {
-    if (!selectedSubject && pomoMode === 'pomodoro') {
-      toast.error("Please select a subject first")
-      return
+  const togglePomo = async () => {
+    if (pomoMode === 'pomodoro') {
+      if (!selectedSubject) {
+        toast.error("Please select a subject first")
+        return
+      }
+
+      const now = new Date().toISOString()
+      
+      if (!pomoIsActive) {
+        // Start or Resume DB Pomodoro
+        if (!activePomodoroDB) {
+           const { data, error } = await supabaseClient.from('study_timers').insert([{
+             profile_id: profileId,
+             subject_id: selectedSubject,
+             started_at: now,
+             timer_type: 'pomodoro',
+             duration_seconds: pomoDurationOpts.pomodoro * 60,
+             events: [{ type: 'start', timestamp: now }]
+           }]).select().single()
+           
+           if (!error) {
+              setActivePomodoroDB(data)
+              setPomoIsActive(true)
+           } else {
+              toast.error("Failed to start Pomodoro session on server")
+           }
+        } else {
+           // Resume
+           const pauseStart = new Date(activePomodoroDB.pause_started_at).getTime()
+           const pauseDuration = Math.floor((Date.now() - pauseStart) / 1000)
+           const newTotalPause = (activePomodoroDB.total_pause_seconds || 0) + pauseDuration
+           const { error } = await supabaseClient.from('study_timers').update({
+             pause_started_at: null,
+             total_pause_seconds: newTotalPause,
+             events: [...(activePomodoroDB.events || []), { type: 'resume', timestamp: now }]
+           }).eq('id', activePomodoroDB.id)
+           
+           if (!error) {
+              // Fetch to get exact DB state refreshed
+              fetchData(supabaseClient, profileId)
+           }
+        }
+      } else {
+        // Pause DB Pomodoro
+        if (activePomodoroDB) {
+           const { error } = await supabaseClient.from('study_timers').update({
+             pause_started_at: now,
+             events: [...(activePomodoroDB.events || []), { type: 'pause', timestamp: now }]
+           }).eq('id', activePomodoroDB.id)
+           if (!error) {
+              fetchData(supabaseClient, profileId)
+           }
+        }
+      }
+    } else {
+      // Free Break
+      setPomoIsActive(!pomoIsActive)
     }
-    const now = new Date().toISOString()
-    setPomoEvents(prev => [...prev, { type: pomoIsActive ? 'pause' : 'start', timestamp: now }])
-    setPomoIsActive(!pomoIsActive)
   }
 
-  const handlePomoSkip = () => {
+  const handlePomoSkip = async () => {
     setPomoIsActive(false)
-    if (pomoMode === 'pomodoro') handlePomoModeSwitch('shortBreak')
-    else handlePomoModeSwitch('pomodoro')
+    if (pomoMode === 'pomodoro' && activePomodoroDB) {
+       await supabaseClient.from('study_timers').delete().eq('id', activePomodoroDB.id)
+       setActivePomodoroDB(null)
+       toast.info("Pomodoro discarded and deleted.")
+       fetchData(supabaseClient, profileId)
+       handlePomoModeSwitch('shortBreak')
+    } else {
+       if (pomoMode === 'pomodoro') handlePomoModeSwitch('shortBreak')
+       else handlePomoModeSwitch('pomodoro')
+    }
   }
 
-  const handlePomoComplete = async () => {
+  const handlePomoComplete = async (passedDbRecord?: any) => {
     setPomoIsActive(false)
     if (alarmAudio) {
       alarmAudio.play().catch(e => console.log('Audio play failed', e))
     }
     
-    // Only save strictly Pomodoro (work) sessions to the DB
-    if (pomoMode === 'pomodoro' && selectedSubject) {
-      const now = new Date().toISOString()
-      const startLog = pomoEvents[0]?.timestamp || new Date(Date.now() - (25 * 60 * 1000)).toISOString()
-      const finalEvents = [...pomoEvents, { type: 'complete', timestamp: now }]
-      
-      try {
-        await supabaseClient.from('study_timers').insert([{
-          profile_id: profileId,
-          subject_id: selectedSubject,
-          started_at: startLog,
-          ended_at: now,
-          duration_seconds: pomoDurationOpts.pomodoro * 60,
-          total_pause_seconds: 0, // Ignoring pause math for pure pomodoros for simplicity, rely on events log
-          timer_type: 'pomodoro',
-          events: finalEvents
-        }])
-        toast.success("Focus Session Complete! Data saved.")
-        fetchData(supabaseClient, profileId)
-      } catch (e) {
-        toast.error("Failed to save Pomodoro session")
+    if (pomoMode === 'pomodoro') {
+      const dbRecord = passedDbRecord || activePomodoroDB
+      if (dbRecord) {
+        const now = new Date().toISOString()
+        try {
+          const target = dbRecord.duration_seconds || (pomoDurationOpts.pomodoro * 60)
+          await supabaseClient.from('study_timers').update({
+            ended_at: now,
+            duration_seconds: target, 
+            events: [...(dbRecord.events || []), { type: 'complete', timestamp: now }]
+          }).eq('id', dbRecord.id)
+          
+          toast.success("Focus Session Complete! Data saved.")
+          setActivePomodoroDB(null)
+          fetchData(supabaseClient, profileId)
+        } catch (e) {
+          toast.error("Failed to save Pomodoro session")
+        }
+      } else {
+        toast.info("Completed early Pomodoro fallback.")
       }
       handlePomoModeSwitch('shortBreak')
     } else {
@@ -482,7 +604,7 @@ export default function TimersPage() {
       ) : (
         <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
           
-          <Tabs defaultValue="stopwatch" className="w-full">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto mb-8 h-12 rounded-xl p-1 bg-muted/50 border border-border/50">
               <TabsTrigger value="stopwatch" className="rounded-lg font-bold text-sm flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                 <Clock className="w-4 h-4" /> Stopwatch
