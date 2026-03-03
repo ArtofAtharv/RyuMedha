@@ -639,11 +639,11 @@ export default function TimersPage() {
                     </div>
 
                     {/* Subject Selector (Only show if in Pomodoro Mode, breaks don't need subjects) */}
-                    <div className="absolute top-4 w-full px-6 flex justify-center">
+                    <div className="w-full px-4 flex justify-center">
                       <div className="w-full max-w-[200px]">
                         {pomoMode === 'pomodoro' ? (
                           <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                            <SelectTrigger className="flex h-8 bg-background/50 border-0 rounded-full text-xs font-bold w-full justify-center gap-2">
+                            <SelectTrigger className="flex bg-background/50 border-0 rounded-full text-xs font-bold tracking-widest w-full justify-center gap-2" size="sm">
                               <SelectValue placeholder="Select Subject" />
                             </SelectTrigger>
                             <SelectContent>
@@ -661,7 +661,7 @@ export default function TimersPage() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 p-1.5 bg-background/50 backdrop-blur-md rounded-full mb-8 mt-6">
+                    <div className="flex gap-2 p-1.5 bg-background/50 backdrop-blur-md rounded-full mb-4">
                       <button onClick={() => handlePomoModeSwitch('pomodoro')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'pomodoro' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Pomodoro</button>
                       <button onClick={() => handlePomoModeSwitch('shortBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'shortBreak' ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Short Break</button>
                       <button onClick={() => handlePomoModeSwitch('longBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'longBreak' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Long Break</button>
@@ -671,7 +671,7 @@ export default function TimersPage() {
                       {formatPomoTime(pomoTimeLeft)}
                     </div>
 
-                    <div className="flex items-center gap-4 mt-12">
+                    <div className="flex items-center gap-4 mt-6">
                       <Button 
                         onClick={togglePomo} 
                         size="lg" 
