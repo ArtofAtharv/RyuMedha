@@ -178,8 +178,18 @@ export default async function DashboardPage() {
     else if (type === 'personal') personalStudySecs += netSecs
   })
 
-  const academicStudyHours = (academicStudySecs / 3600).toFixed(1)
-  const personalStudyHours = (personalStudySecs / 3600).toFixed(1)
+  const formatStudyTime = (secs: number) => {
+    if (secs === 0) return null
+    const hours = Math.floor(secs / 3600)
+    const minutes = Math.floor((secs % 3600) / 60)
+    if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`
+    if (hours > 0) return `${hours}h`
+    if (minutes > 0) return `${minutes}m`
+    return null
+  }
+
+  const academicStudyTimeFormatted = formatStudyTime(academicStudySecs)
+  const personalStudyTimeFormatted = formatStudyTime(personalStudySecs)
 
   let academicScore = 0
   let academicMax = 0
@@ -224,7 +234,7 @@ export default async function DashboardPage() {
               totalDeemed,
               academicGradePct,
               academicPendingTasks,
-              academicStudyHours,
+              academicStudyTimeFormatted,
               attendanceData,
               academicSubjects,
               timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'academic') || [],
@@ -235,7 +245,7 @@ export default async function DashboardPage() {
             personalOverviewData={{
               personalScorePct,
               personalPendingTasks,
-              personalStudyHours,
+              personalStudyTimeFormatted,
               personalSubjects,
               timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'personal') || [],
               categories

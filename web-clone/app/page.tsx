@@ -4,6 +4,9 @@ import Link from "next/link";
 import { HiArrowRight, HiLightningBolt, HiShieldCheck, HiChartBar } from "react-icons/hi";
 import { TypingAnimation } from "@/components/ui/typing-animation"
 import { motion, Variants } from "motion/react"
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -27,6 +30,19 @@ const itemVariants: Variants = {
 }
 
 export default function LandingPage() {
+  const { status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard");
+    }
+  }, [status, router]);
+
+  if (status === "loading" || status === "authenticated") {
+    return null; // Return empty while checking or redirecting
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col overflow-hidden">
 

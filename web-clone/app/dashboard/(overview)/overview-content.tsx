@@ -178,7 +178,9 @@ export function OverviewContent({
                   </span>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
-                  <p className="text-3xl font-black mt-2">{academicOverviewData.academicStudyHours}h</p>
+                  <p className="text-3xl font-black mt-2">
+                    {academicOverviewData.academicStudyTimeFormatted ? academicOverviewData.academicStudyTimeFormatted : '—'}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">invested time</p>
                 </CardContent>
               </Card>
@@ -186,7 +188,16 @@ export function OverviewContent({
           </div>
 
           <motion.div variants={item} className="col-span-2 md:col-span-4 h-[350px]">
-            <StudyAnalyticsChart timersData={academicOverviewData.timersSessionData} />
+            {academicOverviewData.timersSessionData && academicOverviewData.timersSessionData.length > 0 ? (
+              <StudyAnalyticsChart timersData={academicOverviewData.timersSessionData} />
+            ) : (
+              <Card className="h-full flex flex-col items-center justify-center p-6 border-dashed border-2 bg-muted/10">
+                <Clock className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground font-medium text-center">
+                  Start a stopwatch or pomodoro session to see your focus analysis.
+                </p>
+              </Card>
+            )}
           </motion.div>
 
           <motion.div variants={item} className="space-y-4 pt-4">
@@ -270,7 +281,9 @@ export function OverviewContent({
                   </span>
                 </CardHeader>
                 <CardContent className="px-4 pb-4 pt-0">
-                  <p className="text-3xl font-black mt-2">{personalOverviewData.personalStudyHours}h</p>
+                  <p className="text-3xl font-black mt-2">
+                    {personalOverviewData.personalStudyTimeFormatted ? personalOverviewData.personalStudyTimeFormatted : '—'}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1 font-medium">invested time</p>
                 </CardContent>
               </Card>
@@ -295,7 +308,16 @@ export function OverviewContent({
           </div>
 
           <motion.div variants={item} className="col-span-2 md:col-span-4 h-[350px]">
-            <StudyAnalyticsChart timersData={personalOverviewData.timersSessionData} />
+             {personalOverviewData.timersSessionData && personalOverviewData.timersSessionData.length > 0 ? (
+              <StudyAnalyticsChart timersData={personalOverviewData.timersSessionData} />
+            ) : (
+              <Card className="h-full flex flex-col items-center justify-center p-6 border-dashed border-2 bg-muted/10">
+                <Clock className="w-12 h-12 text-muted-foreground/30 mb-4" />
+                <p className="text-muted-foreground font-medium text-center">
+                  Start a stopwatch or pomodoro session to see your focus analysis.
+                </p>
+              </Card>
+            )}
           </motion.div>
 
           <motion.div variants={item} className="pt-4">

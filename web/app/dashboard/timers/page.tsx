@@ -446,8 +446,8 @@ export default function TimersPage() {
     toast.success("Timer settings updated")
   }
 
-  const handlePomoModeSwitch = (mode: 'pomodoro'|'shortBreak'|'longBreak') => {
-    if (activePomodoroDB && mode !== 'pomodoro') {
+  const handlePomoModeSwitch = (mode: 'pomodoro'|'shortBreak'|'longBreak', force = false) => {
+    if (!force && activePomodoroDB && mode !== 'pomodoro') {
        toast.error("You have an active Pomodoro session running!")
        return
     }
@@ -526,10 +526,10 @@ export default function TimersPage() {
        setActivePomodoroDB(null)
        toast.info("Pomodoro discarded and deleted.")
        fetchData(supabaseClient, profileId)
-       handlePomoModeSwitch('shortBreak')
+       handlePomoModeSwitch('shortBreak', true)
     } else {
-       if (pomoMode === 'pomodoro') handlePomoModeSwitch('shortBreak')
-       else handlePomoModeSwitch('pomodoro')
+       if (pomoMode === 'pomodoro') handlePomoModeSwitch('shortBreak', true)
+       else handlePomoModeSwitch('pomodoro', true)
     }
   }
 
@@ -560,10 +560,10 @@ export default function TimersPage() {
       } else {
         toast.info("Completed early Pomodoro fallback.")
       }
-      handlePomoModeSwitch('shortBreak')
+      handlePomoModeSwitch('shortBreak', true)
     } else {
       toast.success("Break Over! Back to work.")
-      handlePomoModeSwitch('pomodoro')
+      handlePomoModeSwitch('pomodoro', true)
     }
   }
 
@@ -635,7 +635,7 @@ export default function TimersPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 
                 {/* Active Timer / Start Form */}
-                <motion.div variants={itemVariants}>
+                <motion.div variants={itemVariants} initial="hidden" animate="show">
           <Card className="border-2 border-primary/20 h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -692,7 +692,7 @@ export default function TimersPage() {
         </motion.div>
 
         {/* History */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={itemVariants} initial="hidden" animate="show">
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-muted-foreground">
