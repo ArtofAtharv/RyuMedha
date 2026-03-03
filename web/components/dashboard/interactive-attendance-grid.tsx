@@ -6,6 +6,7 @@ import { AttendanceCard } from "./attendance-card"
 import { useRouter } from "next/navigation"
 import { motion, Variants } from "motion/react"
 import { toast } from "sonner"
+import { useGamification } from "./gamification-context"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -28,6 +29,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
   const [data, setData] = useState(initialData)
   const [isUpdating, setIsUpdating] = useState(false)
   const router = useRouter()
+  const { addXp, incrementCombo } = useGamification()
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -230,6 +232,15 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
       } else {
         const sub = subjectsInfo.find(s => s.id === subjectId)
         toast.success(`✅ Marked ${targetStatus} for ${sub?.name || 'subject'}`)
+        
+        // Grant 10 XP for attending a class!
+        if (targetStatus === 'present' || targetStatus === 'deemed') {
+          addXp(10)
+          incrementCombo()
+          toast.success("✨ +10 XP earned!", {
+            icon: "🏆"
+          })
+        }
       }
       
       // Insert: The backend does not enforce a unique constraint on lecture_date anymore due to our fix

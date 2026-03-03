@@ -10,14 +10,28 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen, GraduationCap, Plus, Folder, Loader2, Check, ChevronDown } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { hexToGradient } from "@/lib/gradient"
 import Link from "next/link"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion, Variants } from "motion/react"
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { useProfile } from '@/components/dashboard/profile-context'
+
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+}
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+}
 
 export default function SubjectsPage() {
   const { profile } = useProfile()
@@ -627,21 +641,22 @@ export default function SubjectsPage() {
               <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {academicSubjects.map(sub => (
-                <SubjectGridCard 
-                  key={sub.id} 
-                  subject={sub} 
-                  onEdit={() => setEditingSubject({
-                    ...sub, 
-                    instructor_name: sub.source_course_id?.instructor_name || "",
-                    expected_total_lectures: sub.source_course_id?.expected_total_lectures || sub.expected_total_lectures || 0
-                  })}
-                  onDelete={() => setSubjectToDelete(sub)}
-                  onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                />
+                <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
+                  <SubjectGridCard 
+                    subject={sub} 
+                    onEdit={() => setEditingSubject({
+                      ...sub, 
+                      instructor_name: sub.source_course_id?.instructor_name || "",
+                      expected_total_lectures: sub.source_course_id?.expected_total_lectures || sub.expected_total_lectures || 0
+                    })}
+                    onDelete={() => setSubjectToDelete(sub)}
+                    onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                  />
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </section>
       )}
@@ -677,23 +692,24 @@ export default function SubjectsPage() {
               <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredSubjects
                 .filter(s => s.type === 'personal')
                 .map(sub => {
                   const subCategory = categories.find(c => c.id === sub.category_id)
                   return (
-                    <SubjectGridCard 
-                      key={sub.id} 
-                      subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
-                      category={subCategory}
-                      onEdit={() => setEditingSubject({...sub})}
-                      onDelete={() => setSubjectToDelete(sub)}
-                      onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                    />
+                    <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
+                      <SubjectGridCard 
+                        subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
+                        category={subCategory}
+                        onEdit={() => setEditingSubject({...sub})}
+                        onDelete={() => setSubjectToDelete(sub)}
+                        onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                      />
+                    </motion.div>
                   )
               })}
-            </div>
+            </motion.div>
           )}
 
 
@@ -701,16 +717,13 @@ export default function SubjectsPage() {
       )}
 
       {/* --- EDIT SUBJECT MODAL --- */}
-      {editingSubject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md bg-background shadow-lg shadow-primary/10 overflow-hidden outline-none border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 bg-muted/20 border-b">
-              <CardTitle>Edit Subject</CardTitle>
-              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md m-0 hover:bg-muted" onClick={() => setEditingSubject(null)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-4 max-h-[75vh] overflow-y-auto">
+      <Dialog open={!!editingSubject} onOpenChange={(open: boolean) => !open && setEditingSubject(null)}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
+          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
+            <DialogTitle>Edit Subject</DialogTitle>
+          </DialogHeader>
+          {editingSubject && (
+            <div className="space-y-4 px-6 pb-6 pt-4 max-h-[75vh] overflow-y-auto">
               
               <div className="space-y-1.5">
                 <Label>Subject Name</Label>
@@ -768,83 +781,77 @@ export default function SubjectsPage() {
                 <Button variant="outline" onClick={() => setEditingSubject(null)} className="flex-1">Cancel</Button>
                 <Button onClick={saveEdit} className="flex-1 font-bold tracking-wider">Save Changes</Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* --- DELETE CONFIRMATION --- */}
-      {subjectToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-sm">
-            <CardHeader className="text-center">
-              <div className="w-12 h-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-2">
-                <AlertTriangle className="w-6 h-6" />
-              </div>
-              <CardTitle className="text-xl">Delete Subject?</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
+      <Dialog open={!!subjectToDelete} onOpenChange={(open: boolean) => !open && setSubjectToDelete(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader className="text-center">
+            <div className="w-12 h-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-2">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-xl">Delete Subject?</DialogTitle>
+          </DialogHeader>
+          {subjectToDelete && (
+            <div className="text-center space-y-4">
               <p className="text-sm">Are you sure you want to completely delete <strong>{subjectToDelete.name}</strong>? This will also remove any tasks, grades, or attendance logs linked to it.</p>
               <div className="flex gap-2 w-full pt-2">
                 <Button variant="outline" onClick={() => setSubjectToDelete(null)} className="flex-1">Cancel</Button>
                 <Button variant="destructive" onClick={confirmDelete} className="flex-1">Delete Permanently</Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* --- MANAGE CATEGORIES MODAL --- */}
-      {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-md bg-background shadow-lg shadow-primary/10 overflow-hidden outline-none border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 bg-muted/30 border-b">
-              <CardTitle>Manage Categories</CardTitle>
-              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md m-0 hover:bg-muted" onClick={() => setIsCategoryModalOpen(false)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-6 pt-6">
-              
-              {/* Add category form */}
-              <div className="flex gap-2 items-end bg-card">
-                <div className="space-y-1.5 flex-1">
-                  <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">New Category</Label>
-                  <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-muted/30" />
-                </div>
-                <div className="space-y-1.5 w-[50px]">
-                  <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Color</Label>
-                  <Input type="color" value={newCategoryColor} onChange={e => setNewCategoryColor(e.target.value)} className="h-10 w-full p-1 cursor-pointer" />
-                </div>
-                <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} className="h-10 font-bold px-4">Add</Button>
+      <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
+          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/30">
+            <DialogTitle>Manage Categories</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 px-6 pb-6 pt-4">
+            
+            {/* Add category form */}
+            <div className="flex gap-2 items-end bg-card">
+              <div className="space-y-1.5 flex-1">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">New Category</Label>
+                <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-muted/30" />
               </div>
+              <div className="space-y-1.5 w-[50px]">
+                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Color</Label>
+                <Input type="color" value={newCategoryColor} onChange={e => setNewCategoryColor(e.target.value)} className="h-10 w-full p-1 cursor-pointer" />
+              </div>
+              <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} className="h-10 font-bold px-4">Add</Button>
+            </div>
 
-              {/* List categories */}
-              <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-1">Existing Categories</h3>
-                {categories.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic text-center py-4">No categories created yet.</p>
-                ) : (
-                  <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
-                    {categories.map(cat => (
-                      <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
-                        <div className="flex items-center gap-3">
-                          <div className="w-4 h-4 rounded-full shadow-sm" style={hexToGradient(cat.color_hex)} />
-                          <span className="font-bold text-sm tracking-tight">{cat.name}</span>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(cat.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+            {/* List categories */}
+            <div className="space-y-3 pt-2">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-1">Existing Categories</h3>
+              {categories.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic text-center py-4">No categories created yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
+                  {categories.map(cat => (
+                    <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full shadow-sm" style={hexToGradient(cat.color_hex)} />
+                        <span className="font-bold text-sm tracking-tight">{cat.name}</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(cat.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )

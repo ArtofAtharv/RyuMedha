@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav"
 import { createClient } from "@supabase/supabase-js"
 import { ProfileProvider, UserProfile } from "@/components/dashboard/profile-context"
+import { GamificationProvider } from "@/components/dashboard/gamification-context"
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions)
@@ -29,15 +30,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <ProfileProvider profile={profile as UserProfile}>
-      <div className="flex flex-col min-h-screen bg-background text-foreground">
-        {/* Animated Dashboard Navigation */}
-        <DashboardNav />
+      <GamificationProvider>
+        <div className="flex flex-col min-h-screen bg-background text-foreground">
+          {/* Animated Dashboard Navigation */}
+          <DashboardNav />
 
-        {/* Main Content Area */}
-        <div className="flex-1 pb-24 md:pb-0">
-          {children}
+          {/* Main Content Area */}
+          <div className="flex-1 pb-24 md:pb-0">
+            {children}
+          </div>
         </div>
-      </div>
+      </GamificationProvider>
     </ProfileProvider>
   )
 }

@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button"
 import { BookOpen, FolderOpen, Pencil, Trash2, User, Target } from "lucide-react"
 import Link from 'next/link'
 import { useState } from 'react'
+import { motion } from "motion/react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DatePicker } from "@/components/ui/date-picker"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar as CalIcon, X, Plus } from "lucide-react"
 // Helper function locally re-implemented since we're pulling this out of the main page
 function hexToGradient(hex: string) {
@@ -37,11 +39,16 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
   }
 
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 shadow-sm bg-card flex flex-col h-full">
-      {/* Top Subtle Gradient Bar */}
-      <div className="h-1.5 w-full absolute top-0 left-0" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
-      
-      <CardContent className="p-5 pt-6 flex flex-col flex-1">
+    <motion.div 
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="h-full"
+    >
+      <Card className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
+        {/* Top Subtle Gradient Bar */}
+        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
+
+        <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
         <div className="flex justify-between items-start mb-4">
           {/* Badge / Code */}
           <div>
@@ -127,47 +134,44 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
             <Target className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
             View Performance
           </Button>
-        </Link>
-      </CardContent>
+          </Link>
+        </CardContent>
 
-      {/* --- ADD EXAM DATE MODAL (Inline) --- */}
-      {isExamModalOpen && (
-        <div className="fixed inset-0 z-[50] flex items-center justify-center bg-black/50 p-4">
-          <Card className="w-full max-w-sm bg-background shadow-xl border-border/50">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex justify-between items-center pb-2 border-b">
-                <h3 className="font-bold text-lg">Add Important Date</h3>
-                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2 text-muted-foreground hover:text-foreground" onClick={() => setIsExamModalOpen(false)}>
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+        {/* --- ADD EXAM DATE MODAL (Dialog) --- */}
+        <Dialog open={isExamModalOpen} onOpenChange={setIsExamModalOpen}>
+          <DialogContent className="sm:max-w-sm p-0 bg-background/80 backdrop-blur-xl border-primary/20 overflow-hidden">
+            <div className="h-1 w-full bg-primary/50" />
+            <div className="p-5 space-y-4">
+              <DialogHeader className="flex flex-row justify-between items-center pb-3 border-b border-border/50">
+                <DialogTitle className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date</DialogTitle>
+              </DialogHeader>
 
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-muted-foreground">Date Label</Label>
-                  <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Mid Sem 1" className="bg-muted/30 h-10" />
+              <div className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
+                  <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-muted-foreground">Select Date</Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
                   <DatePicker
                     date={examDate || undefined}
                     setDate={(d) => setExamDate(d as Date)}
-                    className="w-full text-foreground/80 h-10 border-muted z-100"
+                    className="w-full h-11 border-border/50 rounded-xl"
                   />
                 </div>
               </div>
 
-              <div className="pt-2">
-                <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold">
-                  Save Date as Task
+              <div className="pt-4">
+                <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl gradient-accent shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
+                  Save Mission
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
-    </Card>
+      </Card>
+    </motion.div>
   )
 }

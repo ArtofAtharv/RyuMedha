@@ -7,6 +7,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, ArrowLeft, MessageCircle, CheckCircle2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'motion/react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -135,10 +136,17 @@ function LoginPageInner() {
           </div>
 
           {/* Card */}
-          <Card>
+          <Card className="overflow-hidden border-primary/10 shadow-xl shadow-primary/5 bg-background/60 backdrop-blur-xl">
+            <AnimatePresence mode="wait">
             {/* ── Step 1: Phone ── */}
             {step === 'phone' && (
-              <>
+              <motion.div
+                key="phone-step"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
                 <CardHeader className="space-y-1 pb-4">
                   <CardTitle className="text-lg font-bold flex items-center gap-2">
                     <MessageCircle className="h-5 w-5 text-primary" />
@@ -198,12 +206,18 @@ function LoginPageInner() {
                     </p>
                   </form>
                 </CardContent>
-              </>
+              </motion.div>
             )}
 
             {/* ── Step 2: OTP ── */}
             {step === 'otp' && (
-              <>
+              <motion.div
+                key="otp-step"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              >
                 <CardHeader className="space-y-1 pb-4">
                   <div className="flex items-center gap-2">
                     <button
@@ -298,8 +312,9 @@ function LoginPageInner() {
                     </p>
                   </form>
                 </CardContent>
-              </>
+              </motion.div>
             )}
+            </AnimatePresence>
           </Card>
 
           <p className="text-center text-xs text-muted-foreground">

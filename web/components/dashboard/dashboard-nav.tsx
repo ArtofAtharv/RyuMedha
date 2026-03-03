@@ -31,10 +31,15 @@ export function DashboardNav() {
         {tabs.map((tab) => {
           const isActive = activeHref === tab.href
           return (
-            <Link
+            <motion.div
               key={tab.href}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="flex-shrink-0 md:flex-none"
+            >
+            <Link
               href={tab.href}
-              className={`relative flex items-center justify-center md:px-4 w-12 h-12 md:w-auto md:h-auto md:py-2 flex-shrink-0 md:flex-none rounded-full text-sm font-medium transition-all md:whitespace-nowrap ${
+              className={`relative flex items-center justify-center md:px-4 w-12 h-12 md:w-auto md:h-auto md:py-2 rounded-full text-sm font-medium transition-all md:whitespace-nowrap ${
                 isActive
                   ? "text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
@@ -57,6 +62,7 @@ export function DashboardNav() {
               {/* Desktop Text */}
               <span className="relative z-10 hidden md:block">{tab.label}</span>
             </Link>
+            </motion.div>
           )
         })}
       </nav>

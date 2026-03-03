@@ -65,7 +65,7 @@ export default async function DashboardPage() {
       .eq('is_completed', false),
     supabase
       .from('study_timers')
-      .select('started_at, ended_at, total_pause_seconds, subject_id, subjects(type)')
+      .select('started_at, ended_at, total_pause_seconds, timer_type, subject_id, subjects(type)')
       .eq('profile_id', profile?.id)
       .not('ended_at', 'is', null),
     supabase
@@ -227,6 +227,7 @@ export default async function DashboardPage() {
               academicStudyHours,
               attendanceData,
               academicSubjects,
+              timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'academic') || [],
               token: session.user.supabaseToken,
               profileId: profile?.id,
               targetPct
@@ -236,6 +237,7 @@ export default async function DashboardPage() {
               personalPendingTasks,
               personalStudyHours,
               personalSubjects,
+              timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'personal') || [],
               categories
             }}
           />

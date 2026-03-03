@@ -2,6 +2,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { CheckCircle2, XCircle, User, FolderOpen, BookOpen, Fingerprint } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { motion } from "motion/react"
 
 interface AttendanceCardProps {
   subjectId?: string
@@ -71,11 +72,16 @@ export function AttendanceCard({
           : 'text-destructive'
 
   return (
-    <Card className="relative overflow-hidden group hover:shadow-md transition-all duration-300 border-border/50 shadow-sm bg-card flex flex-col h-full">
-      {/* Top Subtle Gradient Bar */}
-      <div className="h-1.5 w-full absolute top-0 left-0" style={hexToGradient(accentColor || '#8b5cf6')} />
-      
-      <CardContent className="p-5 pt-6 flex flex-col flex-1">
+    <motion.div 
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className="h-full"
+    >
+      <Card className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
+        {/* Top Subtle Gradient Bar */}
+        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(accentColor || '#8b5cf6')} />
+
+        <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
         <div className="flex justify-between items-start mb-4">
           {/* Badge / Code */}
           <div>
@@ -130,10 +136,13 @@ export function AttendanceCard({
             </span>
           </div>
 
-          <div className="h-1.5 w-full rounded-full overflow-hidden bg-muted">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ ...hexToGradient(accentColor || '#8b5cf6'), width: `${progress}%` }}
+          <div className="h-2 w-full rounded-full overflow-hidden bg-muted shadow-inner">
+            <motion.div
+              className="h-full rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 1, delay: 0.2, type: "spring" }}
+              style={hexToGradient(accentColor || '#8b5cf6')}
             />
           </div>
 
@@ -243,5 +252,6 @@ export function AttendanceCard({
         </div>
       </CardContent>
     </Card>
+    </motion.div>
   )
 }
