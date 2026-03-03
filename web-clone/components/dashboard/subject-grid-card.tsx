@@ -46,9 +46,9 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
     >
       <Card className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
         {/* Top Subtle Gradient Bar */}
-        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
+        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
 
-        <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10 bg-background text-foreground">
+        <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
         <div className="flex justify-between items-start mb-4">
           {/* Badge / Code */}
           <div>
