@@ -37,6 +37,7 @@ export default function TimersPage() {
   const [supabaseClient, setSupabaseClient] = useState<any>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const [clockOffset, setClockOffset] = useState<number>(0)
 
   // Pomodoro State
   const [activePomodoroDB, setActivePomodoroDB] = useState<any>(null)
@@ -91,11 +92,27 @@ export default function TimersPage() {
         .single()
         
       if (profile) setProfileId(profile.id)
+      
+      // Calculate device clock skew relative to the server
+      try {
+        const startFetch = Date.now()
+        const res = await fetch('/api/time')
+        const data = await res.json()
+        const delay = (Date.now() - startFetch) / 2
+        // clockOffset = how much we need to add to Date.now() to get true server time
+        const offset = (data.timestamp - delay) - Date.now()
+        setClockOffset(offset)
+      } catch (e) {
+        console.warn("Time sync failed, using local time", e)
+      }
 
       await fetchData(supabase, profile?.id)
     }
     init()
   }, [])
+
+  // Unified time getter
+  const getSyncedTime = () => Date.now() + clockOffset
 
   // Live counter for active timer
   useEffect(() => {
@@ -113,10 +130,10 @@ export default function TimersPage() {
     const interval = setInterval(() => {
       const start = new Date(activeTimer.started_at).getTime()
       const totalPauseSecs = activeTimer.total_pause_seconds || 0
-      setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs))
+      setElapsed(Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs))
     }, 1000)
     return () => clearInterval(interval)
-  }, [activeTimer])
+  }, [activeTimer, clockOffset])
 
   // Pomodoro DB -> Local UI Sync
   useEffect(() => {
@@ -137,12 +154,12 @@ export default function TimersPage() {
         setPomoTimeLeft(Math.max(0, target - elapsed))
       } else {
         setPomoIsActive(true)
-        const elapsed = Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+        const elapsed = Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs)
         setPomoTimeLeft(Math.max(0, target - elapsed))
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePomodoroDB, pomoDurationOpts.pomodoro])
+  }, [activePomodoroDB, pomoDurationOpts.pomodoro, clockOffset])
 
   // Local/DB Pomodoro Interval
   useEffect(() => {
@@ -153,7 +170,7 @@ export default function TimersPage() {
           // DB driven countdown
           const start = new Date(activePomodoroDB.started_at).getTime()
           const totalPauseSecs = activePomodoroDB.total_pause_seconds || 0
-          const elapsed = Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs)
+          const elapsed = Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs)
           const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
           const left = target - elapsed
           
@@ -210,7 +227,7 @@ export default function TimersPage() {
         const pauseStart = new Date(activeSw.pause_started_at).getTime()
         setElapsed(Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs))
       } else {
-        setElapsed(Math.max(0, Math.floor((Date.now() - start) / 1000) - totalPauseSecs))
+        setElapsed(Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs))
       }
     } else {
       setElapsed(0)
@@ -275,9 +292,9 @@ export default function TimersPage() {
       .insert([{
         profile_id: profileId,
         subject_id: selectedSubject,
-        started_at: new Date().toISOString(),
+        started_at: new Date(getSyncedTime()).toISOString(),
         timer_type: 'stopwatch',
-        events: [{ type: 'start', timestamp: new Date().toISOString() }]
+        events: [{ type: 'start', timestamp: new Date(getSyncedTime()).toISOString() }]
       }])
     
     if (error) {
@@ -296,8 +313,8 @@ export default function TimersPage() {
       const { error } = await supabaseClient
         .from('study_timers')
         .update({ 
-          pause_started_at: new Date().toISOString(),
-          events: [...(activeTimer.events || []), { type: 'pause', timestamp: new Date().toISOString() }]
+          pause_started_at: new Date(getSyncedTime()).toISOString(),
+          events: [...(activeTimer.events || []), { type: 'pause', timestamp: new Date(getSyncedTime()).toISOString() }]
         })
         .eq('id', activeTimer.id)
       
@@ -315,7 +332,7 @@ export default function TimersPage() {
   async function resumeTimer() {
     if (!activeTimer || !activeTimer.pause_started_at) return
     const pauseStart = new Date(activeTimer.pause_started_at).getTime()
-    const pauseDuration = Math.floor((Date.now() - pauseStart) / 1000)
+    const pauseDuration = Math.floor((getSyncedTime() - pauseStart) / 1000)
     const newTotalPause = (activeTimer.total_pause_seconds || 0) + pauseDuration
 
     try {
@@ -324,7 +341,7 @@ export default function TimersPage() {
         .update({ 
           pause_started_at: null,
           total_pause_seconds: newTotalPause,
-          events: [...(activeTimer.events || []), { type: 'resume', timestamp: new Date().toISOString() }]
+          events: [...(activeTimer.events || []), { type: 'resume', timestamp: new Date(getSyncedTime()).toISOString() }]
         })
         .eq('id', activeTimer.id)
         
@@ -346,18 +363,18 @@ export default function TimersPage() {
     let finalPauseSecs = activeTimer.total_pause_seconds || 0
     if (activeTimer.pause_started_at) {
       const pauseStart = new Date(activeTimer.pause_started_at).getTime()
-      finalPauseSecs += Math.floor((Date.now() - pauseStart) / 1000)
+      finalPauseSecs += Math.floor((getSyncedTime() - pauseStart) / 1000)
     }
 
     try {
       const { error } = await supabaseClient
         .from('study_timers')
         .update({ 
-          ended_at: new Date().toISOString(),
+          ended_at: new Date(getSyncedTime()).toISOString(),
           pause_started_at: null,
           total_pause_seconds: finalPauseSecs,
-          duration_seconds: Math.floor((Date.now() - new Date(activeTimer.started_at).getTime()) / 1000) - finalPauseSecs,
-          events: [...(activeTimer.events || []), { type: 'stop', timestamp: new Date().toISOString() }]
+          duration_seconds: Math.floor((getSyncedTime() - new Date(activeTimer.started_at).getTime()) / 1000) - finalPauseSecs,
+          events: [...(activeTimer.events || []), { type: 'stop', timestamp: new Date(getSyncedTime()).toISOString() }]
         })
         .eq('id', activeTimer.id)
       
@@ -448,7 +465,7 @@ export default function TimersPage() {
         return
       }
 
-      const now = new Date().toISOString()
+      const now = new Date(getSyncedTime()).toISOString()
       
       if (!pomoIsActive) {
         // Start or Resume DB Pomodoro
@@ -471,7 +488,7 @@ export default function TimersPage() {
         } else {
            // Resume
            const pauseStart = new Date(activePomodoroDB.pause_started_at).getTime()
-           const pauseDuration = Math.floor((Date.now() - pauseStart) / 1000)
+           const pauseDuration = Math.floor((getSyncedTime() - pauseStart) / 1000)
            const newTotalPause = (activePomodoroDB.total_pause_seconds || 0) + pauseDuration
            const { error } = await supabaseClient.from('study_timers').update({
              pause_started_at: null,
@@ -525,7 +542,7 @@ export default function TimersPage() {
     if (pomoMode === 'pomodoro') {
       const dbRecord = passedDbRecord || activePomodoroDB
       if (dbRecord) {
-        const now = new Date().toISOString()
+        const now = new Date(getSyncedTime()).toISOString()
         try {
           const target = dbRecord.duration_seconds || (pomoDurationOpts.pomodoro * 60)
           await supabaseClient.from('study_timers').update({
