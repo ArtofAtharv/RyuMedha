@@ -342,7 +342,13 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                           </p>
                         )}
                         {isTodayDate && (
-                          <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                          <div className="absolute top-2 right-3 flex items-center gap-1.5">
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+                            </span>
+                            <span className="text-[7px] font-black uppercase tracking-[0.2em] text-primary">NOW</span>
+                          </div>
                         )}
                       </motion.button>
                     )
@@ -410,6 +416,16 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                           #L{dayLogsForGrid.length}
                         </p>
                       )}
+
+                      {isTodayDate && (
+                        <div className="absolute top-1.5 right-2 flex items-center gap-1">
+                          <span className="relative flex h-1 w-1">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-1 w-1 bg-primary"></span>
+                          </span>
+                          <span className="text-[5px] font-black uppercase tracking-[0.2em] text-primary">NOW</span>
+                        </div>
+                      )}
                     </motion.button>
                   )
                 })}
@@ -463,7 +479,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                           variant="ghost" 
                           size="icon" 
                           onClick={() => deleteAttendanceLog(log.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all rounded-lg"
+                          className="h-8 w-8 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-all rounded-lg"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
