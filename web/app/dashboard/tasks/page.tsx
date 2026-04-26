@@ -118,8 +118,8 @@ export default function TasksPage() {
 
     const validSubjectIds = new Set(subs.map((s: any) => s.id))
     
-    setTasks((pending || []).filter((t: any) => validSubjectIds.has(t.subject_id)))
-    setCompletedTasks((done || []).filter((t: any) => validSubjectIds.has(t.subject_id)))
+    setTasks((pending || []).filter((t: any) => t.subject_id === null || validSubjectIds.has(t.subject_id)))
+    setCompletedTasks((done || []).filter((t: any) => t.subject_id === null || validSubjectIds.has(t.subject_id)))
     setLoading(false)
   }
 
