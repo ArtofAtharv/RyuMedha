@@ -44,6 +44,11 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
+  const haptic = () => {
+    if (typeof window !== 'undefined' && window.navigator.vibrate) {
+      window.navigator.vibrate(10)
+    }
+  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,8 +75,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
     return { present, absent, deemed, total, pct }
   }, [logs, subject])
 
-  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
-  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
+  const nextMonth = () => { haptic(); setCurrentDate(addMonths(currentDate, 1)); }
+  const prevMonth = () => { haptic(); setCurrentDate(subMonths(currentDate, 1)); }
 
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
 
@@ -109,6 +114,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   }
 
   async function deleteAttendanceLog(id: string) {
+    haptic()
     if (isUpdating) return
     setIsUpdating(true)
     try {
@@ -325,7 +331,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                         key={dateStr}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() => setSelectedDay(day)}
+                        onClick={() => { haptic(); setSelectedDay(day); }}
                         className={`
                           relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
                           ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
@@ -395,7 +401,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     <motion.button
                       key={dateStr}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setSelectedDay(day)}
+                      onClick={() => { haptic(); setSelectedDay(day); }}
                       className={`
                         relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
                         ${cellClasses}
@@ -493,7 +499,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 text-center">Add New Lecture</p>
                 <div className="grid grid-cols-3 gap-3">
                   <Button 
-                    onClick={() => addAttendanceLog('present')}
+                    onClick={() => { haptic(); addAttendanceLog('present'); }}
                     disabled={isUpdating}
                     className="flex flex-col gap-1 h-16 rounded-2xl bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/20"
                   >
@@ -501,7 +507,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     <span className="text-[10px] font-black uppercase">Present</span>
                   </Button>
                   <Button 
-                    onClick={() => addAttendanceLog('absent')}
+                    onClick={() => { haptic(); addAttendanceLog('absent'); }}
                     disabled={isUpdating}
                     className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-red-600 transition-colors shadow-lg shadow-destructive/20"
                   >
@@ -509,7 +515,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     <span className="text-[10px] font-black uppercase">Absent</span>
                   </Button>
                   <Button 
-                    onClick={() => addAttendanceLog('deemed')}
+                    onClick={() => { haptic(); addAttendanceLog('deemed'); }}
                     disabled={isUpdating}
                     className="flex flex-col gap-1 h-16 rounded-2xl bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20"
                   >
@@ -521,7 +527,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
             </div>
           </div>
           <DialogFooter className="p-4 bg-muted/30 border-t border-border/50">
-            <Button variant="ghost" onClick={() => setSelectedDay(null)} className="w-full font-bold">Close</Button>
+            <Button variant="ghost" onClick={() => { haptic(); setSelectedDay(null); }} className="w-full font-bold">Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
