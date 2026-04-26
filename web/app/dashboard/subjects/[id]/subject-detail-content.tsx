@@ -27,11 +27,15 @@ import {
   Info,
   Trophy,
   Target,
-  Clock
+  Clock,
+  Plus,
+  Trash2,
+  CalendarDays
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
@@ -69,54 +73,53 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1))
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1))
 
-  async function toggleAttendance(day: Date) {
-    if (isUpdating) return
-    const dateStr = format(day, 'yyyy-MM-dd')
-    const existingLog = logs.find(l => l.lecture_date === dateStr)
-    
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+
+  const dayLogs = useMemo(() => {
+    if (!selectedDay) return []
+    const dateStr = format(selectedDay, 'yyyy-MM-dd')
+    return logs.filter(l => l.lecture_date === dateStr).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  }, [selectedDay, logs])
+
+  async function addAttendanceLog(status: 'present' | 'absent' | 'deemed') {
+    if (!selectedDay || isUpdating) return
+    const dateStr = format(selectedDay, 'yyyy-MM-dd')
     setIsUpdating(true)
-    
-    let nextStatus: 'present' | 'absent' | 'deemed' | null = null
-    if (!existingLog) nextStatus = 'present'
-    else if (existingLog.status === 'present') nextStatus = 'absent'
-    else if (existingLog.status === 'absent') nextStatus = 'deemed'
-    else nextStatus = null
 
     try {
-      // 1. Delete all existing logs for this date (to handle multiple-log days cleanly in calendar view)
-      const { error: delError } = await supabase
+      const { data: newLog, error } = await supabase
+        .from('attendance_logs')
+        .insert({
+          profile_id: profile.id,
+          subject_id: subject.id,
+          lecture_date: dateStr,
+          status
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      setLogs(prev => [...prev, newLog])
+      toast.success(`Added ${status} lecture`)
+    } catch (e: any) {
+      toast.error(e.message)
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  async function deleteAttendanceLog(id: string) {
+    if (isUpdating) return
+    setIsUpdating(true)
+    try {
+      const { error } = await supabase
         .from('attendance_logs')
         .delete()
-        .eq('profile_id', profile.id)
-        .eq('subject_id', subject.id)
-        .eq('lecture_date', dateStr)
+        .eq('id', id)
 
-      if (delError) throw delError
-
-      // 2. If we have a next status, insert it
-      if (nextStatus) {
-        const { data: newLog, error: insError } = await supabase
-          .from('attendance_logs')
-          .insert({
-            profile_id: profile.id,
-            subject_id: subject.id,
-            lecture_date: dateStr,
-            status: nextStatus
-          })
-          .select()
-          .single()
-
-        if (insError) throw insError
-        
-        setLogs(prev => {
-          const filtered = prev.filter(l => l.lecture_date !== dateStr)
-          return [...filtered, newLog]
-        })
-        toast.success(`Marked ${nextStatus} for ${format(day, 'MMM do')}`)
-      } else {
-        setLogs(prev => prev.filter(l => l.lecture_date !== dateStr))
-        toast.info(`Cleared attendance for ${format(day, 'MMM do')}`)
-      }
+      if (error) throw error
+      setLogs(prev => prev.filter(l => l.id !== id))
+      toast.info("Lecture record removed")
     } catch (e: any) {
       toast.error(e.message)
     } finally {
@@ -283,39 +286,44 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
               <div className="grid grid-cols-7 gap-3">
                 {calendarDays.map((day, idx) => {
                   const dateStr = format(day, 'yyyy-MM-dd')
-                  const log = logs.find(l => l.lecture_date === dateStr)
+                  const dayLogsForGrid = logs.filter(l => l.lecture_date === dateStr)
                   const isCurrentMonth = isSameMonth(day, monthStart)
                   const isTodayDate = isToday(day)
                   
                   return (
                     <motion.button
                       key={dateStr}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => toggleAttendance(day)}
-                      disabled={!isCurrentMonth || isUpdating}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setSelectedDay(day)}
+                      disabled={!isCurrentMonth}
                       className={`
-                        relative h-14 sm:h-20 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
+                        relative h-14 sm:h-24 rounded-2xl flex flex-col items-center justify-between p-2 transition-all duration-300 border
                         ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
-                        ${log?.status === 'present' ? 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400 shadow-[inset_0_0_15px_rgba(34,197,94,0.1)]' : ''}
-                        ${log?.status === 'absent' ? 'bg-destructive/10 border-destructive/30 text-destructive shadow-[inset_0_0_15px_rgba(239,68,68,0.1)]' : ''}
-                        ${log?.status === 'deemed' ? 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]' : ''}
-                        ${!log ? 'bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/50' : ''}
-                        ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}
+                        ${dayLogsForGrid.length > 0 ? 'bg-card/80 border-primary/20 shadow-sm' : 'bg-muted/20 border-border/50 text-muted-foreground hover:bg-muted/40'}
+                        ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20' : ''}
                       `}
                     >
-                      <span className={`text-base font-black ${!isCurrentMonth ? 'text-muted-foreground/20' : ''}`}>
+                      <span className={`text-base font-black self-start ${!isCurrentMonth ? 'text-muted-foreground/20' : ''}`}>
                         {format(day, 'd')}
                       </span>
                       
-                      <div className="absolute top-1.5 right-1.5">
-                        {log?.status === 'present' && <CheckCircle2 className="w-3 h-3 opacity-50" />}
-                        {log?.status === 'absent' && <XCircle className="w-3 h-3 opacity-50" />}
-                        {log?.status === 'deemed' && <Fingerprint className="w-3 h-3 opacity-50" />}
+                      {/* Status Indicators Container */}
+                      <div className="flex flex-wrap gap-1 justify-center w-full pb-1">
+                        {dayLogsForGrid.map((l, i) => (
+                          <div 
+                            key={l.id || i} 
+                            className={`w-2 h-2 rounded-full shadow-sm ${
+                              l.status === 'present' ? 'bg-green-500 shadow-green-500/40' : 
+                              l.status === 'absent' ? 'bg-destructive shadow-destructive/40' : 
+                              'bg-blue-500 shadow-blue-500/40'
+                            }`} 
+                          />
+                        ))}
                       </div>
 
                       {isTodayDate && (
-                        <span className="absolute bottom-1.5 text-[8px] font-black uppercase tracking-tighter text-primary">Today</span>
+                        <span className="absolute top-2 right-2 text-[8px] font-black uppercase tracking-tighter text-primary bg-primary/10 px-1 rounded">Today</span>
                       )}
                     </motion.button>
                   )
@@ -325,6 +333,97 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
           </Card>
         </div>
       </div>
+
+      {/* Day Detail Dialog */}
+      <Dialog open={!!selectedDay} onOpenChange={(open) => !open && setSelectedDay(null)}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+          <div className="bg-gradient-to-br from-card to-muted/20 p-6 pt-8">
+            <DialogHeader className="mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <CalendarDays className="w-6 h-6" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl font-black">{selectedDay ? format(selectedDay, 'EEEE, MMM do') : ''}</DialogTitle>
+                  <DialogDescription className="font-medium">Manage lectures for this day</DialogDescription>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                {dayLogs.length === 0 ? (
+                  <div className="text-center py-8 bg-muted/30 rounded-2xl border-2 border-dashed border-border/50">
+                    <p className="text-sm font-bold text-muted-foreground">No lectures logged yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {dayLogs.map((log, index) => (
+                      <div key={log.id} className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border/50 shadow-sm group">
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] font-black text-muted-foreground w-4">#{index + 1}</span>
+                          <Badge 
+                            variant="secondary" 
+                            className={`
+                              font-black uppercase text-[10px] tracking-widest px-2.5 py-1 rounded-lg
+                              ${log.status === 'present' ? 'bg-green-500/10 text-green-600' : 
+                                log.status === 'absent' ? 'bg-destructive/10 text-destructive' : 
+                                'bg-blue-500/10 text-blue-600'}
+                            `}
+                          >
+                            {log.status}
+                          </Badge>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => deleteAttendanceLog(log.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 border-t border-border/50">
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 text-center">Add New Lecture</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <Button 
+                    onClick={() => addAttendanceLog('present')}
+                    disabled={isUpdating}
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/20"
+                  >
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase">Present</span>
+                  </Button>
+                  <Button 
+                    onClick={() => addAttendanceLog('absent')}
+                    disabled={isUpdating}
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-destructive/110 shadow-lg shadow-destructive/20"
+                  >
+                    <XCircle className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase">Absent</span>
+                  </Button>
+                  <Button 
+                    onClick={() => addAttendanceLog('deemed')}
+                    disabled={isUpdating}
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20"
+                  >
+                    <Fingerprint className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase">Deemed</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="p-4 bg-muted/30 border-t border-border/50">
+            <Button variant="ghost" onClick={() => setSelectedDay(null)} className="w-full font-bold">Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
