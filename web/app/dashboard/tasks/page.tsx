@@ -442,14 +442,14 @@ export default function TasksPage() {
                 </div>
 
                 <div className="flex flex-col w-full gap-3 mt-2 sm:mt-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Label className="text-sm font-semibold text-muted-foreground mr-2">Reminders:</Label>
-                    <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-md border border-muted-foreground/10">
-                      <Button type="button" size="sm" variant={remindOnDue ? "default" : "ghost"} className="h-7 text-xs px-2" onClick={() => setRemindOnDue(!remindOnDue)}>On Due Date</Button>
-                      <Button type="button" size="sm" variant={remind1Day ? "default" : "ghost"} className="h-7 text-xs px-2" onClick={() => setRemind1Day(!remind1Day)}>1 Day Prior</Button>
-                      <div className="flex items-center gap-1">
-                        <Button type="button" size="sm" variant={remindCustom ? "default" : "ghost"} className="h-7 text-xs px-2 rounded-r-none border-r border-background/20" onClick={() => setRemindCustom(!remindCustom)}>Hours Prior:</Button>
-                        <Input type="number" min="1" max="72" value={customHours} onChange={(e) => setCustomHours(Number(e.target.value))} className={`h-7 w-12 text-xs px-1 text-center rounded-l-none border-0 ${remindCustom ? 'bg-primary text-primary-foreground' : 'bg-transparent'}`} disabled={!remindCustom} />
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-semibold text-muted-foreground">Reminders</Label>
+                    <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-muted/20 border border-muted-foreground/10 items-center">
+                      <Button type="button" size="sm" variant={remindOnDue ? "default" : "ghost"} className="h-8 text-xs px-3 rounded-lg" onClick={() => setRemindOnDue(!remindOnDue)}>On Due Date</Button>
+                      <Button type="button" size="sm" variant={remind1Day ? "default" : "ghost"} className="h-8 text-xs px-3 rounded-lg" onClick={() => setRemind1Day(!remind1Day)}>1 Day Prior</Button>
+                      <div className="flex items-center gap-0.5 bg-background/50 rounded-lg border border-muted-foreground/10 overflow-hidden">
+                        <Button type="button" size="sm" variant={remindCustom ? "default" : "ghost"} className="h-8 text-[10px] px-2 rounded-none border-0" onClick={() => setRemindCustom(!remindCustom)}>Hours Prior:</Button>
+                        <Input type="number" min="1" max="72" value={customHours} onChange={(e) => setCustomHours(Number(e.target.value))} className={`h-8 w-11 text-xs px-1 text-center rounded-none border-0 focus-visible:ring-0 ${remindCustom ? 'bg-primary text-primary-foreground font-bold' : 'bg-transparent'}`} disabled={!remindCustom} />
                       </div>
                     </div>
                   </div>
