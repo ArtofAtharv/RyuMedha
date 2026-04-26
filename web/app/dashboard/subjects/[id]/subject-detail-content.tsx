@@ -150,18 +150,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
         </div>
 
         <div className="flex items-center gap-3">
-          <Card className="bg-card/40 backdrop-blur-md border-border/50 px-6 py-3 shadow-sm rounded-2xl flex items-center gap-4">
-            <div className="text-center border-r border-border/50 pr-4">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Goal</p>
-              <p className="text-xl font-black text-primary">{profile.target_attendance_pct}%</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Current</p>
-              <p className={`text-xl font-black ${stats.pct >= profile.target_attendance_pct ? 'text-green-500' : 'text-destructive'}`}>
-                {stats.pct}%
-              </p>
-            </div>
-          </Card>
+          {/* Header left side only */}
         </div>
       </div>
 
@@ -245,15 +234,46 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
               <div className="flex items-center gap-2 text-[10px] font-bold text-blue-600">
                 <div className="w-4 h-4 rounded-md bg-blue-500/20 border border-blue-500/30" /> Deemed
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-600">
-                <div className="w-4 h-4 rounded-md bg-indigo-500/20 border border-indigo-500/30" /> Mixed
+              <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600">
+                <div className="w-4 h-4 rounded-md bg-amber-500/20 border border-amber-500/30" /> Mixed Day
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Right Column: Calendar */}
-        <div className="lg:col-span-2">
+        {/* Right Column: Calendar & Wide Goal Card */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-xl rounded-[2.5rem] p-6 border-b-4 border-primary/20">
+            <div className="flex items-center justify-between px-4">
+              <div className="flex items-center gap-6">
+                <div>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Academic Target</p>
+                  <div className="flex items-center gap-2">
+                    <Target className="w-5 h-5 text-primary opacity-70" />
+                    <p className="text-3xl font-black text-foreground">{profile.target_attendance_pct}%</p>
+                  </div>
+                </div>
+                <div className="h-12 w-px bg-border/50" />
+                <div>
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Current Standing</p>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full animate-pulse ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500' : 'bg-destructive'}`} />
+                    <p className={`text-3xl font-black ${stats.pct >= profile.target_attendance_pct ? 'text-green-500' : 'text-destructive'}`}>
+                      {stats.pct}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="hidden md:block text-right">
+                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
+                <Badge variant="outline" className={`font-black px-4 py-1.5 rounded-full ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
+                  {stats.pct >= profile.target_attendance_pct ? 'SAFE' : 'ACTION REQUIRED'}
+                </Badge>
+              </div>
+            </div>
+          </Card>
+
           <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
               <div>
@@ -294,17 +314,17 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   if (dayLogsForGrid.length > 0) {
                     const statuses = Array.from(new Set(dayLogsForGrid.map(l => l.status)))
                     if (statuses.length > 1) {
-                      cellClasses = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
-                      countClasses = 'bg-indigo-500/20 text-indigo-700 border-indigo-500/30'
+                      cellClasses = 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
+                      countClasses = 'bg-amber-500 text-white shadow-sm border-amber-600/20'
                     } else if (statuses[0] === 'present') {
                       cellClasses = 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
-                      countClasses = 'bg-green-500/20 text-green-700 border-green-500/30'
+                      countClasses = 'bg-green-500 text-white shadow-sm border-green-600/20'
                     } else if (statuses[0] === 'absent') {
                       cellClasses = 'bg-destructive/10 border-destructive/30 text-destructive'
-                      countClasses = 'bg-destructive/20 text-destructive border-destructive/30'
+                      countClasses = 'bg-destructive text-white shadow-sm border-red-600/20'
                     } else {
                       cellClasses = 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
-                      countClasses = 'bg-blue-500/20 text-blue-700 border-blue-500/30'
+                      countClasses = 'bg-blue-500 text-white shadow-sm border-blue-600/20'
                     }
                   }
 
