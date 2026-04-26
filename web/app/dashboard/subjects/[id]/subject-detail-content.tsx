@@ -150,7 +150,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="hidden lg:block" />
           <div className="lg:col-span-2">
-            <Card className="bg-card/40 backdrop-blur-xl border-border/50 px-8 py-5 shadow-xl rounded-[2.5rem] flex items-center justify-between border-b-4 border-primary/20">
+          <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-xl rounded-[2.5rem] px-8 py-5 flex items-center justify-between">
               <div className="flex items-center gap-12">
                 <div className="flex items-center gap-3">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Goal</p>
