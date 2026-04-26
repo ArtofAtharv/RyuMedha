@@ -13,6 +13,8 @@ export interface UserProfile {
   current_program_id?: string | null;
   current_semester_id?: string | null;
   setup_completed?: boolean;
+  is_admin?: boolean;
+  last_user_message_at?: string;
 }
 
 interface ProfileContextProps {
