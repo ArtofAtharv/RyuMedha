@@ -46,7 +46,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   const [isUpdating, setIsUpdating] = useState(false)
   const haptic = () => {
     if (typeof window !== 'undefined' && window.navigator.vibrate) {
-      window.navigator.vibrate(10)
+      window.navigator.vibrate(20)
     }
   }
 
