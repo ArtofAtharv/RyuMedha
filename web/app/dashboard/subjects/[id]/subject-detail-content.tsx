@@ -130,27 +130,48 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <Link href="/dashboard" className="flex items-center text-sm font-bold text-muted-foreground hover:text-primary transition-colors group">
-            <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
+      {/* Header & Goal Section */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard" className="p-3 bg-muted/50 rounded-2xl hover:bg-muted transition-colors group">
+            <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           </Link>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div 
-              className="w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg"
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg"
               style={{ background: `linear-gradient(135deg, ${subject.color_hex}, ${subject.color_hex}aa)` }}
             >
-              <CalIcon className="w-6 h-6" />
+              <CalIcon className="w-5 h-5" />
             </div>
-            <div>
-              <h1 className="text-3xl font-black tracking-tight">{subject.name}</h1>
-              <p className="text-muted-foreground font-medium">Attendance & Schedule Tracking</p>
-            </div>
+            <h1 className="text-2xl font-black tracking-tight">{subject.name}</h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Header left side only */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="hidden lg:block" />
+          <div className="lg:col-span-2">
+            <Card className="bg-card/40 backdrop-blur-xl border-border/50 px-8 py-5 shadow-xl rounded-[2.5rem] flex items-center justify-between border-b-4 border-primary/20">
+              <div className="flex items-center gap-12">
+                <div className="flex items-center gap-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Goal</p>
+                  <p className="text-xl font-black text-primary">{profile.target_attendance_pct}%</p>
+                </div>
+                
+                <div className="h-6 w-px bg-border/40" />
+                
+                <div className="flex items-center gap-3">
+                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Current</p>
+                  <p className={`text-xl font-black ${stats.pct >= profile.target_attendance_pct ? 'text-green-500' : 'text-destructive'}`}>
+                    {stats.pct}%
+                  </p>
+                </div>
+              </div>
+
+              <Badge variant="outline" className={`font-black px-6 py-1.5 rounded-full whitespace-nowrap shadow-sm ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
+                {stats.pct >= profile.target_attendance_pct ? 'SAFE' : 'ACTION REQUIRED'}
+              </Badge>
+            </Card>
+          </div>
         </div>
       </div>
 
@@ -241,39 +262,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
           </Card>
         </div>
 
-        {/* Right Column: Calendar & Wide Goal Card */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-xl rounded-[2.5rem] p-6 border-b-4 border-primary/20">
-            <div className="flex items-center justify-between px-4">
-              <div className="flex items-center gap-6">
-                <div>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Academic Target</p>
-                  <div className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-primary opacity-70" />
-                    <p className="text-3xl font-black text-foreground">{profile.target_attendance_pct}%</p>
-                  </div>
-                </div>
-                <div className="h-12 w-px bg-border/50" />
-                <div>
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-0.5">Current Standing</p>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full animate-pulse ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500' : 'bg-destructive'}`} />
-                    <p className={`text-3xl font-black ${stats.pct >= profile.target_attendance_pct ? 'text-green-500' : 'text-destructive'}`}>
-                      {stats.pct}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="hidden md:block text-right">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">Status</p>
-                <Badge variant="outline" className={`font-black px-4 py-1.5 rounded-full ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
-                  {stats.pct >= profile.target_attendance_pct ? 'SAFE' : 'ACTION REQUIRED'}
-                </Badge>
-              </div>
-            </div>
-          </Card>
-
+        {/* Right Column: Calendar */}
+        <div className="lg:col-span-2">
           <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
               <div>
