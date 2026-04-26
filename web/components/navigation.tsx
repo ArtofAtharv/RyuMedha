@@ -33,9 +33,9 @@ export default function Navigation() {
           <ThemeSelector />
           <AnimatedThemeToggler />
         </div>
-        {(pathname.startsWith("/dashboard")) && (
+        {(pathname.startsWith("/dashboard") || pathname === "/setup") && (
           <LogoutButton />
-          )}
+        )}
         </div>
       </div>
     </nav>

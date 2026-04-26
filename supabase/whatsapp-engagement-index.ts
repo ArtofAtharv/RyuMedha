@@ -16,61 +16,38 @@ const ENGAGEMENT_TEMPLATES = [
   "Focus time! Need a reminder of what's due next? Reply to keep our window open! ✨"
 ]
 
-serve(async (req) => {
-  const { profile_id, type } = await req.json()
+async function sendEngagementMessage(profile: any) {
+  const msg = ENGAGEMENT_TEMPLATES[Math.floor(Math.random() * ENGAGEMENT_TEMPLATES.length)]
+  const cleanTo = profile.whatsapp_number.replace(/\D/g, '')
 
-  try {
-    // 1. Get the user profile
-    const { data: profile, error: pErr } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', profile_id)
-      .single()
-
-    if (pErr || !profile?.whatsapp_number) {
-      return new Response(JSON.stringify({ error: "User not found or no WhatsApp number" }), { status: 400 })
-    }
-
-    // 2. Pick a random message
-    const msg = ENGAGEMENT_TEMPLATES[Math.floor(Math.random() * ENGAGEMENT_TEMPLATES.length)]
-    const cleanTo = profile.whatsapp_number.replace(/\D/g, '')
-
-    // 3. Send via WhatsApp Cloud API (Interactive Button Message)
-    const url = `https://graph.facebook.com/v18.0/${waPhoneId}/messages`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${waToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: cleanTo,
-        type: 'interactive',
-        interactive: {
-          type: 'button',
-          body: { text: msg },
-          action: {
-            buttons: [
-              { type: 'reply', reply: { id: 'show_tasks', title: 'Show My Tasks' } },
-              { type: 'reply', reply: { id: 'all_done', title: 'All Done!' } }
-            ]
-          }
+  const url = `https://graph.facebook.com/v18.0/${waPhoneId}/messages`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${waToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: cleanTo,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: msg },
+        action: {
+          buttons: [
+            { type: 'reply', reply: { id: 'show_tasks', title: 'Show My Tasks' } },
+            { type: 'reply', reply: { id: 'all_done', title: 'All Done!' } }
+          ]
         }
-      }),
-    })
+      }
+    }),
+  })
 
-    if (!res.ok) {
-      const errText = await res.text()
-      console.error("WhatsApp API Error:", errText)
-      return new Response(JSON.stringify({ error: errText }), { status: 500 })
-    }
-
+  if (res.ok) {
     const waData = await res.json()
     const waMessageId = waData.messages?.[0]?.id
-
-    // 4. Log the message
     if (waMessageId) {
       await supabase.from('whatsapp_message_logs').insert({
         profile_id: profile.id,
@@ -80,10 +57,45 @@ serve(async (req) => {
         message_type: 'engagement'
       })
     }
+    return true
+  }
+  return false
+}
 
-    return new Response(JSON.stringify({ success: true, message_id: waMessageId }), { status: 200 })
+serve(async (req) => {
+  const { profile_id, type } = await req.json()
+
+  try {
+    // MODE A: MANUAL (Single User)
+    if (type === 'manual' && profile_id) {
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', profile_id).single()
+      if (profile) {
+        await sendEngagementMessage(profile)
+        return new Response(JSON.stringify({ success: true }), { status: 200 })
+      }
+    }
+
+    // MODE B: AUTO (Scan all users closing soon)
+    if (type === 'auto') {
+      // Find users whose window is 'closing_soon'
+      const { data: users } = await supabase
+        .from('whatsapp_window_status')
+        .select('*')
+        .eq('window_status', 'closing_soon')
+
+      let sentCount = 0
+      if (users) {
+        for (const user of users) {
+          const success = await sendEngagementMessage({ id: user.profile_id, whatsapp_number: user.whatsapp_number })
+          if (success) sentCount++
+        }
+      }
+      return new Response(JSON.stringify({ success: true, sent: sentCount }), { status: 200 })
+    }
+
+    return new Response(JSON.stringify({ error: "Invalid request" }), { status: 400 })
   } catch (e: any) {
-    console.error('Engagement Function Error:', e)
+    console.error('Engagement Error:', e)
     return new Response(JSON.stringify({ error: e.message }), { status: 500 })
   }
 })
