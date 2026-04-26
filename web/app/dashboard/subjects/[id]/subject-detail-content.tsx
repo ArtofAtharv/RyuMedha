@@ -347,7 +347,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
                             </span>
-                            <span className="text-[7px] font-black uppercase tracking-[0.2em] text-primary">NOW</span>
+                            <span className="text-[7px] font-black uppercase tracking-[0.2em] text-primary">TODAY</span>
                           </div>
                         )}
                       </motion.button>
@@ -423,7 +423,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-1 w-1 bg-primary"></span>
                           </span>
-                          <span className="text-[5px] font-black uppercase tracking-[0.2em] text-primary">NOW</span>
+                          <span className="text-[5px] font-black uppercase tracking-[0.2em] text-primary">TODAY</span>
                         </div>
                       )}
                     </motion.button>
