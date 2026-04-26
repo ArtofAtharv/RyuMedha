@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { CircleCheck, Clock, Trash2, Plus, Bell, Target, Calendar as CalIcon } from "lucide-react"
+import { CircleCheck, Clock, Trash2, Plus, Bell, BellRing, Target, Calendar as CalIcon } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useProfile } from '@/components/dashboard/profile-context'
@@ -74,12 +74,76 @@ export default function TasksPage() {
         .eq('whatsapp_number', session.user.phone)
         .single()
         
-      if (profile) setProfileId(profile.id)
+      if (profile) {
+        setProfileId(profile.id)
+        setPushEnabled(profile.push_notifications_enabled || false)
+      }
 
       await fetchTasksAndSubjects(supabase, profile?.id)
     }
     init()
   }, [])
+
+  async function urlB64ToUint8Array(base64String: string) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+    return outputArray;
+  }
+
+  async function togglePushNotifications() {
+    try {
+      setIsSubscribing(true)
+      if (!pushEnabled) {
+        // Subscribe
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          alert('Push notifications are not supported by your browser.')
+          setIsSubscribing(false)
+          return
+        }
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          alert('Permission not granted for Notification')
+          setIsSubscribing(false)
+          return
+        }
+        const registration = await navigator.serviceWorker.register('/sw.js')
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        if (!vapidKey) throw new Error("VAPID key not configured")
+        
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: await urlB64ToUint8Array(vapidKey)
+        })
+        
+        await fetch('/api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'subscribe', subscription })
+        })
+        setPushEnabled(true)
+      } else {
+        // Unsubscribe
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.getSubscription()
+        if (subscription) await subscription.unsubscribe()
+        
+        await fetch('/api/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'unsubscribe', subscription })
+        })
+        setPushEnabled(false)
+      }
+    } catch (e) {
+      console.error(e)
+      alert("Failed to toggle push notifications.")
+    } finally {
+      setIsSubscribing(false)
+    }
+  }
 
   async function fetchTasksAndSubjects(supabase: any, pid: string | null) {
     if (!pid) return
@@ -103,14 +167,14 @@ export default function TasksPage() {
 
     const { data: pending } = await supabase
       .from('tasks')
-      .select('*, subjects(id, name, color_hex, type)')
+      .select('*, subjects(id, name, color_hex, type), task_reminders(id, scheduled_for, reminder_type)')
       .eq('profile_id', pid)
       .eq('is_completed', false)
       .order('due_date', { ascending: true, nullsFirst: false })
       
     const { data: done } = await supabase
       .from('tasks')
-      .select('*, subjects(id, name, color_hex, type)')
+      .select('*, subjects(id, name, color_hex, type), task_reminders(id, scheduled_for, reminder_type)')
       .eq('profile_id', pid)
       .eq('is_completed', true)
       .order('completed_at', { ascending: false })
@@ -143,9 +207,9 @@ export default function TasksPage() {
     e.preventDefault()
     if (!title.trim()) return
 
-    const finalDate = dueDate ? getDateISO(new Date(dueDate), hasReminder ? reminderTime : undefined) : null
-
-    await supabaseClient
+    const finalDate = dueDate ? getDateISO(new Date(dueDate), dueTime) : null
+    
+    const { data: newTask, error } = await supabaseClient
       .from('tasks')
       .insert([{
         profile_id: profileId,
@@ -153,11 +217,23 @@ export default function TasksPage() {
         priority: priority,
         due_date: finalDate,
         subject_id: subjectId === "none" ? null : subjectId,
-        has_reminder: hasReminder,
-        reminder_time: hasReminder && finalDate ? finalDate : null,
+        has_reminder: remindOnDue || remind1Day || remindCustom,
+        reminder_time: finalDate,
         is_completed: false,
         is_exam: false
-      }])
+      }]).select().single()
+
+    if (newTask && finalDate) {
+      const baseTime = new Date(finalDate).getTime()
+      const rems = []
+      if (remindOnDue) rems.push({ task_id: newTask.id, profile_id: profileId, scheduled_for: new Date(baseTime).toISOString(), reminder_type: 'due_date' })
+      if (remind1Day) rems.push({ task_id: newTask.id, profile_id: profileId, scheduled_for: new Date(baseTime - 86400000).toISOString(), reminder_type: '1_day_prior' })
+      if (remindCustom) rems.push({ task_id: newTask.id, profile_id: profileId, scheduled_for: new Date(baseTime - (customHours * 3600000)).toISOString(), reminder_type: 'custom_hours' })
+      
+      if (rems.length > 0) {
+        await supabaseClient.from('task_reminders').insert(rems)
+      }
+    }
 
     setTitle("")
     setDueDate("")
