@@ -350,7 +350,8 @@ export default function TasksPage() {
   const pColors: any = { urgent: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+    <div className="min-h-screen bg-background text-foreground pb-20">
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
         <div>
@@ -529,6 +530,11 @@ export default function TasksPage() {
                               editSubjectId={editSubjectId} setEditSubjectId={setEditSubjectId}
                               editPriority={editPriority} setEditPriority={setEditPriority}
                               editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+                              editDueTime={editDueTime} setEditDueTime={setEditDueTime}
+                              editRemindOnDue={editRemindOnDue} setEditRemindOnDue={setEditRemindOnDue}
+                              editRemind1Day={editRemind1Day} setEditRemind1Day={setEditRemind1Day}
+                              editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom}
+                              editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
                               
                               isEditDatePickerOpen={isEditDatePickerOpen} setIsEditDatePickerOpen={setIsEditDatePickerOpen}
                               saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
@@ -564,6 +570,11 @@ export default function TasksPage() {
                               editSubjectId={editSubjectId} setEditSubjectId={setEditSubjectId}
                               editPriority={editPriority} setEditPriority={setEditPriority}
                               editDueDate={editDueDate} setEditDueDate={setEditDueDate}
+                              editDueTime={editDueTime} setEditDueTime={setEditDueTime}
+                              editRemindOnDue={editRemindOnDue} setEditRemindOnDue={setEditRemindOnDue}
+                              editRemind1Day={editRemind1Day} setEditRemind1Day={setEditRemind1Day}
+                              editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom}
+                              editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
                               
                               isEditDatePickerOpen={isEditDatePickerOpen} setIsEditDatePickerOpen={setIsEditDatePickerOpen}
                               saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
@@ -621,6 +632,7 @@ export default function TasksPage() {
           </div>
 
         </div>
+        </div>
       </div>
     </div>
   )
@@ -629,8 +641,10 @@ export default function TasksPage() {
 function TaskRow({ 
   task: t, subjects, profile, editingTaskId, toggleComplete, startEdit, deleteTask,
   editTitle, setEditTitle, editSubjectId, setEditSubjectId, editPriority, setEditPriority,
-  editDueDate, setEditDueDate, editHasReminder, setEditHasReminder,
-  editReminderTime, setEditReminderTime, isEditDatePickerOpen, setIsEditDatePickerOpen,
+  editDueDate, setEditDueDate, editDueTime, setEditDueTime,
+  editRemindOnDue, setEditRemindOnDue, editRemind1Day, setEditRemind1Day,
+  editRemindCustom, setEditRemindCustom, editCustomHours, setEditCustomHours,
+  isEditDatePickerOpen, setIsEditDatePickerOpen,
   saveEdit, setEditingTaskId
 }: any) {
   return (
@@ -685,25 +699,28 @@ function TaskRow({
                 />
               </div>
               
-              <div className="flex gap-2 w-full sm:w-auto sm:ml-auto mt-2 sm:mt-0 items-end">
-                {editHasReminder && (
+              <div className="flex flex-col gap-2 w-full">
+                <div className="flex gap-2 items-center flex-wrap">
+                  <Label className="text-xs font-semibold text-muted-foreground">Reminders</Label>
+                  <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-md border border-muted-foreground/10">
+                    <Button type="button" size="sm" variant={editRemindOnDue ? "default" : "ghost"} className="h-7 text-xs px-2" onClick={() => setEditRemindOnDue(!editRemindOnDue)}>On Due</Button>
+                    <Button type="button" size="sm" variant={editRemind1Day ? "default" : "ghost"} className="h-7 text-xs px-2" onClick={() => setEditRemind1Day(!editRemind1Day)}>1D Prior</Button>
+                    <div className="flex items-center gap-1">
+                      <Button type="button" size="sm" variant={editRemindCustom ? "default" : "ghost"} className="h-7 text-xs px-2 rounded-r-none border-r border-background/20" onClick={() => setEditRemindCustom(!editRemindCustom)}>Hrs:</Button>
+                      <Input type="number" min="1" max="72" value={editCustomHours} onChange={(e) => setEditCustomHours(Number(e.target.value))} className={`h-7 w-12 text-xs px-1 text-center rounded-l-none border-0 ${editRemindCustom ? 'bg-primary text-primary-foreground' : 'bg-transparent'}`} disabled={!editRemindCustom} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2 items-end sm:ml-auto">
                   <Input 
                     type="time" 
-                    value={editReminderTime} 
-                    onChange={e => setEditReminderTime(e.target.value)}
+                    value={editDueTime} 
+                    onChange={e => setEditDueTime(e.target.value)}
                     className="h-9 w-[100px]"
                   />
-                )}
-                <Button 
-                  type="button"
-                  variant={editHasReminder ? "default" : "outline"}
-                  className="h-9 px-3 shrink-0"
-                  onClick={() => setEditHasReminder(!editHasReminder)}
-                >
-                  <Bell className={`w-4 h-4 ${editHasReminder ? "fill-current" : ""}`} />
-                </Button>
-                <Button size="sm" onClick={saveEdit} className="h-9 px-4 font-bold flex-1 sm:flex-none">Save</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-9 px-3 flex-1 sm:flex-none">Cancel</Button>
+                  <Button size="sm" onClick={saveEdit} className="h-9 px-4 font-bold flex-1 sm:flex-none">Save</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-9 px-3 flex-1 sm:flex-none">Cancel</Button>
+                </div>
               </div>
             </div>
           </div>
