@@ -129,7 +129,6 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header */}
       {/* Header & Goal Section */}
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -150,7 +149,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="hidden lg:block" />
           <div className="lg:col-span-2">
-          <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-xl rounded-[2.5rem] px-8 py-5 flex items-center justify-between">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-xl rounded-[2.5rem] px-8 py-5 flex items-center justify-between">
               <div className="flex items-center gap-12">
                 <div className="flex items-center gap-3">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Goal</p>
@@ -265,88 +264,151 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
         {/* Right Column: Calendar */}
         <div className="lg:col-span-2">
           <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between p-8 pb-4">
+            <CardHeader className="flex flex-row items-center justify-between p-6 sm:p-8 pb-4">
               <div>
-                <h2 className="text-2xl font-black tracking-tight">{format(currentDate, 'MMMM')}</h2>
-                <p className="text-muted-foreground font-bold tracking-widest uppercase text-[10px]">{format(currentDate, 'yyyy')}</p>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight">{format(currentDate, 'MMMM yyyy')}</h2>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-bold tracking-widest uppercase">Attendance History</p>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="icon" onClick={prevMonth} className="h-10 w-10 rounded-xl border-border/50 bg-background/50">
-                  <ChevronLeft className="w-5 h-5" />
+              <div className="flex gap-1 sm:gap-2">
+                <Button variant="outline" size="icon" onClick={prevMonth} className="rounded-xl w-8 h-8 sm:w-10 sm:h-10">
+                  <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="icon" onClick={nextMonth} className="h-10 w-10 rounded-xl border-border/50 bg-background/50">
-                  <ChevronRight className="w-5 h-5" />
+                <Button variant="outline" size="icon" onClick={nextMonth} className="rounded-xl w-8 h-8 sm:w-10 sm:h-10">
+                  <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="p-8 pt-4">
-              {/* Day Labels */}
-              <div className="grid grid-cols-7 mb-4">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 py-2">
-                    {day}
-                  </div>
-                ))}
+            <CardContent className="p-4 sm:p-8 pt-4">
+              {/* Desktop Calendar (7-Column Grid) */}
+              <div className="hidden sm:block">
+                <div className="grid grid-cols-7 gap-6 mb-6">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/30">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 gap-6">
+                  {calendarDays.map((day) => {
+                    const dateStr = format(day, 'yyyy-MM-dd')
+                    const dayLogsForGrid = logs.filter(l => l.lecture_date === dateStr)
+                    const isCurrentMonth = isSameMonth(day, monthStart)
+                    const isTodayDate = isToday(day)
+                    
+                    let cellClasses = 'bg-muted/5 border-border/20 text-muted-foreground/50'
+                    let textClasses = 'text-foreground'
+                    let tagClasses = 'text-muted-foreground/50'
+                    
+                    if (dayLogsForGrid.length > 0) {
+                      const statuses = Array.from(new Set(dayLogsForGrid.map(l => l.status)))
+                      if (statuses.length > 1) {
+                        cellClasses = 'bg-amber-500/10 border-amber-500/20'
+                        textClasses = 'text-amber-600 dark:text-amber-400'
+                        tagClasses = 'text-amber-600/70'
+                      } else if (statuses[0] === 'present') {
+                        cellClasses = 'bg-green-500/10 border-green-500/20'
+                        textClasses = 'text-green-600 dark:text-green-400'
+                        tagClasses = 'text-green-600/70'
+                      } else if (statuses[0] === 'absent') {
+                        cellClasses = 'bg-destructive/10 border-destructive/20'
+                        textClasses = 'text-destructive'
+                        tagClasses = 'text-destructive/70'
+                      } else {
+                        cellClasses = 'bg-blue-500/10 border-blue-500/20'
+                        textClasses = 'text-blue-600 dark:text-blue-400'
+                        tagClasses = 'text-blue-600/70'
+                      }
+                    }
+
+                    return (
+                      <motion.button
+                        key={dateStr}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setSelectedDay(day)}
+                        className={`
+                          relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
+                          ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+                          ${cellClasses}
+                          ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20 shadow-lg' : ''}
+                        `}
+                      >
+                        <p className={`text-2xl font-black ${textClasses}`}>
+                          {format(day, 'd')}
+                        </p>
+                        {dayLogsForGrid.length > 0 && (
+                          <p className={`text-[10px] font-bold uppercase tracking-widest ${tagClasses}`}>
+                            #L{dayLogsForGrid.length}
+                          </p>
+                        )}
+                        {isTodayDate && (
+                          <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                        )}
+                      </motion.button>
+                    )
+                  })}
+                </div>
               </div>
 
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-3">
-                {calendarDays.map((day, idx) => {
+              {/* Mobile Calendar (3-Column Vertical Grid) */}
+              <div className="sm:hidden grid grid-cols-3 gap-4">
+                {calendarDays.map((day) => {
                   const dateStr = format(day, 'yyyy-MM-dd')
                   const dayLogsForGrid = logs.filter(l => l.lecture_date === dateStr)
-                  const isCurrentMonth = isSameMonth(day, monthStart)
                   const isTodayDate = isToday(day)
+                  const isCurrentMonth = isSameMonth(day, monthStart)
                   
-                  // Mastery-style Color Calculation
-                  let cellClasses = 'bg-muted/10 border-border/40 hover:border-primary/50 text-foreground'
-                  let countClasses = 'bg-black/5 text-muted-foreground border-border/20'
+                  if (!isCurrentMonth) return null;
+
+                  let cellClasses = 'bg-muted/5 border-border/20 text-muted-foreground/50'
+                  let textClasses = 'text-foreground'
+                  let tagClasses = 'text-muted-foreground/50'
                   
                   if (dayLogsForGrid.length > 0) {
                     const statuses = Array.from(new Set(dayLogsForGrid.map(l => l.status)))
                     if (statuses.length > 1) {
-                      cellClasses = 'bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400'
-                      countClasses = 'bg-amber-500 text-white shadow-sm border-amber-600/20'
+                      cellClasses = 'bg-amber-500/10 border-amber-500/20'
+                      textClasses = 'text-amber-600'
+                      tagClasses = 'text-amber-600/70'
                     } else if (statuses[0] === 'present') {
-                      cellClasses = 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
-                      countClasses = 'bg-green-500 text-white shadow-sm border-green-600/20'
+                      cellClasses = 'bg-green-500/10 border-green-500/20'
+                      textClasses = 'text-green-600'
+                      tagClasses = 'text-green-600/70'
                     } else if (statuses[0] === 'absent') {
-                      cellClasses = 'bg-destructive/10 border-destructive/30 text-destructive'
-                      countClasses = 'bg-destructive text-white shadow-sm border-red-600/20'
+                      cellClasses = 'bg-destructive/10 border-destructive/20'
+                      textClasses = 'text-destructive'
+                      tagClasses = 'text-destructive/70'
                     } else {
-                      cellClasses = 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
-                      countClasses = 'bg-blue-500 text-white shadow-sm border-blue-600/20'
+                      cellClasses = 'bg-blue-500/10 border-blue-500/20'
+                      textClasses = 'text-blue-600'
+                      tagClasses = 'text-blue-600/70'
                     }
                   }
 
                   return (
                     <motion.button
                       key={dateStr}
-                      whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setSelectedDay(day)}
-                      disabled={!isCurrentMonth}
                       className={`
-                        relative h-16 sm:h-24 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border overflow-hidden
-                        ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+                        relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
                         ${cellClasses}
                         ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20' : ''}
-                        ${dayLogsForGrid.length > 0 ? 'shadow-sm' : ''}
                       `}
                     >
-                      <span className={`text-lg font-black drop-shadow-sm`}>
-                        {format(day, 'd')}
-                      </span>
+                      <div className="flex flex-col items-center">
+                        <span className={`text-xl font-black ${textClasses}`}>
+                          {format(day, 'd')}
+                        </span>
+                        <span className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-widest -mt-1">
+                          {format(day, 'EEE')}
+                        </span>
+                      </div>
                       
                       {dayLogsForGrid.length > 0 && (
-                        <div className={`absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${countClasses}`}>
-                          L{dayLogsForGrid.length}
-                        </div>
-                      )}
-
-                      {isTodayDate && (
-                        <span className={`absolute top-2 left-2 text-[7px] font-black uppercase tracking-tighter px-1 rounded ${dayLogsForGrid.length > 0 ? '' : 'bg-primary/10 text-primary'}`}>
-                          TODAY
-                        </span>
+                        <p className={`text-[9px] font-bold uppercase tracking-widest mt-1 ${tagClasses}`}>
+                          #L{dayLogsForGrid.length}
+                        </p>
                       )}
                     </motion.button>
                   )
