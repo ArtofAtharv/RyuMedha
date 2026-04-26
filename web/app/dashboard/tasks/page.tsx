@@ -116,7 +116,8 @@ export default function TasksPage() {
           setIsSubscribing(false)
           return
         }
-        const registration = await navigator.serviceWorker.register('/sw.js')
+        await navigator.serviceWorker.register('/sw.js')
+        const registration = await navigator.serviceWorker.ready
         const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
         if (!vapidKey) throw new Error("VAPID key not configured")
         
@@ -356,27 +357,29 @@ export default function TasksPage() {
           <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Tasks & Exams</span></h1>
           <p className="text-muted-foreground mt-1">Keep track of your assignments, to-dos, and upcoming assessments.</p>
         </div>
-        <div className="flex items-center gap-2 mt-4 sm:mt-0 sm:absolute sm:top-10 sm:right-6">
+        
+        <div className="flex items-center gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
           <Button 
              variant={pushEnabled ? "default" : "outline"} 
              onClick={togglePushNotifications} 
              disabled={isSubscribing}
-             className="gap-2 rounded-full h-9 shadow-sm text-xs font-semibold"
+             className="gap-2 rounded-full h-10 shadow-sm text-xs font-semibold"
           >
             {pushEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
             {pushEnabled ? "Push Enabled" : "Enable Push"}
           </Button>
+
+          <Select value={filterType} onValueChange={setFilterType}>
+            <SelectTrigger className="w-full sm:w-[180px] h-10 bg-background shadow-sm border-muted-foreground/20">
+              <SelectValue placeholder="View All" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">View All</SelectItem>
+              <SelectItem value="exams">Exams</SelectItem>
+              <SelectItem value="generic">Tasks</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-[180px] h-10 bg-background shadow-sm border-muted-foreground/20">
-            <SelectValue placeholder="View All" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">View All</SelectItem>
-            <SelectItem value="exams">Exams Only</SelectItem>
-            <SelectItem value="tasks">Tasks Only</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="space-y-8">
