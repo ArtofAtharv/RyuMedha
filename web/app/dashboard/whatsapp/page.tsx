@@ -122,15 +122,17 @@ export default function WhatsAppAdminPage() {
           <p className="text-muted-foreground mt-1">Monitor 24-hour windows and message delivery logs.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={fetchData} variant="outline" size="sm" className="gap-2">
+          <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="gap-2">
             <Zap className="w-4 h-4" /> Refresh
           </Button>
           <Button 
             onClick={async () => {
               if (confirm("Are you sure you want to clear all message logs?")) {
                 const { error } = await supabaseClient.rpc('clear_whatsapp_logs')
-                if (error) toast.error("Failed to clear logs")
-                else {
+                if (error) {
+                  console.error("Clear Logs Error:", error)
+                  toast.error(`Failed: ${error.message}`)
+                } else {
                   toast.success("Logs cleared")
                   fetchData(supabaseClient)
                 }
