@@ -350,10 +350,9 @@ export default function TasksPage() {
   const pColors: any = { urgent: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+    <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
       
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 relative">
         <div>
           <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Tasks & Exams</span></h1>
           <p className="text-muted-foreground mt-1">Keep track of your assignments, to-dos, and upcoming assessments.</p>
@@ -364,14 +363,14 @@ export default function TasksPage() {
              variant={pushEnabled ? "default" : "outline"} 
              onClick={togglePushNotifications} 
              disabled={isSubscribing}
-             className="gap-2 rounded-full h-10 shadow-sm text-xs font-semibold"
+             className="gap-2 rounded-full h-10 shadow-sm text-xs font-semibold shrink-0"
           >
             {pushEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
             {pushEnabled ? "Push Enabled" : "Enable Push"}
           </Button>
 
           <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger className="w-full sm:w-[180px] h-10 bg-background shadow-sm border-muted-foreground/20">
+            <SelectTrigger className="flex-1 sm:w-[180px] h-10 bg-background shadow-sm border-muted-foreground/20">
               <SelectValue placeholder="View All" />
             </SelectTrigger>
             <SelectContent>
@@ -455,7 +454,7 @@ export default function TasksPage() {
                     </div>
                   </div>
                   
-                  <div className="flex justify-between items-end gap-3 w-full">
+                  <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-3 w-full">
                     <div className="space-y-1.5 w-full sm:w-[120px]">
                       <Label htmlFor="duetime" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ml-1">Due Time</Label>
                       <Input 
@@ -466,8 +465,8 @@ export default function TasksPage() {
                         className="bg-background shadow-sm border-muted-foreground/20 h-10" 
                       />
                     </div>
-                    <Button type="submit" className="h-10 px-8 font-semibold w-full sm:w-auto">
-                      <Plus className="w-4 h-4 mr-2" /> Add Task
+                    <Button type="submit" className="h-12 sm:h-10 px-8 font-bold w-full sm:w-auto gradient-accent shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                      <Plus className="w-5 h-5 mr-2" /> Add Task
                     </Button>
                   </div>
                 </div>
@@ -632,9 +631,8 @@ export default function TasksPage() {
           </div>
 
         </div>
-        </div>
       </div>
-    </div>
+    </main>
   )
 }
 
