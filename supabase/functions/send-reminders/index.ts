@@ -59,12 +59,36 @@ serve(async (req) => {
       let dueStr = ""
       if (task?.due_date) {
         const d = new Date(task.due_date)
-        dueStr = d.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' })
+        
+        // Helper to get YYYY-MM-DD in Asia/Kolkata
+        const getKolkataDateStr = (date: Date) => {
+          const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' };
+          const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(date);
+          const month = parts.find(p => p.type === 'month')?.value;
+          const day = parts.find(p => p.type === 'day')?.value;
+          const year = parts.find(p => p.type === 'year')?.value;
+          return `${year}-${month}-${day}`;
+        }
+
+        const todayStr = getKolkataDateStr(new Date());
+        const taskStr = getKolkataDateStr(d);
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = getKolkataDateStr(tomorrow);
+
+        let dayPrefix = ""
+        if (taskStr === todayStr) dayPrefix = "Today"
+        else if (taskStr === tomorrowStr) dayPrefix = "Tomorrow"
+        
+        const datePart = d.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' })
         const timeStr = d.toLocaleTimeString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })
-        dueStr += ` at ${timeStr}`
+        
+        dueStr = dayPrefix ? `${dayPrefix} (${datePart}) at ${timeStr}` : `${datePart} at ${timeStr}`
       }
       
-      let msg = `🔔 *Reminder: ${taskTitle}*\n\n`
+      let msg = `🔔 *Reminder: ${taskTitle}*
+
+`
       if (dueStr) {
         msg += `Due: ${dueStr}`
       } else {
@@ -88,6 +112,17 @@ serve(async (req) => {
             }),
           })
           if (res.ok) {
+            const waData = await res.json()
+            const waMessageId = waData.messages?.[0]?.id
+            if (waMessageId) {
+              await supabase.from('whatsapp_message_logs').insert({
+                profile_id: reminder.profile_id,
+                wa_message_id: waMessageId,
+                status: 'sent',
+                body: msg,
+                message_type: 'reminder'
+              })
+            }
             whatsAppSuccess = true
           } else {
             console.error("WhatsApp error for reminder", reminder.id, await res.text())
