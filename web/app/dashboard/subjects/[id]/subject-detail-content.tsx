@@ -233,23 +233,20 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
 
           <Card className="border-primary/20 bg-primary/5 rounded-3xl overflow-hidden p-6">
             <h3 className="text-sm font-black uppercase tracking-wider text-primary mb-2 flex items-center gap-2">
-              <Target className="w-4 h-4" /> Usage Guide
+              <Target className="w-4 h-4" /> Calendar Legend
             </h3>
-            <p className="text-xs text-muted-foreground leading-relaxed font-medium">
-              Click on any date in the calendar to cycle through attendance states:
-            </p>
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              <div className="flex items-center gap-2 text-[10px] font-bold">
-                <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" /> Present
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-green-600">
+                <div className="w-4 h-4 rounded-md bg-green-500/20 border border-green-500/30" /> Present
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold">
-                <div className="w-3 h-3 rounded-full bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]" /> Absent
+              <div className="flex items-center gap-2 text-[10px] font-bold text-destructive">
+                <div className="w-4 h-4 rounded-md bg-destructive/20 border border-destructive/30" /> Absent
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold">
-                <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]" /> Deemed
+              <div className="flex items-center gap-2 text-[10px] font-bold text-blue-600">
+                <div className="w-4 h-4 rounded-md bg-blue-500/20 border border-blue-500/30" /> Deemed
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground">
-                <div className="w-3 h-3 rounded-full border border-border bg-background" /> No Record
+              <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-600">
+                <div className="w-4 h-4 rounded-md bg-indigo-500/20 border border-indigo-500/30" /> Mixed
               </div>
             </div>
           </Card>
@@ -290,40 +287,56 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   const isCurrentMonth = isSameMonth(day, monthStart)
                   const isTodayDate = isToday(day)
                   
+                  // Mastery-style Color Calculation
+                  let cellClasses = 'bg-muted/10 border-border/40 hover:border-primary/50 text-foreground'
+                  let countClasses = 'bg-black/5 text-muted-foreground border-border/20'
+                  
+                  if (dayLogsForGrid.length > 0) {
+                    const statuses = Array.from(new Set(dayLogsForGrid.map(l => l.status)))
+                    if (statuses.length > 1) {
+                      cellClasses = 'bg-indigo-500/10 border-indigo-500/30 text-indigo-600 dark:text-indigo-400'
+                      countClasses = 'bg-indigo-500/20 text-indigo-700 border-indigo-500/30'
+                    } else if (statuses[0] === 'present') {
+                      cellClasses = 'bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400'
+                      countClasses = 'bg-green-500/20 text-green-700 border-green-500/30'
+                    } else if (statuses[0] === 'absent') {
+                      cellClasses = 'bg-destructive/10 border-destructive/30 text-destructive'
+                      countClasses = 'bg-destructive/20 text-destructive border-destructive/30'
+                    } else {
+                      cellClasses = 'bg-blue-500/10 border-blue-500/30 text-blue-600 dark:text-blue-400'
+                      countClasses = 'bg-blue-500/20 text-blue-700 border-blue-500/30'
+                    }
+                  }
+
                   return (
                     <motion.button
                       key={dateStr}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       onClick={() => setSelectedDay(day)}
                       disabled={!isCurrentMonth}
                       className={`
-                        relative h-14 sm:h-24 rounded-2xl flex flex-col items-center justify-between p-2 transition-all duration-300 border
+                        relative h-16 sm:h-24 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border overflow-hidden
                         ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
-                        ${dayLogsForGrid.length > 0 ? 'bg-card/80 border-primary/20 shadow-sm' : 'bg-muted/20 border-border/50 text-muted-foreground hover:bg-muted/40'}
+                        ${cellClasses}
                         ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20' : ''}
+                        ${dayLogsForGrid.length > 0 ? 'shadow-sm' : ''}
                       `}
                     >
-                      <span className={`text-base font-black self-start ${!isCurrentMonth ? 'text-muted-foreground/20' : ''}`}>
+                      <span className={`text-lg font-black drop-shadow-sm`}>
                         {format(day, 'd')}
                       </span>
                       
-                      {/* Status Indicators Container */}
-                      <div className="flex flex-wrap gap-1 justify-center w-full pb-1">
-                        {dayLogsForGrid.map((l, i) => (
-                          <div 
-                            key={l.id || i} 
-                            className={`w-2 h-2 rounded-full shadow-sm ${
-                              l.status === 'present' ? 'bg-green-500 shadow-green-500/40' : 
-                              l.status === 'absent' ? 'bg-destructive shadow-destructive/40' : 
-                              'bg-blue-500 shadow-blue-500/40'
-                            }`} 
-                          />
-                        ))}
-                      </div>
+                      {dayLogsForGrid.length > 0 && (
+                        <div className={`absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-tighter border ${countClasses}`}>
+                          L{dayLogsForGrid.length}
+                        </div>
+                      )}
 
                       {isTodayDate && (
-                        <span className="absolute top-2 right-2 text-[8px] font-black uppercase tracking-tighter text-primary bg-primary/10 px-1 rounded">Today</span>
+                        <span className={`absolute top-2 left-2 text-[7px] font-black uppercase tracking-tighter px-1 rounded ${dayLogsForGrid.length > 0 ? '' : 'bg-primary/10 text-primary'}`}>
+                          TODAY
+                        </span>
                       )}
                     </motion.button>
                   )
@@ -402,7 +415,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   <Button 
                     onClick={() => addAttendanceLog('absent')}
                     disabled={isUpdating}
-                    className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-destructive/110 shadow-lg shadow-destructive/20"
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-red-600 transition-colors shadow-lg shadow-destructive/20"
                   >
                     <XCircle className="w-5 h-5" />
                     <span className="text-[10px] font-black uppercase">Absent</span>
