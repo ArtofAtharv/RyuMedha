@@ -3,6 +3,7 @@
 import { signOut } from 'next-auth/react'
 import { LogOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { haptic } from '@/lib/haptic'
 
 export function LogoutButton() {
   return (
@@ -10,7 +11,7 @@ export function LogoutButton() {
       variant="outline"
       size="default"
       className="hover:text-destructive focus:text-destructive"
-      onClick={() => signOut({ callbackUrl: '/login' })}
+      onClick={() => { haptic(); signOut({ callbackUrl: '/login' }); }}
     >
       <LogOut className="h-4 w-4" />
     </Button>

@@ -15,6 +15,8 @@ const tabs = [
   { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
 ]
 
+import { haptic } from "@/lib/haptic"
+
 export function DashboardNav() {
   const pathname = usePathname()
 
@@ -39,6 +41,7 @@ export function DashboardNav() {
             >
             <Link
               href={tab.href}
+              onClick={() => haptic()}
               className={`relative flex items-center justify-center md:px-4 w-12 h-12 md:w-auto md:h-auto md:py-2 rounded-full text-sm font-medium transition-all md:whitespace-nowrap ${
                 isActive
                   ? "text-primary-foreground"

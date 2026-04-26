@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { CircleCheck, Clock, Trash2, Plus, Bell, BellRing, Target, Calendar as CalIcon } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
+import { haptic } from "@/lib/haptic"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { Calendar } from "@/components/ui/calendar"
@@ -102,6 +103,7 @@ export default function TasksPage() {
   }
 
   async function togglePushNotifications() {
+    haptic()
     try {
       setIsSubscribing(true)
       if (!pushEnabled) {
@@ -212,6 +214,7 @@ export default function TasksPage() {
 
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
+    haptic()
     if (!title.trim()) return
 
     const finalDate = dueDate ? getDateISO(new Date(dueDate), dueTime) : null
@@ -254,6 +257,7 @@ export default function TasksPage() {
   }
 
   async function toggleComplete(task: any) {
+    haptic()
     await supabaseClient
       .from('tasks')
       .update({ 
@@ -265,6 +269,7 @@ export default function TasksPage() {
   }
 
   function startEdit(task: any) {
+    haptic()
     setEditingTaskId(task.id)
     setEditTitle(task.title)
     setEditPriority(task.priority)
@@ -309,6 +314,7 @@ export default function TasksPage() {
   }
 
   async function saveEdit() {
+    haptic()
     if (!editingTaskId || !editTitle.trim()) return
 
     const finalDate = getDateISO(editDueDate, editDueTime)
@@ -343,6 +349,7 @@ export default function TasksPage() {
   }
 
   async function deleteTask(id: string) {
+    haptic()
     await supabaseClient.from('tasks').delete().eq('id', id)
     fetchTasksAndSubjects(supabaseClient, profileId)
   }

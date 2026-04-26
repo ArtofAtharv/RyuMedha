@@ -39,16 +39,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner"
 import Link from "next/link"
 import { motion, AnimatePresence } from "motion/react"
+import { haptic } from "@/lib/haptic"
 
 export function SubjectDetailContent({ subject, attendanceLogs, profile, token }: { subject: any, attendanceLogs: any[], profile: any, token: string }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
-  const haptic = () => {
-    if (typeof window !== 'undefined' && window.navigator.vibrate) {
-      window.navigator.vibrate(20)
-    }
-  }
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -87,6 +83,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   }, [selectedDay, logs])
 
   async function addAttendanceLog(status: 'present' | 'absent' | 'deemed') {
+    haptic()
     if (!selectedDay || isUpdating) return
     const dateStr = format(selectedDay, 'yyyy-MM-dd')
     setIsUpdating(true)
