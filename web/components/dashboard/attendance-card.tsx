@@ -2,6 +2,8 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { CheckCircle2, XCircle, User, FolderOpen, BookOpen, Fingerprint } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { motion } from "motion/react"
 
 interface AttendanceCardProps {
@@ -57,10 +59,17 @@ export function AttendanceCard({
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)
   const [progress, setProgress] = useState(0)
+  const router = useRouter()
 
   useEffect(() => {
     setProgress(pct)
   }, [pct])
+
+  const handleCardClick = () => {
+    if (subjectId) {
+      router.push(`/dashboard/subjects/${subjectId}`)
+    }
+  }
 
   const healthClass =
     (present === 0 && absent === 0 && deemed === 0)
@@ -77,7 +86,10 @@ export function AttendanceCard({
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className="h-full"
     >
-      <Card className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
+      <Card 
+        onClick={handleCardClick}
+        className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
+      >
         {/* Top Subtle Gradient Bar */}
         <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(accentColor || '#8b5cf6')} />
 
@@ -198,17 +210,17 @@ export function AttendanceCard({
 
           {/* Action Buttons */}
           {onLog && subjectId && (
-            <div className="flex gap-1.5 pt-3">
+            <div className="flex gap-1.5 pt-3" onClick={(e) => e.stopPropagation()}>
               <div className="flex flex-1 rounded-lg overflow-hidden border border-green-500/20">
                 <button
-                  onClick={() => onLog(subjectId, 'present')}
+                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'present'); }}
                   className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
                   title="Mark Present"
                 >
                   Present
                 </button>
                 <button
-                  onClick={() => onLog(subjectId, 'undo_present')}
+                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_present'); }}
                   className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30 transition-colors border-l border-green-500/20"
                   title="Undo Present"
                 >
@@ -217,14 +229,14 @@ export function AttendanceCard({
               </div>
               <div className="flex flex-1 rounded-lg overflow-hidden border border-red-500/20">
                 <button
-                  onClick={() => onLog(subjectId, 'absent')}
+                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'absent'); }}
                   className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
                   title="Mark Absent"
                 >
                   Absent
                 </button>
                 <button
-                  onClick={() => onLog(subjectId, 'undo_absent')}
+                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_absent'); }}
                   className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/30 transition-colors border-l border-red-500/20"
                   title="Undo Absent"
                 >
@@ -233,14 +245,14 @@ export function AttendanceCard({
               </div>
               <div className="flex flex-1 rounded-lg overflow-hidden border border-blue-500/20">
                 <button
-                  onClick={() => onLog(subjectId, 'deemed')}
+                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'deemed'); }}
                   className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors"
                   title="Mark Deemed"
                 >
                   Deemed
                 </button>
                 <button
-                  onClick={() => onLog(subjectId, 'undo_deemed')}
+                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_deemed'); }}
                   className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500/30 transition-colors border-l border-blue-500/20"
                   title="Undo Deemed"
                 >

@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { BookOpen, FolderOpen, Pencil, Trash2, User, Target } from "lucide-react"
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { motion } from "motion/react"
 import { Input } from "@/components/ui/input"
@@ -28,6 +29,11 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
   const [examLabel, setExamLabel] = useState("")
   const [examDate, setExamDate] = useState<Date | null>(null)
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const router = useRouter()
+
+  const handleCardClick = () => {
+    router.push(`/dashboard/subjects/${subject.id}`)
+  }
 
   const handleAddExam = () => {
     if (examLabel.trim() && examDate && onAddExamDate) {
@@ -44,7 +50,10 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className="h-full"
     >
-      <Card className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl">
+      <Card 
+        onClick={handleCardClick}
+        className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
+      >
         {/* Top Subtle Gradient Bar */}
         <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
 
@@ -73,19 +82,19 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
 
           {/* Options */}
           {(onEdit || onDelete || onAddExamDate) && (
-            <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 -translate-y-1">
+            <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 -translate-y-1" onClick={(e) => e.stopPropagation()}>
               {onAddExamDate && (
-                <Button variant="ghost" size="icon" onClick={() => setIsExamModalOpen(true)} className="h-7 w-7 text-muted-foreground hover:text-green-500 rounded-md" title="Add Custom Exam/Important Date">
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExamModalOpen(true); }} className="h-7 w-7 text-muted-foreground hover:text-green-500 rounded-md" title="Add Custom Exam/Important Date">
                   <CalIcon className="w-3.5 h-3.5"/>
                 </Button>
               )}
               {onEdit && (
-                <Button variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7 text-muted-foreground hover:text-primary rounded-md" title="Edit Subject">
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(); }} className="h-7 w-7 text-muted-foreground hover:text-primary rounded-md" title="Edit Subject">
                   <Pencil className="w-3.5 h-3.5"/>
                 </Button>
               )}
               {onDelete && (
-                <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-md" title="Delete Subject">
+                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-md" title="Delete Subject">
                   <Trash2 className="w-3.5 h-3.5"/>
                 </Button>
               )}
@@ -129,12 +138,12 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
         )}
 
         {/* Bottom Button */}
-        <Link href={`/dashboard/grades?subject=${subject.id}`} passHref className="mt-auto">
+        <Link href={`/dashboard/grades?subject=${subject.id}`} passHref className="mt-auto" onClick={(e) => e.stopPropagation()}>
           <Button variant="secondary" className="w-full flex items-center justify-center gap-2 h-10 bg-muted/40 hover:bg-muted text-sm font-bold transition-all group/btn rounded-xl">
             <Target className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
             View Performance
           </Button>
-          </Link>
+        </Link>
         </CardContent>
 
         {/* --- ADD EXAM DATE MODAL (Dialog) --- */}
