@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 import { processMessage } from "./processor.ts";
+import { sendDailyAttendanceReminders } from "./reminder.ts";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ""
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ""
@@ -59,6 +60,17 @@ serve(async (req)=>{
         status: 200
       });
     }
+
+    // --- Manual/Cron Trigger for Daily Reminders ---
+    if (url.searchParams.get("trigger") === "daily") {
+      try {
+        await sendDailyAttendanceReminders();
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+      }
+    }
+
     return new Response("Forbidden", {
       status: 403
     });

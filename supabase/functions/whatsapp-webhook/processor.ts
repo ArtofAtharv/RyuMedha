@@ -631,6 +631,45 @@ async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
   return MESSAGES.attendance.undoSuccess(s.name);
 }
 
+async function handleLog(user: any) {
+  const { data: subjects } = await supabaseAdmin.from('subjects')
+    .select('id, name')
+    .eq('profile_id', user.id)
+    .eq('is_active', true)
+    .eq('type', 'academic')
+    .order('name');
+
+  if (!subjects || subjects.length === 0) return "You don't have any active academic subjects to log attendance for.";
+
+  return {
+    type: "list",
+    header: { type: "text", text: "Attendance Logger" },
+    body: { text: "Select a subject below to mark yourself as PRESENT for today." },
+    footer: { text: "Ryu Medha Guardian" },
+    action: {
+      button: "Select Subject",
+      sections: [
+        {
+          title: "Your Subjects",
+          rows: subjects.slice(0, 10).map(s => ({
+            id: `wa_log_present_${s.id}`,
+            title: s.name,
+            description: "Tap to mark Present"
+          }))
+        }
+      ]
+    }
+  };
+}
+
+async function handleInteractiveLog(user: any, id: string) {
+  const subjectId = id.replace('wa_log_present_', '');
+  const { data: subject } = await supabaseAdmin.from('subjects').select('name').eq('id', subjectId).single();
+  if (!subject) return "Subject not found.";
+  
+  return await logAttendance(user, subject.name, 'present');
+}
+
 // --- ROUTING ---
 export async function processMessage(phone: string, text: string, metadata: { isInteractive: boolean } = { isInteractive: false }) {
   const user = await getOrCreateUser(phone);
@@ -678,6 +717,8 @@ export async function processMessage(phone: string, text: string, metadata: { is
   else if (lower.startsWith('start ')) reply = await handleStartTimer(user, text.substring(6).trim());
   else if (lower === 'stop') reply = await handleStopTimer(user);
   else if (lower === 'stats' || lower === 'attendance') reply = await handleStats(user, uc);
+  else if (lower === 'log') reply = await handleLog(user);
+  else if (lower.startsWith('wa_log_present_')) reply = await handleInteractiveLog(user, lower);
   else if (lower.startsWith('attended ')) reply = await handleAttendanceBatch(user, text, 'present');
   else if (lower.startsWith('missed ')) reply = await handleAttendanceBatch(user, text, 'absent');
   else if (lower.startsWith('deemed ')) reply = await handleAttendanceBatch(user, text, 'deemed');
