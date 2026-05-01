@@ -6,7 +6,7 @@ import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2 } from "lucide-react"
+import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2, BellRing } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { motion } from "motion/react"
 import { toast } from "sonner"
@@ -89,12 +89,37 @@ export default function WhatsAppAdminPage() {
   const triggerTasksReminder = async () => {
     if (!supabaseClient) return
     try {
-      const { error } = await supabaseClient.functions.invoke('send-reminders', { method: 'POST' })
+      const { data, error } = await supabaseClient.functions.invoke('send-reminders', { method: 'POST' })
       if (error) throw error
-      toast.success("Task reminders triggered successfully!")
+      if (data?.message === "No reminders due") {
+        toast.info("No reminders are currently due.")
+      } else {
+        toast.success(`Task reminders triggered! Sent: ${data?.processedCount || 0}`)
+      }
       await fetchData(supabaseClient)
     } catch (err: any) {
       console.error("Tasks Reminder Error:", err)
+      toast.error(`Failed: ${err.message}`)
+    }
+  }
+
+  const triggerPendingTasksBlast = async () => {
+    if (!supabaseClient) return
+    try {
+      const session = await getSession()
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook?trigger=tasks`
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session?.user.supabaseToken || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        }
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      toast.success(`Pending Tasks blast sent to ${data.sent || 0} users!`)
+      await fetchData(supabaseClient)
+    } catch (err: any) {
+      console.error("Pending Tasks Blast Error:", err)
       toast.error(`Failed: ${err.message}`)
     }
   }
@@ -157,7 +182,10 @@ export default function WhatsAppAdminPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
-            <CheckCircle2 className="w-4 h-4 text-primary" /> Task Reminders
+            <CheckCircle2 className="w-4 h-4 text-primary" /> Send Due Reminders
+          </Button>
+          <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
+            <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
           </Button>
           <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
             <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian

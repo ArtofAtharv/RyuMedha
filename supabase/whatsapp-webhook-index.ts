@@ -42,6 +42,40 @@ serve(async (req) => {
 
   if (method === 'GET') {
     const trigger = url.searchParams.get('trigger')
+    if (trigger === 'tasks') {
+      try {
+        const { data: users, error } = await supabaseAdmin
+          .from('profiles')
+          .select('id, whatsapp_number');
+          
+        if (error) throw error;
+        
+        let sentCount = 0;
+        if (users) {
+          for (const user of users) {
+            const phone = `+${user.whatsapp_number.replace(/\D/g, '')}`;
+            // We use processMessage with 'tasks' command to get their formatted task list
+            const reply = await processMessage(phone, 'tasks', { isInteractive: false });
+            
+            // If they have tasks, it will not return the "all caught up" or empty messages
+            if (reply && !reply.includes("caught up") && !reply.includes("don't have any pending tasks") && !reply.includes("No pending tasks")) {
+               const cleanTo = user.whatsapp_number.replace(/\D/g, '');
+               await sendWhatsAppMessage(cleanTo, `🔔 *Pending Tasks Reminder*\n\nHere is your current task list:\n\n${reply}`);
+               sentCount++;
+            }
+          }
+        }
+        
+        return new Response(JSON.stringify({ success: true, sent: sentCount }), {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200
+        });
+      } catch (err: any) {
+        console.error('Error in daily tasks guardian:', err);
+        return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+      }
+    }
+
     if (trigger === 'daily') {
       try {
         const today = new Date().toISOString().split('T')[0];
