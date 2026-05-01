@@ -48,9 +48,8 @@ export default async function DashboardPage() {
     { data: gradesData },
     { data: categoriesData }
   ] = await Promise.all([
-    supabase
       .from('subjects')
-      .select('id, name, color_hex, type, is_active, label, expected_total_lectures, legacy_attended_lectures, legacy_missed_lectures, category_id, source_course_id(*)')
+      .select('id, name, color_hex, type, is_active, label, expected_total_lectures, category_id, source_course_id(*)')
       .eq('is_active', true)
       .order('name'),
     supabase
@@ -146,8 +145,8 @@ export default async function DashboardPage() {
     return {
       subject_id: sub.id,
       subject_name: sub.name,
-      total_present: logPresent + (sub.legacy_attended_lectures || 0),
-      total_absent: logAbsent + (sub.legacy_missed_lectures || 0),
+      total_present: logPresent,
+      total_absent: logAbsent,
       total_deemed: logDeemed,
       attendance_percentage: 0 // Will be calculated by InteractiveAttendanceGrid
     }

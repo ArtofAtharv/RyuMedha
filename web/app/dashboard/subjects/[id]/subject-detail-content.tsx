@@ -63,8 +63,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
   })
 
   const stats = useMemo(() => {
-    const present = logs.filter(l => l.status === 'present').length + (subject.legacy_attended_lectures || 0)
-    const absent = logs.filter(l => l.status === 'absent').length + (subject.legacy_missed_lectures || 0)
+    const present = logs.filter(l => l.status === 'present').length
+    const absent = logs.filter(l => l.status === 'absent').length
     const deemed = logs.filter(l => l.status === 'deemed').length
     const total = present + absent + deemed
     const pct = total > 0 ? Math.round(((present + deemed) / total) * 100) : 0
@@ -216,7 +216,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground font-medium italic">
-                  *Including {subject.legacy_attended_lectures || 0} legacy attended lectures
+                  *Based on logged lectures only
                 </p>
               </div>
 

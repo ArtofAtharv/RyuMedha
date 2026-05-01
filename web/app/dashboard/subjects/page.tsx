@@ -284,8 +284,6 @@ export default function SubjectsPage() {
         name: editingSubject.name.trim(),
         label: editingSubject.label,
         color_hex: editingSubject.color_hex,
-        legacy_attended_lectures: Number(editingSubject.legacy_attended_lectures || 0),
-        legacy_missed_lectures: Number(editingSubject.legacy_missed_lectures || 0),
         category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? editingSubject.category_id : null
     }
 
@@ -745,16 +743,6 @@ export default function SubjectsPage() {
 
               {editingSubject.type === 'academic' && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-muted-foreground">Legacy Attended</Label>
-                      <Input type="number" min="0" value={editingSubject.legacy_attended_lectures || 0} onChange={e => setEditingSubject({...editingSubject, legacy_attended_lectures: e.target.value})} className="bg-muted/30" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-bold text-muted-foreground">Legacy Missed</Label>
-                      <Input type="number" min="0" value={editingSubject.legacy_missed_lectures || 0} onChange={e => setEditingSubject({...editingSubject, legacy_missed_lectures: e.target.value})} className="bg-muted/30" />
-                    </div>
-                  </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
                     <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: e.target.value})} className="bg-muted/30" />

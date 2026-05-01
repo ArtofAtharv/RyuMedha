@@ -50,8 +50,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     if (expectedTotal > 0) {
       const t = targetPct / 100
       maxAllowedMisses = Math.floor(expectedTotal * (1 - t))
-      const netAbsent = Math.max(0, totalAbsent - totalDeemed)
-      bunksRemaining = maxAllowedMisses - netAbsent
+      // Fix: Bunks should only be reduced by ACTUAL absences. Deemed lectures act as Presents.
+      bunksRemaining = maxAllowedMisses - totalAbsent
       const remaining = Math.max(0, expectedTotal - totalLogged)
       
       const totalPresentsNeededForGoal = Math.ceil(expectedTotal * t)
@@ -78,7 +78,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
       maxPossiblePct, 
       isPossibleToRecover, 
       maxAllowedMisses, 
-      currentMisses: Math.max(0, totalAbsent - totalDeemed),
+      currentMisses: totalAbsent,
       remainingLectures: Math.max(0, expectedTotal - totalLogged)
     }
   }
@@ -91,8 +91,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     return academicSubjects.map((sub: any) => {
       const existingAtt = data.find((d: any) => d.subject_id === sub.id)
       
-      const present = existingAtt ? existingAtt.total_present : (sub.legacy_attended_lectures || 0)
-      const absent = existingAtt ? existingAtt.total_absent : (sub.legacy_missed_lectures || 0)
+      const present = existingAtt ? existingAtt.total_present : 0
+      const absent = existingAtt ? existingAtt.total_absent : 0
       const deemed = existingAtt ? (existingAtt.total_deemed || 0) : 0
       const expectedTotal = sub.expected_total_lectures || sub.source_course_id?.expected_total_lectures || 0
 
@@ -180,8 +180,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         const synthesized = {
           subject_id: subjectId,
           subject_name: sub.name,
-          total_present: sub.legacy_attended_lectures || 0,
-          total_absent: sub.legacy_missed_lectures || 0,
+          total_present: 0,
+          total_absent: 0,
           total_deemed: 0,
           attendance_percentage: 0
         }
@@ -205,15 +205,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
       if (latest) {
         await supabase.from('attendance_logs').delete().eq('id', latest.id)
       } else {
-        // Fallback: decrement legacy counters if no logs exist
-        const sub = subjectsInfo.find(s => s.id === subjectId)
-        if (sub) {
-          if (targetStatus === 'present' && (sub.legacy_attended_lectures || 0) > 0) {
-            await supabase.from('subjects').update({ legacy_attended_lectures: sub.legacy_attended_lectures - 1 }).eq('id', subjectId)
-          } else if (targetStatus === 'absent' && (sub.legacy_missed_lectures || 0) > 0) {
-            await supabase.from('subjects').update({ legacy_missed_lectures: sub.legacy_missed_lectures - 1 }).eq('id', subjectId)
-          }
-        }
+        // Fallback: No legacy counters to decrement
+        return;
       }
     } else {
       const today = new Date().toISOString().split('T')[0]
