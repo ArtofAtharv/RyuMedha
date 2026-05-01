@@ -180,17 +180,17 @@ export default function WhatsAppAdminPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Monitor 24-hour windows and message delivery logs.</p>
         </div>
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full md:w-auto mt-4 md:mt-0">
-          <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="w-full sm:w-auto gap-2 border-primary/20 hover:bg-primary/10 justify-start sm:justify-center">
+        <div className="flex overflow-x-auto md:flex-wrap items-center gap-2 mt-4 md:mt-0 w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
+          <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
             <CheckCircle2 className="w-4 h-4 text-primary" /> Send Due Reminders
           </Button>
-          <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="w-full sm:w-auto gap-2 border-primary/20 hover:bg-primary/10 justify-start sm:justify-center">
+          <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
             <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
           </Button>
-          <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="w-full sm:w-auto gap-2 border-primary/20 hover:bg-primary/10 justify-start sm:justify-center">
+          <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
             <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
           </Button>
-          <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="w-full sm:w-auto gap-2 justify-start sm:justify-center">
+          <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="shrink-0 gap-2">
             <Zap className="w-4 h-4" /> Refresh
           </Button>
           <Button 
@@ -208,15 +208,15 @@ export default function WhatsAppAdminPage() {
             }} 
             variant="destructive" 
             size="sm" 
-            className="w-full sm:w-auto gap-2 justify-start sm:justify-center"
+            className="shrink-0 gap-2"
           >
             Clear Logs
           </Button>
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-2 overflow-hidden">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Clock className="w-5 h-5" /> User Window Status
