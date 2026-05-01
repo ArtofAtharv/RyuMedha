@@ -171,6 +171,7 @@ export default async function DashboardPage() {
   })
 
   const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
+  const personalSubjects = subjectsData?.filter(s => s.type === 'personal') || []
   const unmarkedSubjectsToday = academicSubjects.filter(sub => {
     return !attendanceLogs?.some(log => 
       log.subject_id === sub.id && 
