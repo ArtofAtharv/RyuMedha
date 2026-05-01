@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { CircleCheck, Clock, Trash2, Plus, Bell, BellRing, Target, Calendar as CalIcon } from "lucide-react"
 import { motion, AnimatePresence } from "motion/react"
 import { haptic } from "@/lib/haptic"
+import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { Calendar } from "@/components/ui/calendar"
