@@ -86,6 +86,40 @@ export default function WhatsAppAdminPage() {
     }
   }
 
+  const triggerTasksReminder = async () => {
+    if (!supabaseClient) return
+    try {
+      const { error } = await supabaseClient.functions.invoke('send-reminders', { method: 'POST' })
+      if (error) throw error
+      toast.success("Task reminders triggered successfully!")
+      await fetchData(supabaseClient)
+    } catch (err: any) {
+      console.error("Tasks Reminder Error:", err)
+      toast.error(`Failed: ${err.message}`)
+    }
+  }
+
+  const triggerAttendanceGuardian = async () => {
+    if (!supabaseClient) return
+    try {
+      const session = await getSession()
+      const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook?trigger=daily`
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session?.user.supabaseToken || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+        }
+      })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      toast.success(`Attendance Guardian triggered! Messages sent: ${data.sent || 0}`)
+      await fetchData(supabaseClient)
+    } catch (err: any) {
+      console.error("Attendance Guardian Error:", err)
+      toast.error(`Failed: ${err.message}`)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -121,7 +155,13 @@ export default function WhatsAppAdminPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Monitor 24-hour windows and message delivery logs.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
+            <CheckCircle2 className="w-4 h-4 text-primary" /> Task Reminders
+          </Button>
+          <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
+            <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
+          </Button>
           <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="gap-2">
             <Zap className="w-4 h-4" /> Refresh
           </Button>

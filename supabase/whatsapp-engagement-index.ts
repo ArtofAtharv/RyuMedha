@@ -1,3 +1,4 @@
+// Updated by Antigravity: Added daily mode for 4 PM cron job
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 
@@ -63,7 +64,16 @@ async function sendEngagementMessage(profile: any) {
 }
 
 serve(async (req) => {
-  const { profile_id, type } = await req.json()
+  let profile_id = null;
+  let type = null;
+
+  try {
+    const body = await req.json();
+    profile_id = body?.profile_id;
+    type = body?.type;
+  } catch (e) {
+    console.log("No JSON body or invalid JSON");
+  }
 
   try {
     // MODE A: MANUAL (Single User)
@@ -78,13 +88,44 @@ serve(async (req) => {
     // MODE B: AUTO (Scan all users closing soon)
     if (type === 'auto') {
       // Find users whose window is 'closing_soon'
+      // closing_soon means last message was between 22 and 24 hours ago.
+      // To avoid spamming if the cron runs every hour, we fetch users who haven't received an engagement message recently.
       const { data: users } = await supabase
         .from('whatsapp_window_status')
         .select('*')
         .eq('window_status', 'closing_soon')
 
       let sentCount = 0
-      if (users) {
+      if (users && users.length > 0) {
+        for (const user of users) {
+          // Check if we already sent an engagement message in the last 2 hours to avoid duplicates
+          const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+          const { data: recentLogs } = await supabase
+            .from('whatsapp_message_logs')
+            .select('id')
+            .eq('profile_id', user.profile_id)
+            .eq('message_type', 'engagement')
+            .gte('created_at', twoHoursAgo)
+            .limit(1);
+
+          if (!recentLogs || recentLogs.length === 0) {
+            const success = await sendEngagementMessage({ id: user.profile_id, whatsapp_number: user.whatsapp_number })
+            if (success) sentCount++
+          }
+        }
+      }
+      return new Response(JSON.stringify({ success: true, sent: sentCount }), { status: 200 })
+    }
+
+    // MODE C: DAILY (Send to everyone who has an open window, e.g. at 4 PM)
+    if (type === 'daily') {
+      const { data: users } = await supabase
+        .from('whatsapp_window_status')
+        .select('*')
+        .eq('window_status', 'open')
+
+      let sentCount = 0
+      if (users && users.length > 0) {
         for (const user of users) {
           const success = await sendEngagementMessage({ id: user.profile_id, whatsapp_number: user.whatsapp_number })
           if (success) sentCount++
@@ -93,7 +134,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ success: true, sent: sentCount }), { status: 200 })
     }
 
-    return new Response(JSON.stringify({ error: "Invalid request" }), { status: 400 })
+    return new Response(JSON.stringify({ error: "Invalid request. Provide type='auto' or type='manual' with profile_id" }), { status: 400 })
   } catch (e: any) {
     console.error('Engagement Error:', e)
     return new Response(JSON.stringify({ error: e.message }), { status: 500 })
