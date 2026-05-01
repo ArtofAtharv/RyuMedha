@@ -231,9 +231,9 @@ const STOP_WORDS = new Set([
     let subject = raw.split(/lectures of/i)[1].trim();
     return `setup missed ${subject}, ${val}`;
   }
-  if (doc.has('(attended|went to|present in|at|marked present)')) {
+  if (doc.has('(attended|i attended|went to|present|present in|at|marked present)')) {
     if (doc.has('all lectures today')) return 'present all';
-    const subjects = extractSubjectList(raw, '(attended|went to|present in|at|marked present)');
+    const subjects = extractSubjectList(raw, '(attended|i attended|went to|present|present in|at|marked present)');
     if (subjects.length > 0) return `attended ${subjects.join(', ')}`;
   }
   if (doc.has('(missed|skipped|absent|not in|away from|marked absent)')) {

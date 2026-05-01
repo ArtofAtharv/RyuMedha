@@ -55,12 +55,12 @@ export default async function DashboardPage() {
       .order('name'),
     supabase
       .from('attendance_logs')
-      .select('subject_id, status')
+      .select('subject_id, status, lecture_date')
       .eq('profile_id', profile?.id)
       .in('status', ['present', 'absent', 'deemed']),
     supabase
       .from('tasks')
-      .select('id, subject_id, subjects(type)')
+      .select('id, subject_id, due_date, subjects(type)')
       .eq('profile_id', profile?.id)
       .eq('is_completed', false),
     supabase
@@ -153,14 +153,30 @@ export default async function DashboardPage() {
     }
   }) || []
 
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: profile?.timezone || 'Asia/Kolkata' })
   let academicPendingTasks = 0
   let personalPendingTasks = 0
+  let pendingTasksToday = 0
+  
   pendingTasks?.forEach(t => {
     // @ts-ignore
     const type = t.subjects?.type
     if (type === 'academic') academicPendingTasks++
     else if (type === 'personal') personalPendingTasks++
+
+    if (t.due_date) {
+      const taskDueStr = new Date(t.due_date).toLocaleDateString('en-CA', { timeZone: profile?.timezone || 'Asia/Kolkata' })
+      if (taskDueStr === todayStr) pendingTasksToday++
+    }
   })
+
+  const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
+  const unmarkedSubjectsToday = academicSubjects.filter(sub => {
+    return !attendanceLogs?.some(log => 
+      log.subject_id === sub.id && 
+      log.lecture_date === todayStr
+    )
+  }).length
 
   let academicStudySecs = 0
   let personalStudySecs = 0
@@ -237,6 +253,8 @@ export default async function DashboardPage() {
               academicStudyTimeFormatted,
               attendanceData,
               academicSubjects,
+              unmarkedSubjectsToday,
+              pendingTasksToday,
               timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'academic') || [],
               token: session.user.supabaseToken,
               profileId: profile?.id,

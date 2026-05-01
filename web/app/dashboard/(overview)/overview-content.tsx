@@ -5,6 +5,8 @@ import { useGamification } from "@/components/dashboard/gamification-context"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target, Sparkles, Trophy, Flame } from 'lucide-react'
 import { format } from 'date-fns'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-attendance-grid'
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { StudyAnalyticsChart } from '@/components/dashboard/study-analytics-chart'
@@ -198,15 +200,65 @@ export function OverviewContent({
           </motion.div>
 
           <motion.div variants={item} className="space-y-4 pt-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 p-4 rounded-2xl bg-gradient-to-r from-card/80 to-transparent border border-border/50 backdrop-blur-md">
-              <div>
-                <h3 className="text-lg font-bold flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(var(--primary),0.5)]"/>
-                  Today's Quest: Attendance
-                </h3>
-                <p className="text-sm text-muted-foreground mt-1 font-medium">
-                  Mark your presence for {mounted ? format(new Date(), "EEEE, MMMM do") : "..."}
-                </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              <div className="p-5 rounded-2xl bg-card/60 border border-border/50 backdrop-blur-md flex flex-col justify-between group hover:border-primary/40 transition-all duration-300">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${academicOverviewData.unmarkedSubjectsToday > 0 ? 'bg-primary animate-pulse shadow-[0_0_10px_rgba(var(--primary),0.5)]' : 'bg-green-500'}`}/>
+                      Attendance Quest
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1 font-medium">
+                      {academicOverviewData.unmarkedSubjectsToday > 0 
+                        ? `You have ${academicOverviewData.unmarkedSubjectsToday} subject${academicOverviewData.unmarkedSubjectsToday !== 1 ? 's' : ''} yet to mark today.` 
+                        : "All set! You've marked attendance for all subjects today. 🎉"}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-primary/10 text-primary group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                </div>
+                {academicOverviewData.unmarkedSubjectsToday > 0 && (
+                  <div className="mt-4 pt-4 border-t border-border/20">
+                    <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Pending Subjects</p>
+                    <div className="flex flex-wrap gap-2">
+                      {academicOverviewData.academicSubjects
+                        .filter((s: any) => !academicOverviewData.attendanceData.some((log: any) => log.subject_id === s.id && log.lecture_date === new Date().toLocaleDateString('en-CA', { timeZone: profile.timezone || 'Asia/Kolkata' })))
+                        .map((s: any) => (
+                          <span key={s.id} className="text-[10px] font-bold px-2 py-1 rounded-md bg-muted text-muted-foreground border border-border/50">
+                            {s.name}
+                          </span>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-5 rounded-2xl bg-card/60 border border-border/50 backdrop-blur-md flex flex-col justify-between group hover:border-orange-500/40 transition-all duration-300">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${academicOverviewData.pendingTasksToday > 0 ? 'bg-orange-500 animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-green-500'}`}/>
+                      Task Quest
+                    </h3>
+                    <p className="text-sm text-muted-foreground mt-1 font-medium">
+                      {academicOverviewData.pendingTasksToday > 0 
+                        ? `You have ${academicOverviewData.pendingTasksToday} task${academicOverviewData.pendingTasksToday !== 1 ? 's' : ''} due today.` 
+                        : "No tasks due today. Use this time to relax or get ahead! 🚀"}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500 group-hover:scale-110 transition-transform">
+                    <ListTodo className="w-5 h-5" />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                   <Link href="/dashboard/tasks">
+                     <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500/10 hover:text-orange-500">
+                       View Tasks
+                     </Button>
+                   </Link>
+                </div>
               </div>
             </div>
             

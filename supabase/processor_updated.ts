@@ -103,7 +103,7 @@ async function createSubject(user: any, subjectName: string, type: string, total
     let courseId;
     try { courseId = await findOrCreateAcademicCourse(user.current_semester_id, subjectName.trim()); } catch { return MESSAGES.subjects.error; }
     const { data: subject, error } = await supabaseAdmin.from('subjects').insert([
-      { profile_id: user.id, type: 'academic', name: subjectName.trim(), source_course_id: courseId, is_active: true, expected_total_lectures: total, legacy_missed_lectures: 0, legacy_attended_lectures: 0 }
+      { profile_id: user.id, type: 'academic', name: subjectName.trim(), source_course_id: courseId, is_active: true, expected_total_lectures: total }
     ]).select().single();
     if (error) return MESSAGES.subjects.addError(subjectName.trim());
     return MESSAGES.subjects.academicSuccess(subject.name);
@@ -120,7 +120,7 @@ async function createSubject(user: any, subjectName: string, type: string, total
     }
   }
   const { data: subject, error } = await supabaseAdmin.from('subjects').insert([
-    { profile_id: user.id, type: 'personal', name: subjectName.trim(), category_id: categoryId, is_active: true, expected_total_lectures: total, legacy_missed_lectures: 0, legacy_attended_lectures: 0 }
+    { profile_id: user.id, type: 'personal', name: subjectName.trim(), category_id: categoryId, is_active: true, expected_total_lectures: total }
   ]).select().single();
   if (error) return MESSAGES.subjects.addError(subjectName.trim());
   return MESSAGES.subjects.personalSuccess(subject.name);
@@ -205,7 +205,7 @@ async function handleListSubjects(user) {
 // --- ATTENDANCE HANDLERS ---
 async function logAttendance(user, subjectName, status) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('subjects').select('id, name, type, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
+  const { data: raw } = await uc.from('subjects').select('id, name, type, expected_total_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
   if (!raw || raw.length === 0) return null;
   const subjects = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (subjects.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
@@ -216,7 +216,7 @@ async function logAttendance(user, subjectName, status) {
     else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s, i)=>`${i + 1}. ${s.name}`).join('\n'));
   }
   if (subject.type !== 'academic') return MESSAGES.attendance.academicOnly(subject.name);
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   const { data: existing } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id).eq('lecture_date', today).order('created_at', { ascending: false }).limit(1).maybeSingle();
   await uc.from('attendance_logs').insert([{ profile_id: user.id, subject_id: subject.id, lecture_date: today, status }]);
   let prefix = '';
@@ -314,7 +314,8 @@ async function handleSetupLectures(user, text) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: subjects } = await uc.from('subjects').select('id, name').eq('profile_id', user.id).ilike('name', subjectName).eq('is_active', true);
   if (!subjects || subjects.length === 0) return MESSAGES.subjects.notFound(subjectName);
-  const col = type === 'total' ? 'expected_total_lectures' : 'legacy_missed_lectures';
+  const col = 'expected_total_lectures';
+  if (type !== 'total') return MESSAGES.general.unknown;
   await uc.from('subjects').update({ [col]: val }).eq('id', subjects[0].id);
   return MESSAGES.subjects.setupLecturesSuccess(subjects[0].name, type, val);
 }
@@ -324,7 +325,7 @@ async function handleMarkAll(user, status) {
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
   const filtered = raw?.filter((s)=>Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
   if (filtered.length === 0) return MESSAGES.stats.noSubjects;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   let count = 0;
   for (const s of filtered){
     const { data: existing } = await uc.from('attendance_logs').select('id').eq('profile_id', user.id).eq('subject_id', s.id).eq('lecture_date', today).maybeSingle();
@@ -338,7 +339,7 @@ async function handleMarkAll(user, status) {
 
 async function handleUndoAll(user) {
   const uc = await getUserClient(user.whatsapp_number);
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   const { error } = await uc.from('attendance_logs').delete().eq('profile_id', user.id).eq('lecture_date', today);
   if (error) return MESSAGES.attendance.undoError;
   return MESSAGES.attendance.undoAllSuccess;
@@ -458,7 +459,7 @@ function handleHelp(user: any) {
 
 async function handleStats(user: any, uc: any) {
   if (!user.academics_enabled) return MESSAGES.stats.academicOnly;
-  const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
+  const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
   const filtered = raw?.filter((s: any) => Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
   if (filtered.length === 0) return MESSAGES.stats.noSubjects;
   const { data: logs } = await uc.from('attendance_logs').select('subject_id, status').eq('profile_id', user.id).in('subject_id', filtered.map((x: any) => x.id));
@@ -483,7 +484,7 @@ async function handleAttendanceBatch(user: any, text: string, status: 'present' 
 }
 
 async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   const item = text.substring(5).trim();
   const { data: s } = await uc.from('subjects').select('id, name').eq('profile_id', user.id).ilike('name', item).eq('is_active', true).maybeSingle();
   if (!s) return MESSAGES.attendance.notFound(item);

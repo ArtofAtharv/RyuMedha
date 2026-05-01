@@ -145,42 +145,44 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
           </Button>
         </Link>
         </CardContent>
+      </Card>
 
-        {/* --- ADD EXAM DATE MODAL (Dialog) --- */}
-        <Dialog open={isExamModalOpen} onOpenChange={setIsExamModalOpen}>
-          <DialogContent className="sm:max-w-sm p-0 bg-background/80 backdrop-blur-xl border-primary/20 overflow-hidden">
-            <div className="h-1 w-full bg-primary/50" />
-            <div className="p-5 space-y-4">
-              <DialogHeader className="flex flex-row justify-between items-center pb-3 border-b border-border/50">
-                <DialogTitle className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date</DialogTitle>
-              </DialogHeader>
+      {/* --- ADD EXAM DATE MODAL (Dialog) --- */}
+      <Dialog open={isExamModalOpen} onOpenChange={setIsExamModalOpen}>
+        <DialogContent 
+          className="sm:max-w-sm p-0 bg-background/80 backdrop-blur-xl border-primary/20 overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="h-1 w-full bg-primary/50" />
+          <div className="p-5 space-y-4">
+            <DialogHeader className="flex flex-row justify-between items-center pb-3 border-b border-border/50">
+              <DialogTitle className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date</DialogTitle>
+            </DialogHeader>
 
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
-                  <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
-                  <DatePicker
-                    date={examDate || undefined}
-                    setDate={(d) => setExamDate(d as Date)}
-                    className="w-full h-11 border-border/50 rounded-xl"
-                  />
-                </div>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
+                <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
               </div>
 
-              <div className="pt-4">
-                <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl gradient-accent shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
-                  Save Mission
-                </Button>
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
+                <DatePicker
+                  date={examDate || undefined}
+                  setDate={(d) => setExamDate(d as Date)}
+                  className="w-full h-11 border-border/50 rounded-xl"
+                />
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
 
-      </Card>
+            <div className="pt-4">
+              <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl gradient-accent shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
+                Save Mission
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   )
 }
