@@ -44,7 +44,7 @@ serve(async (req) => {
     const trigger = url.searchParams.get('trigger')
     if (trigger === 'tasks') {
       try {
-        const { data: users, error } = await supabaseAdmin
+        const { data: users, error } = await supabase
           .from('profiles')
           .select('id, whatsapp_number');
           

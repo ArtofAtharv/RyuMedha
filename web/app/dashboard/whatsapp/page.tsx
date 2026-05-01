@@ -180,17 +180,17 @@ export default function WhatsAppAdminPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Monitor 24-hour windows and message delivery logs.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 w-full md:w-auto mt-4 md:mt-0">
+          <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="w-full sm:w-auto gap-2 border-primary/20 hover:bg-primary/10 justify-start sm:justify-center">
             <CheckCircle2 className="w-4 h-4 text-primary" /> Send Due Reminders
           </Button>
-          <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
+          <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="w-full sm:w-auto gap-2 border-primary/20 hover:bg-primary/10 justify-start sm:justify-center">
             <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
           </Button>
-          <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="gap-2 border-primary/20 hover:bg-primary/10">
+          <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="w-full sm:w-auto gap-2 border-primary/20 hover:bg-primary/10 justify-start sm:justify-center">
             <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
           </Button>
-          <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="gap-2">
+          <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="w-full sm:w-auto gap-2 justify-start sm:justify-center">
             <Zap className="w-4 h-4" /> Refresh
           </Button>
           <Button 
@@ -208,7 +208,7 @@ export default function WhatsAppAdminPage() {
             }} 
             variant="destructive" 
             size="sm" 
-            className="gap-2"
+            className="w-full sm:w-auto gap-2 justify-start sm:justify-center"
           >
             Clear Logs
           </Button>
