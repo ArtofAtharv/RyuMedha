@@ -11,7 +11,7 @@ const waPhoneId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID') || ""
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-async function sendWhatsAppMessage(to: string, content: any) {
+async function sendWhatsAppMessage(to: string, content: any, message_type: string = 'bot_reply', profileId?: string) {
   const url = `https://graph.facebook.com/v18.0/${waPhoneId}/messages`
   const body: any = {
     messaging_product: 'whatsapp',
@@ -26,7 +26,7 @@ async function sendWhatsAppMessage(to: string, content: any) {
     body.interactive = content
   }
 
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${waToken}`,
@@ -34,6 +34,31 @@ async function sendWhatsAppMessage(to: string, content: any) {
     },
     body: JSON.stringify(body),
   })
+
+  if (res.ok) {
+    const waData = await res.json()
+    const waMessageId = waData.messages?.[0]?.id
+    if (waMessageId) {
+      let pId = profileId;
+      if (!pId) {
+         const { data: profile } = await supabase.from('profiles').select('id').or(`whatsapp_number.eq.${to},whatsapp_number.eq.+${to}`).maybeSingle()
+         pId = profile?.id
+      }
+      
+      if (pId) {
+         let msgStr = typeof content === 'string' ? content : (content.body?.text || 'Interactive Message');
+         await supabase.from('whatsapp_message_logs').insert({
+            profile_id: pId,
+            wa_message_id: waMessageId,
+            status: 'sent',
+            body: msgStr,
+            message_type: message_type
+         })
+      }
+    }
+  } else {
+    console.error("Failed to send WA message:", await res.text())
+  }
 }
 
 serve(async (req) => {
@@ -60,7 +85,7 @@ serve(async (req) => {
             // If they have tasks, it will not return the "all caught up" or empty messages
             if (reply && !reply.includes("caught up") && !reply.includes("don't have any pending tasks") && !reply.includes("No pending tasks")) {
                const cleanTo = user.whatsapp_number.replace(/\D/g, '');
-               await sendWhatsAppMessage(cleanTo, `🔔 *Pending Tasks Reminder*\n\nHere is your current task list:\n\n${reply}`);
+               await sendWhatsAppMessage(cleanTo, `🔔 *Pending Tasks Reminder*\n\nHere is your current task list:\n\n${reply}`, 'tasks_blast', user.id);
                sentCount++;
             }
           }
@@ -97,11 +122,11 @@ serve(async (req) => {
                 buttons: [
                   { type: 'reply', reply: { id: 'present all', title: '✅ Attended All' } },
                   { type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } },
-                  { type: 'reply', reply: { id: 'subjects', title: '✍️ Log Specific' } }
+                  { type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Specific' } }
                 ]
               }
             };
-            await sendWhatsAppMessage(cleanTo, interactiveMsg);
+            await sendWhatsAppMessage(cleanTo, interactiveMsg, 'attendance_guardian', user.id);
             sentCount++;
           }
         }
@@ -151,6 +176,39 @@ serve(async (req) => {
             console.log(`📩 [${phone}] (interactive: ${isInteractive}): ${text}`);
             if (isInteractive && text === 'all_done') {
               await sendWhatsAppMessage(from, "That's fantastic! Keep up the great momentum. 🌟")
+            } else if (text === 'log_menu' || text === 'subjects') {
+              const { data: profile } = await supabase.from('profiles').select('id, academics_enabled, current_semester_id').or(`whatsapp_number.eq.${from},whatsapp_number.eq.+${from}`).single();
+              if (profile?.academics_enabled) {
+                const { data: subjects } = await supabase.from('subjects')
+                  .select('name')
+                  .eq('profile_id', profile.id)
+                  .eq('type', 'academic')
+                  .eq('is_active', true);
+
+                if (subjects && subjects.length > 0) {
+                  const rows = subjects.slice(0, 10).map((s: any) => ({
+                    id: `attended ${s.name}`,
+                    title: s.name.substring(0, 24),
+                    description: `Mark present for ${s.name}`
+                  }));
+
+                  const interactiveList = {
+                    type: 'list',
+                    header: { type: 'text', text: '✍️ Log Attendance' },
+                    body: { text: 'Select a subject to mark it as *Present* for today. \n\n(To mark absent, type "missed [subject]")' },
+                    footer: { text: 'Ryu Medha' },
+                    action: {
+                      button: 'Select Subject',
+                      sections: [{ title: 'Your Subjects', rows }]
+                    }
+                  };
+                  await sendWhatsAppMessage(from, interactiveList, 'bot_reply', profile.id);
+                } else {
+                  await sendWhatsAppMessage(from, "You don't have any active academic subjects to log. Type 'add subject [name]' to start!");
+                }
+              } else {
+                await sendWhatsAppMessage(from, "Academic tracking is not enabled for your profile.");
+              }
             } else if (isInteractive && text === 'show_tasks') {
               await sendWhatsAppMessage(from, "Checking your list... 📂 (I will send your tasks shortly!)")
               const reply = await processMessage(phone, 'tasks', { isInteractive: false });

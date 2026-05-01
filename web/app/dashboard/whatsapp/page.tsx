@@ -321,7 +321,7 @@ export default function WhatsAppAdminPage() {
                   <p className="text-sm text-muted-foreground line-clamp-1">{log.body}</p>
                   <div className="text-[10px] text-muted-foreground flex items-center gap-3">
                     <span>{new Date(log.created_at).toLocaleString()}</span>
-                    <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-[8px]">{log.wa_message_id}</span>
+                    <span title={log.wa_message_id} className="font-mono bg-muted px-1.5 py-0.5 rounded text-[8px] max-w-[120px] truncate inline-block align-bottom">{log.wa_message_id}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
