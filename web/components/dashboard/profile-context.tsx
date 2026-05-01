@@ -15,6 +15,7 @@ export interface UserProfile {
   setup_completed?: boolean;
   is_admin?: boolean;
   last_user_message_at?: string;
+  timezone?: string;
 }
 
 interface ProfileContextProps {
