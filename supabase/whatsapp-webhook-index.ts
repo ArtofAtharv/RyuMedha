@@ -62,8 +62,8 @@ serve(async (req) => {
               action: {
                 buttons: [
                   { type: 'reply', reply: { id: 'present all', title: '✅ Attended All' } },
-                  { type: 'reply', reply: { id: 'absent all', title: '❌ Missed All' } },
-                  { type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } }
+                  { type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } },
+                  { type: 'reply', reply: { id: 'subjects', title: '✍️ Log Specific' } }
                 ]
               }
             };

@@ -317,35 +317,46 @@ export default function TasksPage() {
     haptic()
     if (!editingTaskId || !editTitle.trim()) return
 
-    const finalDate = getDateISO(editDueDate, editDueTime)
+    try {
+      let dateObj = editDueDate;
+      if (typeof editDueDate === 'string') dateObj = new Date(editDueDate);
+      const finalDate = dateObj ? getDateISO(dateObj as Date, editDueTime) : null
 
-    await supabaseClient
-      .from('tasks')
-      .update({
-        title: editTitle.trim(),
-        priority: editPriority,
-        due_date: finalDate,
-        subject_id: editSubjectId === "none" ? null : editSubjectId,
-        has_reminder: editRemindOnDue || editRemind1Day || editRemindCustom,
-        reminder_time: finalDate,
-      })
-      .eq('id', editingTaskId)
+      const { error } = await supabaseClient
+        .from('tasks')
+        .update({
+          title: editTitle.trim(),
+          priority: editPriority,
+          due_date: finalDate,
+          subject_id: editSubjectId === "none" ? null : editSubjectId,
+          has_reminder: editRemindOnDue || editRemind1Day || editRemindCustom,
+          reminder_time: finalDate,
+        })
+        .eq('id', editingTaskId)
       
-    await supabaseClient.from('task_reminders').delete().eq('task_id', editingTaskId)
-    if (finalDate) {
-      const baseTime = new Date(finalDate).getTime()
-      const rems = []
-      if (editRemindOnDue) rems.push({ task_id: editingTaskId, profile_id: profileId, scheduled_for: new Date(baseTime).toISOString(), reminder_type: 'due_date' })
-      if (editRemind1Day) rems.push({ task_id: editingTaskId, profile_id: profileId, scheduled_for: new Date(baseTime - 86400000).toISOString(), reminder_type: '1_day_prior' })
-      if (editRemindCustom) rems.push({ task_id: editingTaskId, profile_id: profileId, scheduled_for: new Date(baseTime - (editCustomHours * 3600000)).toISOString(), reminder_type: 'custom_hours' })
-      
-      if (rems.length > 0) {
-        await supabaseClient.from('task_reminders').insert(rems)
+      if (error) throw error;
+
+      await supabaseClient.from('task_reminders').delete().eq('task_id', editingTaskId)
+      if (finalDate) {
+        const baseTime = new Date(finalDate).getTime()
+        const rems = []
+        if (editRemindOnDue) rems.push({ task_id: editingTaskId, profile_id: profileId, scheduled_for: new Date(baseTime).toISOString(), reminder_type: 'due_date' })
+        if (editRemind1Day) rems.push({ task_id: editingTaskId, profile_id: profileId, scheduled_for: new Date(baseTime - 86400000).toISOString(), reminder_type: '1_day_prior' })
+        if (editRemindCustom) rems.push({ task_id: editingTaskId, profile_id: profileId, scheduled_for: new Date(baseTime - (editCustomHours * 3600000)).toISOString(), reminder_type: 'custom_hours' })
+        
+        if (rems.length > 0) {
+          const { error: remError } = await supabaseClient.from('task_reminders').insert(rems)
+          if (remError) throw remError;
+        }
       }
-    }
 
-    setEditingTaskId(null)
-    fetchTasksAndSubjects(supabaseClient, profileId)
+      toast.success("Task updated successfully!")
+      setEditingTaskId(null)
+      fetchTasksAndSubjects(supabaseClient, profileId)
+    } catch (err: any) {
+      console.error("Save Edit Error:", err)
+      toast.error(`Failed to save task: ${err.message}`)
+    }
   }
 
   async function deleteTask(id: string) {
