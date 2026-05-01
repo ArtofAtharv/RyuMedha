@@ -2,17 +2,17 @@ import { MESSAGES, WEBSITE_URL } from './messages.ts';
 import { getUserClient, supabaseAdmin, getSession, setSession, clearSession } from './db.ts';
 import { parseIntent } from './nlp.ts';
 import { startOnboarding, handleOnboarding } from './setup.ts';
+
 const PLACEHOLDER_NAME = '';
+
 // --- HELPERS ---
 export function needsOnboarding(user: any) {
-  // If no name, definitely need onboarding
   if (!user.display_name || user.display_name === PLACEHOLDER_NAME) return true;
-  // If academics are enabled but no semester is set, they are stuck mid-onboarding
   if (user.academics_enabled && !user.current_semester_id) return true;
-  // If no track is enabled at all, they haven't finished track selection
   if (!user.academics_enabled && !user.personal_enabled) return true;
   return false;
 }
+
 export async function getOrCreateUser(phone: string) {
   const { data: existing } = await supabaseAdmin.from('profiles').select('*').eq('whatsapp_number', phone).maybeSingle();
   if (existing) return existing;
@@ -28,53 +28,28 @@ export async function getOrCreateUser(phone: string) {
   if (error) throw error;
   return newUser;
 }
+
 export async function updateProfile(phone: string, updates: any) {
   const uc = await getUserClient(phone);
   const { data, error } = await uc.from('profiles').update(updates).eq('whatsapp_number', phone).select().single();
   if (error) throw error;
   return data;
 }
+
 export async function seedDefaultCategories(phone: string) {
   const uc = await getUserClient(phone);
   const { data: profile } = await uc.from('profiles').select('id').eq('whatsapp_number', phone).single();
   if (!profile) return;
   const rows = [
-    {
-      profile_id: profile.id,
-      name: 'Professional Development',
-      color_hex: '#8b5cf6',
-      is_default: true
-    },
-    {
-      profile_id: profile.id,
-      name: 'Competitive Exams',
-      color_hex: '#ec4899',
-      is_default: true
-    },
-    {
-      profile_id: profile.id,
-      name: 'Language Learning',
-      color_hex: '#f59e0b',
-      is_default: true
-    },
-    {
-      profile_id: profile.id,
-      name: 'Creative Skills',
-      color_hex: '#10b981',
-      is_default: true
-    },
-    {
-      profile_id: profile.id,
-      name: 'Hobbies',
-      color_hex: '#6366f1',
-      is_default: true
-    }
+    { profile_id: profile.id, name: 'Professional Development', color_hex: '#8b5cf6', is_default: true },
+    { profile_id: profile.id, name: 'Competitive Exams', color_hex: '#ec4899', is_default: true },
+    { profile_id: profile.id, name: 'Language Learning', color_hex: '#f59e0b', is_default: true },
+    { profile_id: profile.id, name: 'Creative Skills', color_hex: '#10b981', is_default: true },
+    { profile_id: profile.id, name: 'Hobbies', color_hex: '#6366f1', is_default: true }
   ];
-  await uc.from('subject_categories').upsert(rows, {
-    onConflict: 'profile_id,name',
-    ignoreDuplicates: true
-  });
+  await uc.from('subject_categories').upsert(rows, { onConflict: 'profile_id,name', ignoreDuplicates: true });
 }
+
 // --- CATEGORY HANDLERS ---
 async function handleAddCategory(user, categoryName) {
   if (!categoryName) return MESSAGES.categories.prompt;
@@ -82,78 +57,53 @@ async function handleAddCategory(user, categoryName) {
   const { data: dup } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).ilike('name', categoryName).maybeSingle();
   if (dup) return MESSAGES.categories.duplicate(dup.name);
   const { data: created, error } = await uc.from('subject_categories').insert([
-    {
-      profile_id: user.id,
-      name: categoryName,
-      color_hex: '#6366f1',
-      is_default: false
-    }
+    { profile_id: user.id, name: categoryName, color_hex: '#6366f1', is_default: false }
   ]).select().single();
   if (error) return MESSAGES.categories.error;
   return MESSAGES.categories.success(created.name);
 }
+
 async function handleListCategories(user) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: cats } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).order('created_at', {
-    ascending: true
-  });
+  const { data: cats } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).order('created_at', { ascending: true });
   if (!cats || cats.length === 0) return MESSAGES.categories.empty;
   let msg = MESSAGES.categories.listHeader(cats.length);
-  cats.forEach((c, i)=>{
-    msg += `${i + 1}. ${c.name}\n`;
-  });
+  cats.forEach((c, i)=>{ msg += `${i + 1}. ${c.name}\n`; });
   return msg;
 }
+
 async function handleDeleteCategory(user, categoryName) {
   if (!categoryName) return MESSAGES.categories.deletePrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: cat } = await uc.from('subject_categories').select('id, name').eq('profile_id', user.id).ilike('name', categoryName).maybeSingle();
   if (!cat) return MESSAGES.categories.notFound(categoryName);
-  const { count } = await uc.from('subjects').select('id', {
-    count: 'exact',
-    head: true
-  }).eq('category_id', cat.id).eq('is_active', true);
+  const { count } = await uc.from('subjects').select('id', { count: 'exact', head: true }).eq('category_id', cat.id).eq('is_active', true);
   if (count && count > 0) return MESSAGES.categories.inUse(cat.name, count);
   const { error } = await uc.from('subject_categories').delete().eq('id', cat.id);
   if (error) return MESSAGES.categories.deleteError;
   return MESSAGES.categories.deleteSuccess(cat.name);
 }
+
 // --- SUBJECT HANDLERS ---
 async function findOrCreateAcademicCourse(semesterId: string, courseName: string) {
   const { data: existing } = await supabaseAdmin.from('academic_courses').select('id').eq('semester_id', semesterId).ilike('course_name', courseName).maybeSingle();
   if (existing) return existing.id;
   const { data: created, error } = await supabaseAdmin.from('academic_courses').insert([
-    {
-      semester_id: semesterId,
-      course_name: courseName
-    }
+    { semester_id: semesterId, course_name: courseName }
   ]).select().single();
   if (error) throw error;
   return created.id;
 }
+
 async function createSubject(user: any, subjectName: string, type: string, total: number | null = null, missed: number = 0, attended: number = 0, categoryName: string | null = null) {
-  // Use supabaseAdmin for all subject operations during setup to bypass RLS/JWT issues
   const { data: dup } = await supabaseAdmin.from('subjects').select('name, type').eq('profile_id', user.id).ilike('name', subjectName.trim()).eq('is_active', true).maybeSingle();
   if (dup) return MESSAGES.subjects.duplicate(dup.name, dup.type);
   if (type === 'academic') {
     if (!user.current_semester_id) return MESSAGES.subjects.setupNeeded;
     let courseId;
-    try {
-      courseId = await findOrCreateAcademicCourse(user.current_semester_id, subjectName.trim());
-    } catch  {
-      return MESSAGES.subjects.error;
-    }
+    try { courseId = await findOrCreateAcademicCourse(user.current_semester_id, subjectName.trim()); } catch { return MESSAGES.subjects.error; }
     const { data: subject, error } = await supabaseAdmin.from('subjects').insert([
-      {
-        profile_id: user.id,
-        type: 'academic',
-        name: subjectName.trim(),
-        source_course_id: courseId,
-        is_active: true,
-        expected_total_lectures: total,
-        legacy_missed_lectures: missed,
-        legacy_attended_lectures: attended
-      }
+      { profile_id: user.id, type: 'academic', name: subjectName.trim(), source_course_id: courseId, is_active: true, expected_total_lectures: total, legacy_missed_lectures: 0, legacy_attended_lectures: 0 }
     ]).select().single();
     if (error) return MESSAGES.subjects.addError(subjectName.trim());
     return MESSAGES.subjects.academicSuccess(subject.name);
@@ -161,35 +111,21 @@ async function createSubject(user: any, subjectName: string, type: string, total
   let categoryId = null;
   if (categoryName) {
     const { data: cat } = await supabaseAdmin.from('subject_categories').select('id').eq('profile_id', user.id).ilike('name', categoryName.trim()).maybeSingle();
-    if (cat) {
-      categoryId = cat.id;
-    } else {
+    if (cat) categoryId = cat.id;
+    else {
       const { data: newCat, error: catErr } = await supabaseAdmin.from('subject_categories').insert([
-        {
-          profile_id: user.id,
-          name: categoryName.trim(),
-          color_hex: '#6366f1',
-          is_default: false
-        }
+        { profile_id: user.id, name: categoryName.trim(), color_hex: '#6366f1', is_default: false }
       ]).select().single();
       if (!catErr) categoryId = newCat.id;
     }
   }
   const { data: subject, error } = await supabaseAdmin.from('subjects').insert([
-    {
-      profile_id: user.id,
-      type: 'personal',
-      name: subjectName.trim(),
-      category_id: categoryId,
-      is_active: true,
-      expected_total_lectures: total,
-      legacy_missed_lectures: missed,
-      legacy_attended_lectures: attended
-    }
+    { profile_id: user.id, type: 'personal', name: subjectName.trim(), category_id: categoryId, is_active: true, expected_total_lectures: total, legacy_missed_lectures: 0, legacy_attended_lectures: 0 }
   ]).select().single();
   if (error) return MESSAGES.subjects.addError(subjectName.trim());
   return MESSAGES.subjects.personalSuccess(subject.name);
 }
+
 async function handleAddSubject(user, phone, rawText) {
   if (!rawText) return MESSAGES.subjects.addPrompt;
   const catMatch = rawText.match(/(?:to|in|under|into)\s+(?:the\s+)?(?:category|cat)\s+(.+)$/i);
@@ -211,46 +147,26 @@ async function handleAddSubject(user, phone, rawText) {
     let typeVal = parts[i + 1]?.toLowerCase();
     let type = user.academics_enabled ? 'academic' : 'personal';
     let consumed = 1;
-    if ([
-      '1',
-      '2',
-      'academic',
-      'personal'
-    ].includes(typeVal)) {
+    if (['1', '2', 'academic', 'personal'].includes(typeVal)) {
       type = typeVal === '1' || typeVal === 'academic' ? 'academic' : 'personal';
       consumed = 2;
     }
     let category = manualCategory;
     if (type === 'personal' && !category) {
       const nextPart = parts[i + consumed];
-      if (nextPart && isNaN(nextPart)) {
-        category = nextPart;
-        consumed++;
-      }
+      if (nextPart && isNaN(nextPart)) { category = nextPart; consumed++; }
     }
-    let total = null, missed = 0, attended = 0;
-    if (i + consumed < parts.length && !isNaN(parts[i + consumed])) {
-      total = parseInt(parts[i + consumed], 10);
-      consumed++;
-      if (i + consumed < parts.length && !isNaN(parts[i + consumed])) {
-        missed = parseInt(parts[i + consumed], 10);
-        consumed++;
-        if (i + consumed < parts.length && !isNaN(parts[i + consumed])) {
-          attended = parseInt(parts[i + consumed], 10);
-          consumed++;
-        }
-      }
-    }
-    responses.push(await createSubject(user, name, type, total, missed, attended, category));
+    let total = null;
+    if (i + consumed < parts.length && !isNaN(parts[i + consumed])) { total = parseInt(parts[i + consumed], 10); consumed++; }
+    responses.push(await createSubject(user, name, type, total, 0, 0, category));
     i += consumed;
   }
   return responses.join('\n\n');
 }
+
 async function handleListSubjects(user) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: subjects } = await uc.from('subjects').select('name, type, category_id, subject_categories(name), source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).order('created_at', {
-    ascending: true
-  });
+  const { data: subjects } = await uc.from('subjects').select('name, type, category_id, subject_categories(name), source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).order('created_at', { ascending: true });
   if (!subjects || subjects.length === 0) return MESSAGES.subjects.empty;
   const filtered = subjects.filter((s)=>{
     if (s.type === 'academic' && !user.academics_enabled) return false;
@@ -267,9 +183,7 @@ async function handleListSubjects(user) {
   let msg = MESSAGES.subjects.listHeader;
   if (academic.length) {
     msg += MESSAGES.subjects.listAcademic;
-    academic.forEach((s, i)=>{
-      msg += `  ${i + 1}. ${s.name} \n`;
-    });
+    academic.forEach((s, i)=>{ msg += `  ${i + 1}. ${s.name} \n`; });
   }
   if (personal.length) {
     msg += MESSAGES.subjects.listPersonal;
@@ -281,14 +195,13 @@ async function handleListSubjects(user) {
     });
     for (const [cat, items] of Object.entries(grouped)){
       msg += `\n📂 *${cat}*\n`;
-      items.forEach((name)=>{
-        msg += `  - ${name}\n`;
-      });
+      items.forEach((name)=>{ msg += `  - ${name}\n`; });
     }
   }
   msg += MESSAGES.subjects.listFooter(filtered.length, filtered.length !== 1);
   return msg;
 }
+
 // --- ATTENDANCE HANDLERS ---
 async function logAttendance(user, subjectName, status) {
   const uc = await getUserClient(user.whatsapp_number);
@@ -303,68 +216,58 @@ async function logAttendance(user, subjectName, status) {
     else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s, i)=>`${i + 1}. ${s.name}`).join('\n'));
   }
   if (subject.type !== 'academic') return MESSAGES.attendance.academicOnly(subject.name);
-  
   const today = new Date().toISOString().split('T')[0];
   const { data: existing } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id).eq('lecture_date', today).order('created_at', { ascending: false }).limit(1).maybeSingle();
-  
-  await uc.from('attendance_logs').insert([
-    {
-      profile_id: user.id,
-      subject_id: subject.id,
-      lecture_date: today,
-      status
-    }
-  ]);
-
+  await uc.from('attendance_logs').insert([{ profile_id: user.id, subject_id: subject.id, lecture_date: today, status }]);
   let prefix = '';
   if (existing) {
-    // We need the NEW total for the message
     const { data: logs } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
-    const totalCount = (logs?.length || 0) + (subject.legacy_attended_lectures || 0) + (subject.legacy_missed_lectures || 0);
+    const totalCount = (logs?.length || 0);
     prefix = MESSAGES.attendance.multiMarked(subject.name, existing.status, status, totalCount);
   } else {
     prefix = status === 'present' ? MESSAGES.attendance.presentPrefix(subject.name) : status === 'absent' ? MESSAGES.attendance.absentPrefix(subject.name) : MESSAGES.attendance.deemedPrefix(subject.name);
   }
-
   return await buildAttendanceSummary(uc, user, subject, prefix);
 }
+
 async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetchedLogs = null) {
   const logs = preFetchedLogs || await (async () => {
     const { data } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
     return data;
   })();
-  const present = (logs?.filter((l)=>l.status === 'present').length || 0) + (subject.legacy_attended_lectures || 0);
-  const absent = (logs?.filter((l)=>l.status === 'absent').length || 0) + (subject.legacy_missed_lectures || 0);
-  const deemed = logs?.filter((l)=>l.status === 'deemed').length || 0;
+  // Legacy attendance is now ignored (always 0) as requested
+  const present = (logs?.filter((l)=>l.status === 'present').length || 0);
+  const absent = (logs?.filter((l)=>l.status === 'absent').length || 0);
+  const deemed = (logs?.filter((l)=>l.status === 'deemed').length || 0);
   const total = present + absent + deemed;
   if (total === 0) return MESSAGES.attendance.summaryNoData(subject.name);
+  
+  // Percent calculation: (Present + Deemed) / Total
   const pct = (present + deemed) / total * 100;
   const target = user.target_attendance_pct || 75;
   const emoji = pct >= target ? '✅' : pct >= target - 15 ? '⚠️' : '🔴';
   let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present, total, pct.toFixed(1));
   if (deemed > 0) msg += MESSAGES.attendance.deemedNote(deemed);
-
+  
   const expectedTotal = subject.expected_total_lectures || subject.source_course_id?.expected_total_lectures || 0;
-
   if (expectedTotal > 0) {
     const t = target / 100;
     const maxMisses = Math.floor(expectedTotal * (1 - t));
-    const netAbsent = Math.max(0, absent - deemed);
-    const bunks = maxMisses - netAbsent;
-    const remaining = Math.max(0, expectedTotal - total);
     
+    // FIX: Bunks calculation should only use ACTUAL absences. 
+    // If a lecture is deemed, it doesn't count as an absence towards the bunk limit.
+    const bunks = maxMisses - absent;
+    
+    const remaining = Math.max(0, expectedTotal - total);
     const totalPresentsNeededForGoal = Math.ceil(expectedTotal * t);
     const needed = Math.max(0, totalPresentsNeededForGoal - (present + deemed));
-
-    if (bunks >= 0) {
-      msg += MESSAGES.attendance.bunksLeft(bunks, bunks !== 1);
-    } else {
+    
+    if (bunks >= 0) msg += MESSAGES.attendance.bunksLeft(bunks, bunks !== 1);
+    else {
       if (needed > remaining) {
         const maxPossiblePct = ((present + deemed + remaining) / expectedTotal) * 100;
         msg += MESSAGES.attendance.impossibleGoal(Math.round(maxPossiblePct));
-      } else {
-        msg += MESSAGES.attendance.trackWarning(needed, needed !== 1);
-      }
+      } else msg += MESSAGES.attendance.trackWarning(needed, needed !== 1);
     }
   } else if (pct < target) {
     const t = target / 100;
@@ -373,6 +276,7 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
   }
   return msg;
 }
+
 // --- SUBJECT MANAGEMENT ---
 async function handleRenameSubject(user, text) {
   const parts = text.split(',').map((s)=>s.trim());
@@ -383,25 +287,23 @@ async function handleRenameSubject(user, text) {
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(oldName);
   const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return `❌ Subject exists but is not in your current context.`;
-  const { error } = await uc.from('subjects').update({
-    name: newName
-  }).eq('id', valid[0].id);
+  const { error } = await uc.from('subjects').update({ name: newName }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.renameError;
   return MESSAGES.subjects.renameSuccess(valid[0].name, newName);
 }
+
 async function handleDeleteSubject(user, subjectName) {
   if (!subjectName) return MESSAGES.subjects.deletePrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', subjectName.trim());
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(subjectName.trim());
   const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
-  if (valid.length === 0) return MESSAGES.subjects.wrongContext(subjectName.trim());
-  const { error } = await uc.from('subjects').update({
-    is_active: false
-  }).eq('id', valid[0].id);
+  if (valid.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
+  const { error } = await uc.from('subjects').update({ is_active: false }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.deleteError;
   return MESSAGES.subjects.deleteSuccess(valid[0].name);
 }
+
 async function handleSetupLectures(user, text) {
   const type = text.startsWith('total') ? 'total' : 'missed';
   const parts = text.replace(/^(total|missed)\s+/i, '').split(',');
@@ -413,11 +315,10 @@ async function handleSetupLectures(user, text) {
   const { data: subjects } = await uc.from('subjects').select('id, name').eq('profile_id', user.id).ilike('name', subjectName).eq('is_active', true);
   if (!subjects || subjects.length === 0) return MESSAGES.subjects.notFound(subjectName);
   const col = type === 'total' ? 'expected_total_lectures' : 'legacy_missed_lectures';
-  await uc.from('subjects').update({
-    [col]: val
-  }).eq('id', subjects[0].id);
+  await uc.from('subjects').update({ [col]: val }).eq('id', subjects[0].id);
   return MESSAGES.subjects.setupLecturesSuccess(subjects[0].name, type, val);
 }
+
 async function handleMarkAll(user, status) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
@@ -428,19 +329,13 @@ async function handleMarkAll(user, status) {
   for (const s of filtered){
     const { data: existing } = await uc.from('attendance_logs').select('id').eq('profile_id', user.id).eq('subject_id', s.id).eq('lecture_date', today).maybeSingle();
     if (!existing) {
-      await uc.from('attendance_logs').insert([
-        {
-          profile_id: user.id,
-          subject_id: s.id,
-          lecture_date: today,
-          status
-        }
-      ]);
+      await uc.from('attendance_logs').insert([{ profile_id: user.id, subject_id: s.id, lecture_date: today, status }]);
       count++;
     }
   }
   return MESSAGES.attendance.allSuccess(status, count);
 }
+
 async function handleUndoAll(user) {
   const uc = await getUserClient(user.whatsapp_number);
   const today = new Date().toISOString().split('T')[0];
@@ -448,6 +343,7 @@ async function handleUndoAll(user) {
   if (error) return MESSAGES.attendance.undoError;
   return MESSAGES.attendance.undoAllSuccess;
 }
+
 // --- TASK HANDLERS ---
 async function handleAddTask(user, rawText) {
   if (!rawText) return MESSAGES.tasks.addPrompt;
@@ -461,34 +357,18 @@ async function handleAddTask(user, rawText) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: subs } = await uc.from('subjects').select('id, name').eq('profile_id', user.id).eq('is_active', true);
   if (subs) {
-    for (const s of subs){
-      if (title.toLowerCase().includes(s.name.toLowerCase())) {
-        subjectId = s.id;
-        break;
-      }
-    }
+    for (const s of subs){ if (title.toLowerCase().includes(s.name.toLowerCase())) { subjectId = s.id; break; } }
   }
-  const { data: task, error } = await uc.from('tasks').insert([
-    {
-      profile_id: user.id,
-      subject_id: subjectId,
-      title,
-      is_completed: false,
-      priority: 'medium',
-      due_date: dueDate
-    }
-  ]).select().single();
+  const { data: task, error } = await uc.from('tasks').insert([{ profile_id: user.id, subject_id: subjectId, title, is_completed: false, priority: 'medium', due_date: dueDate }]).select().single();
   if (error) return MESSAGES.tasks.addError;
   const dueStr = task.due_date ? MESSAGES.tasks.dueNote(new Date(task.due_date).toLocaleDateString('en-IN')) : '';
   return MESSAGES.tasks.addSuccess(task.title, dueStr);
 }
+
 async function handleCompleteTask(user, numberStr) {
   const idx = parseInt(numberStr, 10) - 1;
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('tasks').select('id, title, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', {
-    ascending: true,
-    nullsFirst: false
-  });
+  const { data: raw } = await uc.from('tasks').select('id, title, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
   const tasks = raw?.filter((t)=>{
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
     if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
@@ -500,18 +380,13 @@ async function handleCompleteTask(user, numberStr) {
     return true;
   }) || [];
   if (idx < 0 || idx >= tasks.length) return MESSAGES.tasks.notFound(idx + 1, tasks.length);
-  await uc.from('tasks').update({
-    is_completed: true,
-    completed_at: new Date().toISOString()
-  }).eq('id', tasks[idx].id);
+  await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', tasks[idx].id);
   return MESSAGES.tasks.doneSuccess(tasks[idx].title);
 }
+
 async function handleListTasks(user) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('tasks').select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', {
-    ascending: true,
-    nullsFirst: false
-  });
+  const { data: raw } = await uc.from('tasks').select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
   if (!raw || raw.length === 0) return MESSAGES.tasks.listCaughtUp;
   const tasks = raw.filter((t)=>{
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
@@ -526,16 +401,12 @@ async function handleListTasks(user) {
   if (tasks.length === 0) return MESSAGES.tasks.empty;
   let msg = MESSAGES.tasks.listHeader(tasks.length);
   tasks.forEach((t, i)=>{
-    const p = {
-      urgent: '🔴',
-      high: '🟠',
-      medium: '🟡',
-      low: '🟢'
-    }[t.priority] || '🟡';
+    const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority] || '🟡';
     msg += `${i + 1}. ${p} ${t.title}${t.due_date ? MESSAGES.tasks.dueNote(new Date(t.due_date).toLocaleDateString('en-IN')) : ''}\n`;
   });
   return msg + MESSAGES.tasks.listFooter(tasks.length, tasks.length !== 1);
 }
+
 // --- TIMER HANDLERS ---
 async function handleStartTimer(user, subjectName) {
   if (!subjectName) return MESSAGES.timers.startPrompt;
@@ -546,15 +417,10 @@ async function handleStartTimer(user, subjectName) {
   if (!subs || subs.length === 0) return MESSAGES.timers.notFound(subjectName.trim());
   const valid = subs.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return MESSAGES.timers.wrongContext(subjectName.trim());
-  await uc.from('study_timers').insert([
-    {
-      profile_id: user.id,
-      subject_id: valid[0].id,
-      started_at: new Date().toISOString()
-    }
-  ]);
+  await uc.from('study_timers').insert([{ profile_id: user.id, subject_id: valid[0].id, started_at: new Date().toISOString() }]);
   return MESSAGES.timers.started(valid[0].name);
 }
+
 async function handleStopTimer(user) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: running } = await uc.from('study_timers').select('id, started_at, subjects(name)').eq('profile_id', user.id).is('ended_at', null).maybeSingle();
@@ -562,11 +428,10 @@ async function handleStopTimer(user) {
   const ended = new Date();
   const diff = ended.getTime() - new Date(running.started_at).getTime();
   const mins = Math.floor(diff / 60000);
-  await uc.from('study_timers').update({
-    ended_at: ended.toISOString()
-  }).eq('id', running.id);
+  await uc.from('study_timers').update({ ended_at: ended.toISOString() }).eq('id', running.id);
   return MESSAGES.timers.stopped(running.subjects?.name, Math.floor(mins / 60), mins % 60);
 }
+
 // --- PROFILE HANDLER ---
 async function handleProfile(user: any, uc: any) {
   let msg = MESSAGES.general.profileHeader + MESSAGES.general.profileName(user.display_name);
@@ -585,14 +450,12 @@ async function handleProfile(user: any, uc: any) {
   return msg + MESSAGES.general.profileFooter;
 }
 
-// --- HELP HANDLER ---
 function handleHelp(user: any) {
   if (user.academics_enabled && user.personal_enabled) return MESSAGES.general.helpBoth;
   if (user.personal_enabled) return MESSAGES.general.helpPersonal;
   return MESSAGES.general.help;
 }
 
-// --- ATTENDANCE SUMMARY HANDLER ---
 async function handleStats(user: any, uc: any) {
   if (!user.academics_enabled) return MESSAGES.stats.academicOnly;
   const { data: raw } = await uc.from('subjects').select('id, name, expected_total_lectures, legacy_missed_lectures, legacy_attended_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
@@ -603,10 +466,8 @@ async function handleStats(user: any, uc: any) {
   for (const s of filtered) {
     const sLogs = logs?.filter((l: any) => l.subject_id === s.id) || [];
     const sum = await buildAttendanceSummary(uc, user, s, '', sLogs);
-    if (!sum.includes('0 classes so far.')) {
-      hasData = true;
-      msg += sum + '\n\n';
-    } else msg += `${MESSAGES.stats.noDataEmoji} *${s.name}*: ${MESSAGES.stats.noDataNote}\n\n`;
+    if (!sum.includes('0 classes so far.')) { hasData = true; msg += sum + '\n\n'; }
+    else msg += `${MESSAGES.stats.noDataEmoji} *${s.name}*: ${MESSAGES.stats.noDataNote}\n\n`;
   }
   return hasData ? msg.trim() : MESSAGES.stats.empty;
 }
@@ -638,31 +499,13 @@ export async function processMessage(phone: string, text: string, metadata: { is
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
   const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin, metadata };
-
-  if (lower === 'setup' || lower === 'reset') {
-    await updateProfile(phone, { display_name: PLACEHOLDER_NAME });
-    await clearSession(phone);
-    return startOnboarding(phone, deps);
-  }
-
+  if (lower === 'setup' || lower === 'reset') { await updateProfile(phone, { display_name: PLACEHOLDER_NAME }); await clearSession(phone); return startOnboarding(phone, deps); }
   if (session) {
-    if (['cancel', 'stop'].includes(lower)) {
-      await clearSession(phone);
-      return `Onboarding cancelled. Type "setup" to restart!`;
-    }
+    if (['cancel', 'stop'].includes(lower)) { await clearSession(phone); return `Onboarding cancelled. Type "setup" to restart!`; }
     const reply = await handleOnboarding(user, session, text.trim(), deps);
     if (reply) return reply;
-    // If handleOnboarding returned nothing but we have a session, 
-    // it usually means a missing message reference or invalid step.
-    // We should NOT fall through to main logic if needsOnboarding is still true.
   }
-
-  if (needsOnboarding(user)) {
-    // If they have a session but handleOnboarding didn't return a reply, 
-    // maybe resume from the current step or restart.
-    return startOnboarding(phone, deps);
-  }
-
+  if (needsOnboarding(user)) return startOnboarding(phone, deps);
   let reply: string | any = null;
   if (lower === 'profile') reply = await handleProfile(user, uc);
   else if (['hi', 'hello', 'hey', 'help', '?', 'start'].includes(lower)) reply = handleHelp(user);
@@ -690,7 +533,6 @@ export async function processMessage(phone: string, text: string, metadata: { is
   else if (lower === 'absent all') reply = await handleMarkAll(user, 'absent');
   else if (lower === 'deemed all') reply = await handleMarkAll(user, 'deemed');
   else if (lower === 'undo all') reply = await handleUndoAll(user);
-
   if (!reply) {
     const inferred = await parseIntent(text);
     if (inferred && inferred !== lower) return await processMessage(phone, inferred);

@@ -48,6 +48,7 @@ export default async function DashboardPage() {
     { data: gradesData },
     { data: categoriesData }
   ] = await Promise.all([
+    supabase
       .from('subjects')
       .select('id, name, color_hex, type, is_active, label, expected_total_lectures, category_id, source_course_id(*)')
       .eq('is_active', true)
