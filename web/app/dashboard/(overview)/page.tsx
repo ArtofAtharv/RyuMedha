@@ -234,8 +234,6 @@ export default async function DashboardPage() {
     ? Math.round(((totalPresent + totalDeemed) / (totalPresent + totalAbsent + totalDeemed)) * 100)
     : null
 
-  const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
-  const personalSubjects = subjectsData?.filter(s => s.type === 'personal') || []
 
   return (
     <ProfileProvider profile={fullProfile}>
