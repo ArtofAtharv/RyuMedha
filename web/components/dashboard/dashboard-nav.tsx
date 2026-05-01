@@ -4,21 +4,27 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion } from "motion/react"
 
-import { LayoutDashboard, User, BookOpen, CheckSquare, Clock, GraduationCap } from "lucide-react"
-
-const tabs = [
-  { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Profile", href: "/dashboard/profile", icon: User },
-  { label: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
-  { label: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
-  { label: "Timers", href: "/dashboard/timers", icon: Clock },
-  { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
-]
-
+import { LayoutDashboard, User, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare } from "lucide-react"
+import { useProfile } from './profile-context'
 import { haptic } from "@/lib/haptic"
 
 export function DashboardNav() {
   const pathname = usePathname()
+  const { profile } = useProfile()
+  const isAdmin = profile?.is_admin === true
+
+  const tabs = [
+    { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Profile", href: "/dashboard/profile", icon: User },
+    { label: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
+    { label: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
+    { label: "Timers", href: "/dashboard/timers", icon: Clock },
+    { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
+  ]
+
+  if (isAdmin) {
+    tabs.push({ label: "WhatsApp", href: "/dashboard/whatsapp", icon: MessageSquare })
+  }
 
   // Match active tab — exact match for /dashboard, startsWith for sub-pages
   const activeHref = tabs.find(t =>
