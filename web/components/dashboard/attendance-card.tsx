@@ -71,14 +71,29 @@ export function AttendanceCard({
     }
   }
 
-  const healthClass =
-    (present === 0 && absent === 0 && deemed === 0)
-      ? 'text-muted-foreground'
-      : pct >= 85
-        ? 'text-green-500 dark:text-green-400'
-        : pct >= 75
-          ? 'text-yellow-500 dark:text-yellow-400'
-          : 'text-destructive'
+  const skipPct = maxAllowedSkips && maxAllowedSkips > 0 ? (currentSkips || 0) / maxAllowedSkips : 0;
+  
+  let healthClass = 'text-muted-foreground';
+  if (present > 0 || absent > 0 || deemed > 0) {
+    if (bunksRemaining !== undefined) {
+      if (bunksRemaining <= 0) {
+        healthClass = 'text-destructive';
+      } else if (skipPct >= 0.6) {
+        healthClass = 'text-amber-600 dark:text-amber-400';
+      } else {
+        healthClass = 'text-green-600 dark:text-green-400/90';
+      }
+    } else {
+      // Fallback if bunk logic is unavailable
+      if (pct < targetPct) {
+        healthClass = 'text-destructive';
+      } else if (pct < targetPct + 10) {
+        healthClass = 'text-amber-600 dark:text-amber-400';
+      } else {
+        healthClass = 'text-green-600 dark:text-green-400/90';
+      }
+    }
+  }
 
   return (
     <motion.div 
