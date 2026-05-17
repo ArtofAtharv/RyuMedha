@@ -231,6 +231,16 @@ export default function GradesPage() {
   const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "—"
   const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "—"
 
+  function getLetterGradeFromGPA(gpa: number, scale: number) {
+    if (gpa >= scale) return "O"
+    if (gpa >= scale - 1) return "A+"
+    if (gpa >= scale - 2) return "A"
+    if (gpa >= scale - 3) return "B+"
+    if (gpa >= scale - 4) return "B"
+    if (gpa >= scale - 5) return "C"
+    return "F"
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
@@ -287,7 +297,15 @@ export default function GradesPage() {
                         <button onClick={saveGpaScale} className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center hover:bg-white/30"><Check className="w-3.5 h-3.5"/></button>
                       </div>
                     ) : (
-                      <p className="text-5xl font-black">{sgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
+                      <div className="flex items-center justify-between">
+                        <p className="text-5xl font-black">{sgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
+                        {sgpaValue !== "—" && (
+                          <div className="flex flex-col items-end pr-2">
+                            <span className="text-xs uppercase tracking-wider font-bold text-white/80 mb-1">Grade</span>
+                            <span className="text-4xl font-black leading-none">{getLetterGradeFromGPA(Number(sgpaValue), maxGpa)}</span>
+                          </div>
+                        )}
+                      </div>
                     )}
                     <div className="mt-3 pt-3 border-t border-white/20">
                       <p className="text-xs font-bold opacity-90">Semester Marks</p>
@@ -305,7 +323,15 @@ export default function GradesPage() {
                     <CardDescription>Cumulative Grade Point Average</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-5xl font-black gradient-accent-text">{cgpaValue} <span className="text-2xl text-muted-foreground font-bold">/ {maxGpa}</span></p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-5xl font-black gradient-accent-text">{cgpaValue} <span className="text-2xl text-muted-foreground font-bold">/ {maxGpa}</span></p>
+                      {cgpaValue !== "—" && (
+                        <div className="flex flex-col items-end pr-2">
+                          <span className="text-xs uppercase tracking-wider font-bold text-muted-foreground mb-1">Grade</span>
+                          <span className="text-4xl font-black leading-none text-primary">{getLetterGradeFromGPA(Number(cgpaValue), maxGpa)}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="mt-3 pt-3 border-t border-border/50">
                       <p className="text-xs font-bold opacity-90">All Academic Marks</p>
                       <p className="font-mono text-base text-muted-foreground">{(Math.round(acadScoreAll * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxAll}</span></p>
