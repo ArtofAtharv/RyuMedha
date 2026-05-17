@@ -51,6 +51,40 @@ export default function ProfilePage() {
   const [newSemNumber, setNewSemNumber] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [hasArchivedSubjects, setHasArchivedSubjects] = useState(false)
+  const [hasActiveSubjects, setHasActiveSubjects] = useState(false)
+
+  useEffect(() => {
+    async function checkSemesterStatus() {
+      if (!profile?.current_semester_id || !supabaseClient) {
+        setHasArchivedSubjects(false)
+        setHasActiveSubjects(false)
+        return
+      }
+      const { data: subs } = await supabaseClient
+        .from('subjects')
+        .select('id, is_active, source_course_id(semester_id)')
+        .eq('profile_id', profile.id)
+        .eq('type', 'academic')
+      
+      let activeCount = 0
+      let archivedCount = 0
+      
+      ;(subs || []).forEach((s: any) => {
+        const semId = Array.isArray(s.source_course_id) 
+          ? s.source_course_id[0]?.semester_id 
+          : (s.source_course_id as any)?.semester_id
+        if (semId === profile.current_semester_id) {
+          if (s.is_active) activeCount++
+          else archivedCount++
+        }
+      })
+      
+      setHasActiveSubjects(activeCount > 0)
+      setHasArchivedSubjects(archivedCount > 0)
+    }
+    checkSemesterStatus()
+  }, [profile?.current_semester_id, supabaseClient, profile?.id])
 
   useEffect(() => {
     async function init() {
@@ -357,22 +391,34 @@ export default function ProfilePage() {
       "📦 Archive Current Semester?\n\n" +
       "This will:\n" +
       "1. Clear your current semester selection.\n" +
-      "2. Archive (hide) all your active academic subjects.\n\n" +
+      "2. Archive (hide) all your active academic subjects for this semester.\n\n" +
       "Your history (attendance, grades) will be preserved. You can re-enroll in new subjects for your next semester."
     )
     if (!confirmed) return
 
     setSaving(true)
     try {
-      // 1. Soft-delete current academic subjects
-      await supabaseClient
+      const { data: subs } = await supabaseClient
         .from('subjects')
-        .update({ is_active: false })
+        .select('id, source_course_id(semester_id)')
         .eq('profile_id', profile.id)
         .eq('type', 'academic')
         .eq('is_active', true)
 
-      // 2. Clear semester in profile
+      const subjectIdsToArchive = (subs || []).filter((s: any) => {
+        const semId = Array.isArray(s.source_course_id) 
+          ? s.source_course_id[0]?.semester_id 
+          : (s.source_course_id as any)?.semester_id
+        return semId === profile.current_semester_id
+      }).map((s: any) => s.id)
+
+      if (subjectIdsToArchive.length > 0) {
+        await supabaseClient
+          .from('subjects')
+          .update({ is_active: false })
+          .in('id', subjectIdsToArchive)
+      }
+
       await supabaseClient
         .from('profiles')
         .update({ current_semester_id: null })
@@ -383,6 +429,41 @@ export default function ProfilePage() {
       router.refresh()
     } catch (err) {
       toast.error("Failed to archive semester")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleUnarchiveSemester() {
+    if (!profile || !supabaseClient) return
+    setSaving(true)
+    try {
+      const { data: subs } = await supabaseClient
+        .from('subjects')
+        .select('id, source_course_id(semester_id)')
+        .eq('profile_id', profile.id)
+        .eq('type', 'academic')
+        .eq('is_active', false)
+
+      const subjectIdsToRestore = (subs || []).filter((s: any) => {
+        const semId = Array.isArray(s.source_course_id) 
+          ? s.source_course_id[0]?.semester_id 
+          : (s.source_course_id as any)?.semester_id
+        return semId === profile.current_semester_id
+      }).map((s: any) => s.id)
+
+      if (subjectIdsToRestore.length > 0) {
+        await supabaseClient
+          .from('subjects')
+          .update({ is_active: true })
+          .in('id', subjectIdsToRestore)
+      }
+
+      setHasActiveSubjects(true)
+      toast.success("Semester unarchived successfully!")
+      router.refresh()
+    } catch (err) {
+      toast.error("Failed to unarchive semester")
     } finally {
       setSaving(false)
     }
@@ -612,7 +693,7 @@ export default function ProfilePage() {
               suffix="%"
             />
 
-            {/* Archive Semester Action */}
+            {/* Archive/Unarchive Semester Action */}
             <div className="px-5 py-4 bg-amber-500/5 flex items-center justify-between gap-4">
                <div className="flex items-center gap-4">
                   <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center shrink-0 border border-amber-500/20">
@@ -620,18 +701,30 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase tracking-widest">End of Semester</p>
-                    <p className="font-medium text-sm text-amber-900 dark:text-amber-100">Archive Current Data</p>
+                    <p className="font-medium text-sm text-amber-900 dark:text-amber-100">{hasArchivedSubjects && !hasActiveSubjects ? "Restore Archived Data" : "Archive Current Data"}</p>
                   </div>
                </div>
-               <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleArchiveSemester}
-                disabled={saving || !profile.current_semester_id}
-                className="h-9 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs uppercase tracking-wider px-4"
-               >
-                 Archive
-               </Button>
+               {hasArchivedSubjects && !hasActiveSubjects ? (
+                 <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleUnarchiveSemester}
+                  disabled={saving || !profile.current_semester_id}
+                  className="h-9 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs uppercase tracking-wider px-4"
+                 >
+                   Unarchive
+                 </Button>
+               ) : (
+                 <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleArchiveSemester}
+                  disabled={saving || !profile.current_semester_id}
+                  className="h-9 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 font-bold text-xs uppercase tracking-wider px-4"
+                 >
+                   Archive
+                 </Button>
+               )}
             </div>
           </div>
         </motion.div>

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
-import { BookOpen, FolderOpen } from "lucide-react"
+import { BookOpen, FolderOpen, Pencil, Check, X, Target } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { motion, Variants } from "motion/react"
 
@@ -30,6 +30,28 @@ export default function GradesPage() {
   
   const [supabaseClient, setSupabaseClient] = useState<any>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
+  
+  const [allAcademicSubjects, setAllAcademicSubjects] = useState<any[]>([])
+  const [maxGpa, setMaxGpa] = useState<number>(10)
+  const [isEditingGpa, setIsEditingGpa] = useState(false)
+  const [editGpaValue, setEditGpaValue] = useState("10")
+
+  useEffect(() => {
+    const stored = localStorage.getItem('max_gpa')
+    if (stored) {
+      setMaxGpa(Number(stored))
+      setEditGpaValue(stored)
+    }
+  }, [])
+
+  function saveGpaScale() {
+    const val = Number(editGpaValue)
+    if (!isNaN(val) && val > 0) {
+      setMaxGpa(val)
+      localStorage.setItem('max_gpa', val.toString())
+    }
+    setIsEditingGpa(false)
+  }
 
   useEffect(() => {
     async function init() {
@@ -69,15 +91,17 @@ export default function GradesPage() {
       
     setGrades(g || [])
 
-    // Subjects for dropdown & cards - Fetch BOTH types
+    // Subjects for dropdown & cards - Fetch BOTH types, including inactive for CGPA
     const { data: rawSubs } = await supabase
       .from('subjects')
       .select('id, name, color_hex, type, label, source_course_id(semester_id)')
       .eq('profile_id', pid)
-      .eq('is_active', true)
       
+    const acadSubsAll = rawSubs?.filter((s: any) => s.type === 'academic') || []
+    setAllAcademicSubjects(acadSubsAll)
+
     const subs = rawSubs?.filter((s: any) => {
-      if (s.type === 'personal') return true
+      if (s.type === 'personal') return s.is_active
       const semId = Array.isArray(s.source_course_id) 
         ? s.source_course_id[0]?.semester_id 
         : (s.source_course_id as any)?.semester_id
@@ -85,7 +109,8 @@ export default function GradesPage() {
     }) || []
     setSubjects(subs)
 
-    const validSubjectIds = new Set(subs.map((s: any) => s.id))
+    // We filter grades to all active/archived for personal, and all academic
+    const validSubjectIds = new Set(rawSubs?.map((s: any) => s.id) || [])
     setGrades((g || []).filter((item: any) => validSubjectIds.has(item.subject_id)))
   }
 
@@ -132,26 +157,35 @@ export default function GradesPage() {
 
 
   // Separate aggregate stats for academic vs personal
-  const academicSubjectIds = new Set(subjects.filter(s => s.type === 'academic').map(s => s.id))
+  const currentAcademicSubjectIds = new Set(subjects.filter(s => s.type === 'academic').map(s => s.id))
+  const allAcademicSubjectIds = new Set(allAcademicSubjects.map(s => s.id))
   const personalSubjectIds = new Set(subjects.filter(s => s.type === 'personal').map(s => s.id))
 
-  let acadScore = 0, acadMax = 0, persScore = 0, persMax = 0
+  let acadScoreCurrent = 0, acadMaxCurrent = 0
+  let acadScoreAll = 0, acadMaxAll = 0
+  let persScore = 0, persMax = 0
 
   grades.forEach(g => {
     const m = Number(g.marks) || 0
     const mx = Number(g.max_marks) || 0
     
-    if (academicSubjectIds.has(g.subject_id)) {
-      acadScore += m
-      acadMax += mx
+    if (allAcademicSubjectIds.has(g.subject_id)) {
+      acadScoreAll += m
+      acadMaxAll += mx
+      if (currentAcademicSubjectIds.has(g.subject_id)) {
+        acadScoreCurrent += m
+        acadMaxCurrent += mx
+      }
     } else if (personalSubjectIds.has(g.subject_id)) {
       persScore += m
       persMax += mx
     }
   })
 
-  const acadPct = acadMax > 0 ? ((acadScore / acadMax) * 100).toFixed(1) : "—"
-  const persPct = persMax > 0 ? ((persScore / persMax) * 100).toFixed(1) : "—"
+  // Format to 2 decimal places as requested
+  const sgpaValue = acadMaxCurrent > 0 ? ((acadScoreCurrent / acadMaxCurrent) * maxGpa).toFixed(2) : "—"
+  const cgpaValue = acadMaxAll > 0 ? ((acadScoreAll / acadMaxAll) * maxGpa).toFixed(2) : "—"
+  const persPct = persMax > 0 ? ((persScore / persMax) * 100).toFixed(2) : "—"
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
@@ -191,18 +225,46 @@ export default function GradesPage() {
               <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
           
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
-                {/* Academic Summary Card — first item in the grid */}
+                {/* SGPA Summary Card */}
                 <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-                  <Card className="gradient-accent text-white border-0 shadow-lg h-full">
+                  <Card className="gradient-accent text-white border-0 shadow-lg h-full relative">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5"/> Academic</CardTitle>
-                    <CardDescription className="text-white/80">Cumulative academic grade</CardDescription>
+                    <CardTitle className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2"><BookOpen className="w-5 h-5"/> SGPA</div>
+                      <button onClick={() => setIsEditingGpa(!isEditingGpa)} className="text-white/60 hover:text-white transition-colors"><Pencil className="w-3.5 h-3.5"/></button>
+                    </CardTitle>
+                    <CardDescription className="text-white/80">Semester Grade Point Average</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-5xl font-black">{acadPct}%</p>
+                    {isEditingGpa ? (
+                      <div className="flex items-center gap-2 mt-2">
+                        <input type="number" value={editGpaValue} onChange={e => setEditGpaValue(e.target.value)} className="w-16 h-8 text-black px-2 rounded-md font-bold text-sm" />
+                        <span className="text-sm font-medium">Max GPA</span>
+                        <button onClick={saveGpaScale} className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center hover:bg-white/30"><Check className="w-3.5 h-3.5"/></button>
+                      </div>
+                    ) : (
+                      <p className="text-5xl font-black">{sgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
+                    )}
                     <div className="mt-3 pt-3 border-t border-white/20">
-                      <p className="text-xs font-bold opacity-90">Total Marks</p>
-                      <p className="font-mono text-base">{acadScore} <span className="opacity-70 text-sm">/ {acadMax}</span></p>
+                      <p className="text-xs font-bold opacity-90">Semester Marks</p>
+                      <p className="font-mono text-base">{(Math.round(acadScoreCurrent * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxCurrent}</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+                </motion.div>
+
+                {/* CGPA Summary Card */}
+                <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+                  <Card className="bg-muted/80 border-0 shadow-sm h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2"><Target className="w-5 h-5 text-primary"/> CGPA</CardTitle>
+                    <CardDescription>Cumulative Grade Point Average</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-5xl font-black gradient-accent-text">{cgpaValue} <span className="text-2xl text-muted-foreground font-bold">/ {maxGpa}</span></p>
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <p className="text-xs font-bold opacity-90">All Academic Marks</p>
+                      <p className="font-mono text-base text-muted-foreground">{(Math.round(acadScoreAll * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxAll}</span></p>
                     </div>
                   </CardContent>
                 </Card>
@@ -247,7 +309,7 @@ export default function GradesPage() {
                 <p className="text-5xl font-black">{persPct}%</p>
                 <div className="mt-3 pt-3 border-t border-white/20">
                   <p className="text-xs font-bold opacity-90">Total Marks</p>
-                  <p className="font-mono text-base">{persScore} <span className="opacity-70 text-sm">/ {persMax}</span></p>
+                  <p className="font-mono text-base">{(Math.round(persScore * 100) / 100)} <span className="opacity-70 text-sm">/ {persMax}</span></p>
                 </div>
               </CardContent>
             </Card>

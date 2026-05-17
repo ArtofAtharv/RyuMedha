@@ -306,6 +306,35 @@ export default function SubjectsPage() {
 
   async function handleAddExamDate(subject_id: string, label: string, date: Date) {
     if (!profileId || !subject_id) return
+
+    // 1. Try to update academic_courses so it is shared with everyone
+    const { data: subjectData } = await supabaseClient
+      .from('subjects')
+      .select('type, source_course_id(id, exam_dates)')
+      .eq('id', subject_id)
+      .single()
+
+    if (subjectData && subjectData.type === 'academic' && subjectData.source_course_id) {
+      const courseId = Array.isArray(subjectData.source_course_id) ? subjectData.source_course_id[0]?.id : (subjectData.source_course_id as any)?.id;
+      const existingDates = Array.isArray(subjectData.source_course_id) ? (subjectData.source_course_id[0]?.exam_dates || {}) : ((subjectData.source_course_id as any)?.exam_dates || {});
+       
+      const updatedDates = { ...existingDates, [label]: formatOutputDate(date) };
+
+      const { error: courseError } = await supabaseClient
+        .from('academic_courses')
+        .update({ exam_dates: updatedDates })
+        .eq('id', courseId)
+       
+      if (courseError) {
+        toast.error("Failed to add shared exam date to course", { description: courseError.message })
+        return
+      }
+      
+      // Refresh subjects so the UI picks up the new exam_date object
+      fetchSubjects(supabaseClient)
+    }
+
+    // 2. Add to user's personal tasks
     const { error } = await supabaseClient
       .from('tasks')
       .insert([{
@@ -323,7 +352,7 @@ export default function SubjectsPage() {
       toast.error("Failed to add exam date", { description: error.message })
     } else {
       toast.success("Exam Date Added", { 
-        description: `"${label}" has been added. You can see it in your Tasks tab under Upcoming Exams.` 
+        description: `"${label}" has been added. It is visible on the subject card and in your Tasks tab.` 
       })
     }
   }
