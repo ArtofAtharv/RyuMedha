@@ -317,24 +317,18 @@ export default function GradesPage() {
 
                 {/* CGPA Summary Card */}
                 <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-                  <Card className="bg-muted/80 border-0 shadow-sm h-full">
+                  <Card className="gradient-accent text-white border-0 shadow-lg h-full relative">
                   <CardHeader className="pb-2">
-                    <CardTitle className="flex items-center gap-2"><Target className="w-5 h-5 text-primary"/> CGPA</CardTitle>
-                    <CardDescription>Cumulative Grade Point Average</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Target className="w-5 h-5"/> CGPA</CardTitle>
+                    <CardDescription className="text-white/80">Cumulative Grade Point Average</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between">
-                      <p className="text-5xl font-black gradient-accent-text">{cgpaValue} <span className="text-2xl text-muted-foreground font-bold">/ {maxGpa}</span></p>
-                      {cgpaValue !== "—" && (
-                        <div className="flex flex-col items-end pr-2">
-                          <span className="text-xs uppercase tracking-wider font-bold text-muted-foreground mb-1">Grade</span>
-                          <span className="text-4xl font-black leading-none text-primary">{getLetterGradeFromGPA(Number(cgpaValue), maxGpa)}</span>
-                        </div>
-                      )}
+                      <p className="text-5xl font-black">{cgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
                     </div>
-                    <div className="mt-3 pt-3 border-t border-border/50">
+                    <div className="mt-3 pt-3 border-t border-white/20">
                       <p className="text-xs font-bold opacity-90">All Academic Marks</p>
-                      <p className="font-mono text-base text-muted-foreground">{(Math.round(acadScoreAll * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxAll}</span></p>
+                      <p className="font-mono text-base">{(Math.round(acadScoreAll * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxAll}</span></p>
                     </div>
                   </CardContent>
                 </Card>

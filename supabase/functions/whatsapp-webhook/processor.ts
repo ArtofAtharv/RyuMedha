@@ -243,7 +243,7 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
   const pct = (present + deemed) / total * 100;
   const target = user.target_attendance_pct || 75;
   const emoji = pct >= target ? '✅' : pct >= target - 15 ? '⚠️' : '🔴';
-  let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present, total, pct.toFixed(1));
+  let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present + deemed, total, pct.toFixed(1));
   if (deemed > 0) msg += MESSAGES.attendance.deemedNote(deemed);
   const expectedTotal = subject.expected_total_lectures || subject.source_course_id?.expected_total_lectures || 0;
   if (expectedTotal > 0) {
