@@ -37,18 +37,16 @@ export default function GradesPage() {
   const [editGpaValue, setEditGpaValue] = useState("10")
 
   useEffect(() => {
-    const stored = localStorage.getItem('max_gpa')
-    if (stored) {
-      setMaxGpa(Number(stored))
-      setEditGpaValue(stored)
-    }
+    // Initial fetch from DB happens in init() now
   }, [])
 
-  function saveGpaScale() {
+  async function saveGpaScale() {
     const val = Number(editGpaValue)
     if (!isNaN(val) && val > 0) {
       setMaxGpa(val)
-      localStorage.setItem('max_gpa', val.toString())
+      if (profileId && supabaseClient) {
+        await supabaseClient.from('profiles').update({ max_gpa: val }).eq('id', profileId)
+      }
     }
     setIsEditingGpa(false)
   }
@@ -68,11 +66,17 @@ export default function GradesPage() {
       
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, max_gpa')
         .eq('whatsapp_number', session.user.phone)
         .single()
         
-      if (profile) setProfileId(profile.id)
+      if (profile) {
+        setProfileId(profile.id)
+        if (profile.max_gpa) {
+          setMaxGpa(profile.max_gpa)
+          setEditGpaValue(profile.max_gpa.toString())
+        }
+      }
 
       await fetchData(supabase, profile?.id)
     }
@@ -94,7 +98,7 @@ export default function GradesPage() {
     // Subjects for dropdown & cards - Fetch BOTH types, including inactive for CGPA
     const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type, label, source_course_id(semester_id)')
+      .select('id, name, color_hex, type, label, source_course_id(semester_id, credits)')
       .eq('profile_id', pid)
       
     const acadSubsAll = rawSubs?.filter((s: any) => s.type === 'academic') || []
@@ -164,28 +168,68 @@ export default function GradesPage() {
   let acadScoreCurrent = 0, acadMaxCurrent = 0
   let acadScoreAll = 0, acadMaxAll = 0
   let persScore = 0, persMax = 0
+  let sumCPCurrent = 0, sumCreditsCurrent = 0
+  let sumCPAll = 0, sumCreditsAll = 0
 
+  // Group grades by subject to compute GP per subject
+  const subjectTotals: Record<string, { marks: number, max: number }> = {}
   grades.forEach(g => {
-    const m = Number(g.marks) || 0
-    const mx = Number(g.max_marks) || 0
+    if (!subjectTotals[g.subject_id]) subjectTotals[g.subject_id] = { marks: 0, max: 0 }
+    subjectTotals[g.subject_id].marks += (Number(g.marks) || 0)
+    subjectTotals[g.subject_id].max += (Number(g.max_marks) || 0)
+  })
+
+  // Function to calculate Grade Point based on college system
+  function getGradePoint(marks: number, max: number, scale: number) {
+    if (max === 0) return 0
+    const pct = (marks / max) * 100
     
-    if (allAcademicSubjectIds.has(g.subject_id)) {
-      acadScoreAll += m
-      acadMaxAll += mx
-      if (currentAcademicSubjectIds.has(g.subject_id)) {
-        acadScoreCurrent += m
-        acadMaxCurrent += mx
+    if (pct >= 91) return scale
+    if (pct >= 80) return scale - 1
+    if (pct >= 71) return scale - 2
+    if (pct >= 61) return scale - 3
+    if (pct >= 51) return scale - 4
+    if (pct >= 45) return scale - 5
+    return 0
+  }
+
+  Object.entries(subjectTotals).forEach(([subjectId, totals]) => {
+    if (totals.max > 0) {
+      const subjectGP = getGradePoint(totals.marks, totals.max, maxGpa)
+      
+      if (allAcademicSubjectIds.has(subjectId)) {
+        const sub = allAcademicSubjects.find(s => s.id === subjectId)
+        const creds = Array.isArray(sub?.source_course_id) 
+          ? (sub.source_course_id[0]?.credits ? Number(sub.source_course_id[0].credits) : 1)
+          : (sub?.source_course_id?.credits ? Number(sub.source_course_id.credits) : 1)
+
+        acadScoreAll += totals.marks
+        acadMaxAll += totals.max
+        sumCPAll += (subjectGP * creds)
+        sumCreditsAll += creds
+        
+        if (currentAcademicSubjectIds.has(subjectId)) {
+          acadScoreCurrent += totals.marks
+          acadMaxCurrent += totals.max
+          sumCPCurrent += (subjectGP * creds)
+          sumCreditsCurrent += creds
+        }
+      } else if (personalSubjectIds.has(subjectId)) {
+        persScore += totals.marks
+        persMax += totals.max
       }
-    } else if (personalSubjectIds.has(g.subject_id)) {
-      persScore += m
-      persMax += mx
     }
   })
 
-  // Format to 2 decimal places as requested
-  const sgpaValue = acadMaxCurrent > 0 ? ((acadScoreCurrent / acadMaxCurrent) * maxGpa).toFixed(2) : "—"
-  const cgpaValue = acadMaxAll > 0 ? ((acadScoreAll / acadMaxAll) * maxGpa).toFixed(2) : "—"
-  const persPct = persMax > 0 ? ((persScore / persMax) * 100).toFixed(2) : "—"
+  // Truncate to 2 decimal places instead of rounding up
+  const truncateDecimals = (num: number) => {
+    return (Math.floor(num * 100) / 100).toFixed(2);
+  }
+
+  const acadPct = acadMaxCurrent > 0 ? truncateDecimals((acadScoreCurrent / acadMaxCurrent) * 100) : "—"
+  const sgpaValue = sumCreditsCurrent > 0 ? truncateDecimals(sumCPCurrent / sumCreditsCurrent) : "—"
+  const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "—"
+  const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "—"
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
@@ -270,6 +314,23 @@ export default function GradesPage() {
                 </Card>
                 </motion.div>
 
+                {/* Academic Percentage Card */}
+                <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+                  <Card className="bg-muted/80 border-0 shadow-sm h-full">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Percentage</CardTitle>
+                    <CardDescription>Semester academic grade</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-5xl font-black gradient-accent-text">{acadPct}<span className="text-2xl text-muted-foreground font-bold">%</span></p>
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <p className="text-xs font-bold opacity-90">Total Marks</p>
+                      <p className="font-mono text-base text-muted-foreground">{(Math.round(acadScoreCurrent * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxCurrent}</span></p>
+                    </div>
+                  </CardContent>
+                </Card>
+                </motion.div>
+
                 {subjects.filter(s => s.type === 'academic').map(sub => {
                   const subjectGrades = grades.filter(g => g.subject_id === sub.id)
                   return (
@@ -278,6 +339,7 @@ export default function GradesPage() {
                         subject={sub}
                         existingGrades={subjectGrades}
                         onSave={handleSaveGrades}
+                        maxGpa={maxGpa}
                       />
                     </motion.div>
                   )
@@ -324,6 +386,7 @@ export default function GradesPage() {
                     existingGrades={subjectGrades}
                     onSave={handleSaveGrades}
                     isPersonal
+                    maxGpa={maxGpa}
                   />
                 </motion.div>
               )

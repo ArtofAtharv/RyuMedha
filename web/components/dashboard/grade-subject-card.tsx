@@ -54,14 +54,13 @@ const ACADEMIC_LABELS: Record<string, string> = {
 }
 
 // Logic derived from the sample project for Grade allocation
-function getGradeDetails(percentage: number) {
-  if (percentage >= 90) return { letter: "O", points: 10, color: "text-green-500", bg: "bg-green-500/10" }
-  if (percentage >= 80) return { letter: "A+", points: 9, color: "text-emerald-500", bg: "bg-emerald-500/10" }
-  if (percentage >= 70) return { letter: "A", points: 8, color: "text-teal-500", bg: "bg-teal-500/10" }
-  if (percentage >= 60) return { letter: "B+", points: 7, color: "text-blue-500", bg: "bg-blue-500/10" }
-  if (percentage >= 50) return { letter: "B", points: 6, color: "text-indigo-500", bg: "bg-indigo-500/10" }
-  if (percentage >= 45) return { letter: "C", points: 5, color: "text-orange-500", bg: "bg-orange-500/10" }
-  if (percentage >= 40) return { letter: "P", points: 4, color: "text-yellow-500", bg: "bg-yellow-500/10" }
+function getGradeDetails(percentage: number, maxGpa: number) {
+  if (percentage >= 91) return { letter: "O", points: maxGpa, color: "text-green-500", bg: "bg-green-500/10" }
+  if (percentage >= 80) return { letter: "A+", points: maxGpa - 1, color: "text-emerald-500", bg: "bg-emerald-500/10" }
+  if (percentage >= 71) return { letter: "A", points: maxGpa - 2, color: "text-teal-500", bg: "bg-teal-500/10" }
+  if (percentage >= 61) return { letter: "B+", points: maxGpa - 3, color: "text-blue-500", bg: "bg-blue-500/10" }
+  if (percentage >= 51) return { letter: "B", points: maxGpa - 4, color: "text-indigo-500", bg: "bg-indigo-500/10" }
+  if (percentage >= 45) return { letter: "C", points: maxGpa - 5, color: "text-orange-500", bg: "bg-orange-500/10" }
   return { letter: "F", points: 0, color: "text-red-500", bg: "bg-red-500/10" }
 }
 
@@ -69,12 +68,14 @@ export function GradeSubjectCard({
   subject, 
   existingGrades, 
   onSave,
-  isPersonal = false
+  isPersonal = false,
+  maxGpa = 10
 }: { 
   subject: any; 
   existingGrades: any[]; 
   onSave: (subjectId: string, scoresToSave: GradeScores) => Promise<void>;
   isPersonal?: boolean;
+  maxGpa?: number;
 }) {
   const [isSaving, setIsSaving] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -134,9 +135,9 @@ export function GradeSubjectCard({
       totalObtained: obtained,
       totalMax: max,
       percentage: pct,
-      gradeInfo: getGradeDetails(pct)
+      gradeInfo: getGradeDetails(pct, maxGpa)
     }
-  }, [scores])
+  }, [scores, maxGpa])
 
   const handleScoreChange = (type: string, field: 'marks' | 'max_marks', value: string) => {
     setScores(prev => ({
