@@ -1251,17 +1251,30 @@ async function handleMarkAll(user, status) {
   if (!activeSubjects || activeSubjects.length === 0) return MESSAGES.stats.noSubjects;
 
   const today = new Date().toISOString().split('T')[0];
-  let count = 0;
-  for (const s of activeSubjects) {
-    // Check for existing log to avoid UPSERT conflict or duplicates if status is different
-    const { data: existing } = await uc.from('attendance_logs').select('id').eq('profile_id', user.id).eq('subject_id', s.id).eq('lecture_date', today).maybeSingle();
-    if (!existing) {
-      await uc.from('attendance_logs').insert([{ profile_id: user.id, subject_id: s.id, lecture_date: today, status }]);
-      count++;
-    }
+
+  // Single query to get all existing attendance logs for these subjects today
+  const subjectIds = activeSubjects.map(s => s.id);
+  const { data: existingLogs } = await uc
+    .from('attendance_logs')
+    .select('subject_id')
+    .eq('profile_id', user.id)
+    .eq('lecture_date', today)
+    .in('subject_id', subjectIds);
+
+  const existingSubjectIds = new Set(existingLogs?.map(log => log.subject_id) || []);
+  const subjectsToInsert = activeSubjects.filter(s => !existingSubjectIds.has(s.id));
+
+  if (subjectsToInsert.length > 0) {
+    const logsToInsert = subjectsToInsert.map(s => ({
+      profile_id: user.id,
+      subject_id: s.id,
+      lecture_date: today,
+      status
+    }));
+    await uc.from('attendance_logs').insert(logsToInsert);
   }
 
-  return MESSAGES.attendance.allSuccess(status, count);
+  return MESSAGES.attendance.allSuccess(status, subjectsToInsert.length);
 }
 
 /** Removes all attendance logs for today */
