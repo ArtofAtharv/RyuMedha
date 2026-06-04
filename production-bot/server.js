@@ -949,20 +949,19 @@ async function handleAttended(user, rawText) {
 async function handleMissed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.missedPrompt;
   const items = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const results = [];
-  for (const item of items) {
+
+  const results = await Promise.all(items.map(async (item) => {
     let res = await logAttendance(user, item, 'absent');
     if (res === null && item.toLowerCase().includes(' and ')) {
       const parts = item.split(/\s+and\s+/i);
-      const subs = [];
-      for (const p of parts) {
-        const subRes = await logAttendance(user, p, 'absent');
-        if (subRes) subs.push(subRes);
-      }
-      if (subs.length) results.push(subs.join('\n\n'));
-      else results.push(MESSAGES.attendance.notFound(item));
-    } else results.push(res || MESSAGES.attendance.notFound(item));
-  }
+      const subs = (await Promise.all(parts.map(p => logAttendance(user, p, 'absent')))).filter(Boolean);
+      if (subs.length) return subs.join('\n\n');
+      else return MESSAGES.attendance.notFound(item);
+    } else {
+      return res || MESSAGES.attendance.notFound(item);
+    }
+  }));
+
   return results.join('\n\n');
 }
 
