@@ -926,29 +926,20 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '') {
 async function handleAttended(user, rawText) {
   if (!rawText) return MESSAGES.attendance.attendedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const responses = [];
-  for (const s of subjects) {
-    responses.push(await logAttendance(user, s, 'present'));
-  }
+  const responses = await Promise.all(subjects.map(s => logAttendance(user, s, 'present')));
   return responses.join('\n\n');
 }
 
 async function handleMissed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.missedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const responses = [];
-  for (const s of subjects) {
-    responses.push(await logAttendance(user, s, 'absent'));
-  }
+  const responses = await Promise.all(subjects.map(s => logAttendance(user, s, 'absent')));
   return responses.join('\n\n');
 }
 async function handleDeemed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.deemedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const responses = [];
-  for (const s of subjects) {
-    responses.push(await logAttendance(user, s, 'deemed'));
-  }
+  const responses = await Promise.all(subjects.map(s => logAttendance(user, s, 'deemed')));
   return responses.join('\n\n');
 }
 async function handleUndoAttendance(user, subjectName) {
