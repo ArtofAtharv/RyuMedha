@@ -926,63 +926,37 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
   return msg;
 }
 
+async function processAttendanceItem(user, item, status) {
+  let res = await logAttendance(user, item, status);
+  if (res === null && item.toLowerCase().includes(' and ')) {
+    const parts = item.split(/\s+and\s+/i);
+    const subsPromises = parts.map(p => logAttendance(user, p, status));
+    const subsResults = await Promise.all(subsPromises);
+    const validSubs = subsResults.filter(Boolean);
+    if (validSubs.length) return validSubs.join('\n\n');
+    else return MESSAGES.attendance.notFound(item);
+  }
+  return res || MESSAGES.attendance.notFound(item);
+}
+
 async function handleAttended(user, rawText) {
   if (!rawText) return MESSAGES.attendance.attendedPrompt;
   const items = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const results = [];
-  for (const item of items) {
-    let res = await logAttendance(user, item, 'present');
-    if (res === null && item.toLowerCase().includes(' and ')) {
-      const parts = item.split(/\s+and\s+/i);
-      const subs = [];
-      for (const p of parts) {
-        const subRes = await logAttendance(user, p, 'present');
-        if (subRes) subs.push(subRes);
-      }
-      if (subs.length) results.push(subs.join('\n\n'));
-      else results.push(MESSAGES.attendance.notFound(item));
-    } else results.push(res || MESSAGES.attendance.notFound(item));
-  }
+  const results = await Promise.all(items.map(item => processAttendanceItem(user, item, 'present')));
   return results.join('\n\n');
 }
 
 async function handleMissed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.missedPrompt;
   const items = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const results = [];
-  for (const item of items) {
-    let res = await logAttendance(user, item, 'absent');
-    if (res === null && item.toLowerCase().includes(' and ')) {
-      const parts = item.split(/\s+and\s+/i);
-      const subs = [];
-      for (const p of parts) {
-        const subRes = await logAttendance(user, p, 'absent');
-        if (subRes) subs.push(subRes);
-      }
-      if (subs.length) results.push(subs.join('\n\n'));
-      else results.push(MESSAGES.attendance.notFound(item));
-    } else results.push(res || MESSAGES.attendance.notFound(item));
-  }
+  const results = await Promise.all(items.map(item => processAttendanceItem(user, item, 'absent')));
   return results.join('\n\n');
 }
 
 async function handleDeemed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.deemedPrompt;
   const items = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const results = [];
-  for (const item of items) {
-    let res = await logAttendance(user, item, 'deemed');
-    if (res === null && item.toLowerCase().includes(' and ')) {
-      const parts = item.split(/\s+and\s+/i);
-      const subs = [];
-      for (const p of parts) {
-        const subRes = await logAttendance(user, p, 'deemed');
-        if (subRes) subs.push(subRes);
-      }
-      if (subs.length) results.push(subs.join('\n\n'));
-      else results.push(MESSAGES.attendance.notFound(item));
-    } else results.push(res || MESSAGES.attendance.notFound(item));
-  }
+  const results = await Promise.all(items.map(item => processAttendanceItem(user, item, 'deemed')));
   return results.join('\n\n');
 }
 
