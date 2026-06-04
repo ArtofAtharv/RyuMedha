@@ -926,29 +926,26 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '') {
 async function handleAttended(user, rawText) {
   if (!rawText) return MESSAGES.attendance.attendedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const responses = [];
-  for (const s of subjects) {
-    responses.push(await logAttendance(user, s, 'present'));
-  }
+  const responses = await Promise.all(
+    subjects.map(s => logAttendance(user, s, 'present'))
+  );
   return responses.join('\n\n');
 }
 
 async function handleMissed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.missedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const responses = [];
-  for (const s of subjects) {
-    responses.push(await logAttendance(user, s, 'absent'));
-  }
+  const responses = await Promise.all(
+    subjects.map(s => logAttendance(user, s, 'absent'))
+  );
   return responses.join('\n\n');
 }
 async function handleDeemed(user, rawText) {
   if (!rawText) return MESSAGES.attendance.deemedPrompt;
   const subjects = rawText.split(',').map(s => s.trim()).filter(Boolean);
-  const responses = [];
-  for (const s of subjects) {
-    responses.push(await logAttendance(user, s, 'deemed'));
-  }
+  const responses = await Promise.all(
+    subjects.map(s => logAttendance(user, s, 'deemed'))
+  );
   return responses.join('\n\n');
 }
 async function handleUndoAttendance(user, subjectName) {
@@ -1061,14 +1058,20 @@ async function handleStats(user) {
   let msg = MESSAGES.stats.header(user.target_attendance_pct || 75);
   let hasData = false;
 
-  for (const subject of subjects) {
-    const summaryStr = await buildAttendanceSummary(uc, user, subject, '');
-    if (!summaryStr.includes('0 classes so far.')) {
-      hasData = true;
-      msg += summaryStr + '\n\n';
-    } else {
-      msg += `${MESSAGES.stats.noDataEmoji} *${subject.name}*: ${MESSAGES.stats.noDataNote}\n\n`;
-    }
+  const summaries = await Promise.all(
+    subjects.map(async (subject) => {
+      const summaryStr = await buildAttendanceSummary(uc, user, subject, '');
+      if (!summaryStr.includes('0 classes so far.')) {
+        return { hasData: true, str: summaryStr + '\n\n' };
+      } else {
+        return { hasData: false, str: `${MESSAGES.stats.noDataEmoji} *${subject.name}*: ${MESSAGES.stats.noDataNote}\n\n` };
+      }
+    })
+  );
+
+  for (const summary of summaries) {
+    if (summary.hasData) hasData = true;
+    msg += summary.str;
   }
 
   if (!hasData) return MESSAGES.stats.empty;
