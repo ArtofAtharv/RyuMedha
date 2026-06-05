@@ -87,7 +87,7 @@ export default function LandingPage() {
               cursorStyle="underscore"
             /></span>
             <br />
-            <span className="gradient-accent-text pb-2">with Ryu Medha.</span>
+            <span className="gradient-accent-text pb-2">with Bhavesh.</span>
           </motion.h1>
 
           <motion.p variants={itemVariants} className="mt-6 text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed">
