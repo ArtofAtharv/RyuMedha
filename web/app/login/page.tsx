@@ -251,7 +251,7 @@ function LoginPageInner() {
                           autoFocus
                         >
                           <InputOTPGroup className="grid grid-cols-6 gap-2">
-                            <InputOTPSlot index={0} />
+                            <InputOTPSlot index={0} type="number" />
                             <InputOTPSlot index={1} />
                             <InputOTPSlot index={2} />
                             <InputOTPSlot index={3} />
