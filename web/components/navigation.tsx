@@ -27,13 +27,13 @@ export default function Navigation() {
         <div className="px-5 sm:px-8 lg:px-14 xl:px-20 h-14 flex items-center justify-between">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group" aria-label="Ryu Medha home">
+          <Link href="/" className="flex items-center gap-2.5 group transition-transform hover:scale-95" aria-label="Ryu Medha home">
             <Image
               src="/badge.png"
               alt="Ryu Medha"
               width={32}
               height={32}
-              className="rounded-full"
+              className="rounded-full invert dark:invert-0"
             />
             <span className="text-xl tracking-tight font-playball">Ryu Medha</span>
           </Link>
