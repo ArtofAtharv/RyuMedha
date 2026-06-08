@@ -31,4 +31,4 @@ Built using Next.js (App Router), React, and Tailwind CSS. It uses NextAuth for 
 - Shares the database with the WhatsApp bot.
 - Uses `supabase/functions/auth` for OTP generation.
 
-Contribution in vercel is not allowed
+Deployment on vercel is not allowed for other than the owner
