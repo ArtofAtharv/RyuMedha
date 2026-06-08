@@ -30,7 +30,7 @@ export default function Navigation() {
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-xs font-bold text-primary-foreground transition-transform group-hover:scale-105">
               R
             </span>
-            <span className="text-sm font-semibold tracking-tight">Ryu Medha</span>
+            <span className="text-sm font-semibold tracking-tight font-playball">Ryu Medha</span>
           </Link>
 
           {/* Account avatar — opens AccountSheet */}
