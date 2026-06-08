@@ -140,8 +140,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
           </Link>
           <div className="flex items-center gap-3">
             <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg"
-              style={{ background: `linear-gradient(135deg, ${subject.color_hex}, ${subject.color_hex}aa)` }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
+              style={{ background: subject.color_hex }}
             >
               <CalIcon className="w-5 h-5" />
             </div>
@@ -152,7 +152,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="hidden lg:block" />
           <div className="lg:col-span-2">
-            <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-xl rounded-[2.5rem] px-8 py-5 flex items-center justify-between">
+            <Card className="border-border/50 bg-card/40 backdrop-blur-xl rounded-[2.5rem] px-8 py-5 flex items-center justify-between">
               <div className="flex items-center gap-12">
                 <div className="flex items-center gap-3">
                   <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Goal</p>
@@ -180,7 +180,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Stats & Meta */}
         <div className="space-y-6">
-          <Card className="border-border/50 bg-card/50 backdrop-blur-xl shadow-xl rounded-3xl overflow-hidden">
+          <Card className="border-border/50 bg-card/50 backdrop-blur-xl rounded-3xl overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-primary" /> Subject Mastery
@@ -209,7 +209,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                 </div>
                 <div className="h-3 w-full bg-muted rounded-full overflow-hidden shadow-inner p-0.5">
                   <motion.div 
-                    className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                    className="h-full rounded-full bg-primary"
                     initial={{ width: 0 }}
                     animate={{ width: `${stats.pct}%` }}
                     transition={{ type: "spring", stiffness: 100 }}
@@ -266,7 +266,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
 
         {/* Right Column: Calendar */}
         <div className="lg:col-span-2">
-          <Card className="border-border/50 bg-card/40 backdrop-blur-xl shadow-2xl rounded-[2.5rem] overflow-hidden">
+          <Card className="border-border/50 bg-card/40 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between p-6 sm:p-8 pb-4">
               <div>
                 <h2 className="text-xl sm:text-2xl font-black tracking-tight">{format(currentDate, 'MMMM yyyy')}</h2>
@@ -333,7 +333,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                           relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
                           ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
                           ${cellClasses}
-                          ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20 shadow-lg' : ''}
+                          ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20' : ''}
                         `}
                       >
                         <p className={`text-2xl font-black ${textClasses}`}>
@@ -440,8 +440,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
 
       {/* Day Detail Dialog */}
       <Dialog open={!!selectedDay} onOpenChange={(open) => !open && setSelectedDay(null)}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
-          <div className="bg-gradient-to-br from-card to-muted/20 p-6 pt-8">
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden border-none rounded-3xl">
+          <div className="bg-card p-6 pt-8">
             <DialogHeader className="mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -498,7 +498,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   <Button 
                     onClick={() => { haptic(); addAttendanceLog('present'); }}
                     disabled={isUpdating}
-                    className="flex flex-col gap-1 h-16 rounded-2xl bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/20"
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-green-500 hover:bg-green-600"
                   >
                     <CheckCircle2 className="w-5 h-5" />
                     <span className="text-[10px] font-black uppercase">Present</span>
@@ -506,7 +506,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   <Button 
                     onClick={() => { haptic(); addAttendanceLog('absent'); }}
                     disabled={isUpdating}
-                    className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-red-600 transition-colors shadow-lg shadow-destructive/20"
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-red-600 transition-colors"
                   >
                     <XCircle className="w-5 h-5" />
                     <span className="text-[10px] font-black uppercase">Absent</span>
@@ -514,7 +514,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   <Button 
                     onClick={() => { haptic(); addAttendanceLog('deemed'); }}
                     disabled={isUpdating}
-                    className="flex flex-col gap-1 h-16 rounded-2xl bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20"
+                    className="flex flex-col gap-1 h-16 rounded-2xl bg-blue-500 hover:bg-blue-600"
                   >
                     <Fingerprint className="w-5 h-5" />
                     <span className="text-[10px] font-black uppercase">Deemed</span>

@@ -35,7 +35,7 @@ export function DashboardNav() {
 
   return (
     <div className="fixed bottom-0 left-0 w-full md:sticky md:top-[36px] z-40 md:pt-6 md:pb-2 md:px-4 flex justify-center pointer-events-none md:pointer-events-auto">
-      <nav className="pointer-events-auto w-full sm:max-w-md md:max-w-full md:w-auto bg-card/80 dark:bg-card/60 backdrop-blur-xl border border-border/50 shadow-2xl md:shadow-sm rounded-t-4xl md:rounded-full p-2 md:p-1.5 flex items-center justify-around md:justify-center overflow-x-auto gap-1 scrollbar-none">
+      <nav className="pointer-events-auto w-full sm:max-w-md md:max-w-full md:w-auto bg-card/80 dark:bg-card/60 backdrop-blur-xl border border-border/50 md:shadow-sm rounded-t-4xl md:rounded-full p-2 md:p-1.5 flex items-center justify-around md:justify-center overflow-x-auto gap-1 scrollbar-none">
         {tabs.map((tab) => {
           const isActive = activeHref === tab.href
           return (
@@ -57,7 +57,7 @@ export function DashboardNav() {
               {isActive && (
                 <motion.span
                   layoutId="dashboard-tab-bubble"
-                  className="absolute inset-0 z-0 gradient-accent rounded-full shadow-md"
+                  className="absolute inset-0 z-0 bg-primary rounded-full"
                   transition={{
                     type: "spring",
                     bounce: 0.25,

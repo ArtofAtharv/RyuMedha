@@ -13,14 +13,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DatePicker } from "@/components/ui/date-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar as CalIcon, X, Plus } from "lucide-react"
-// Helper function locally re-implemented since we're pulling this out of the main page
-function hexToGradient(hex: string) {
+function hexToAccentStyle(hex: string) {
   if (!hex) return {}
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
   return {
-    background: `linear-gradient(135deg, ${hex}, rgba(${r},${g},${b},0.6))`
+    background: hex
   }
 }
 
@@ -52,10 +48,10 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
     >
       <Card 
         onClick={handleCardClick}
-        className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
+        className="relative overflow-hidden group transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
       >
-        {/* Top Subtle Gradient Bar */}
-        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(subject.color_hex || '#8b5cf6')} />
+        {/* Top accent bar */}
+        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToAccentStyle(subject.color_hex || '#8b5cf6')} />
 
         <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
         <div className="flex justify-between items-start mb-4">
@@ -176,7 +172,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
             </div>
 
             <div className="pt-4">
-              <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl gradient-accent shadow-lg shadow-primary/20 transition-all hover:scale-[1.02]">
+              <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
                 Save Mission
               </Button>
             </div>

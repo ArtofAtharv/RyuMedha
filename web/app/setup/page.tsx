@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
-  BookOpen, FolderOpen, User, ArrowRight, Sparkles, 
+  BookOpen, FolderOpen, User, ArrowRight, CheckCircle2, 
   School, GraduationCap, Target, Loader2, ChevronLeft,
   Plus, Trash2, X, Check
 } from "lucide-react"
@@ -381,7 +381,7 @@ export default function SetupPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 selection:bg-primary/20">
-      <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="w-full max-w-md">
         
         {/* Progress Dots */}
         <div className="flex justify-center gap-2 mb-6">
@@ -390,22 +390,22 @@ export default function SetupPage() {
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 3 ? 'bg-primary' : 'bg-primary/20'}`} />
         </div>
 
-        <Card className="border-border/50 shadow-2xl shadow-primary/5 bg-card/50 backdrop-blur-xl overflow-hidden relative">
+        <Card className="overflow-hidden border-border/60 bg-card">
           <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.div 
               key="step1"
-              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={{ type: "spring", stiffness: 260, damping: 28 }}
             >
               <CardHeader className="text-center pb-2">
-                <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform rotate-3 shadow-lg shadow-primary/10">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
                   <User className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Welcome</span></CardTitle>
-                <CardDescription>Let's set up your profile basics.</CardDescription>
+                <CardTitle className="text-3xl font-semibold tracking-tight">Welcome</CardTitle>
+                <CardDescription>A few details, then your workspace is ready.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-4">
                 <div className="space-y-2">
@@ -438,7 +438,7 @@ export default function SetupPage() {
                 </div>
 
                 <Button 
-                  className="w-full h-12 text-lg font-bold gradient-accent shadow-lg shadow-primary/20"
+                  className="h-12 w-full rounded-full text-base font-semibold"
                   disabled={!displayName.trim() || (!academicsEnabled && !personalEnabled)}
                   onClick={handleStep1Next}
                 >
@@ -451,17 +451,17 @@ export default function SetupPage() {
           {step === 2 && (
             <motion.div 
               key="step2"
-              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={{ type: "spring", stiffness: 260, damping: 28 }}
             >
               <CardHeader className="text-center pb-2">
-                <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform -rotate-3 shadow-lg shadow-primary/10">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
                   <School className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-3xl font-black tracking-tight">Academic Details</CardTitle>
-                <CardDescription>Manage your institutional links below.</CardDescription>
+                <CardTitle className="text-3xl font-semibold tracking-tight">Academic details</CardTitle>
+                <CardDescription>Connect your university, program, and semester.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-5 pt-4">
                 
@@ -516,7 +516,7 @@ export default function SetupPage() {
                           ))}
                           <div className="border-t mt-1 pt-1">
                             <SelectItem value="ADD_NEW_UNI" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                              <span className="flex items-center gap-2 font-black"><Plus className="w-4 h-4" /> Add New University</span>
+                              <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New University</span>
                             </SelectItem>
                           </div>
                         </SelectContent>
@@ -577,7 +577,7 @@ export default function SetupPage() {
                         {selectedUniId && (
                           <div className="border-t mt-1 pt-1">
                             <SelectItem value="ADD_NEW_PROG" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                              <span className="flex items-center gap-2 font-black"><Plus className="w-4 h-4" /> Add New Program</span>
+                              <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New Program</span>
                             </SelectItem>
                           </div>
                         )}
@@ -641,7 +641,7 @@ export default function SetupPage() {
                           {selectedProgId && (
                             <div className="border-t mt-1 pt-1">
                               <SelectItem value="ADD_NEW_SEM" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                                <span className="flex items-center gap-2 font-black"><Plus className="w-4 h-4" /> Add New</span>
+                                <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New</span>
                               </SelectItem>
                             </div>
                           )}
@@ -658,7 +658,7 @@ export default function SetupPage() {
                         type="number" 
                         max="100"
                         min="0"
-                        className="h-12 bg-background border-muted-foreground/20 text-center font-black text-xl"
+                        className="h-12 bg-background border-muted-foreground/20 text-center font-semibold text-xl"
                         value={targetAttendance}
                         onChange={(e) => setTargetAttendance(e.target.value)}
                       />
@@ -674,7 +674,7 @@ export default function SetupPage() {
                     <ChevronLeft className="w-5 h-5" />
                   </Button>
                   <Button 
-                    className="flex-1 h-12 text-lg font-bold gradient-accent shadow-lg shadow-primary/20"
+                    className="h-12 flex-1 rounded-full text-base font-semibold"
                     onClick={handleStep2Next}
                     disabled={!selectedSemId || isSubmitting}
                   >
@@ -688,16 +688,16 @@ export default function SetupPage() {
           {step === 3 && (
             <motion.div 
               key="step3"
-              initial={{ opacity: 0, x: -20, filter: "blur(4px)" }}
-              animate={{ opacity: 1, x: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, x: 20, filter: "blur(4px)" }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 12 }}
+              transition={{ type: "spring", stiffness: 260, damping: 28 }}
             >
               <CardHeader className="text-center pb-2">
-                <div className="mx-auto w-14 h-14 bg-primary/20 rounded-2xl flex items-center justify-center mb-4 transform rotate-6 shadow-lg shadow-primary/10">
-                  <Sparkles className="w-7 h-7 text-primary" />
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+                  <CheckCircle2 className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-3xl font-black tracking-tight">Select Your Courses</CardTitle>
+                <CardTitle className="text-3xl font-semibold tracking-tight">Select your courses</CardTitle>
                 <CardDescription>
                   {availableCourses.length > 0 
                     ? "Choose the subjects you're studying this semester."
@@ -752,7 +752,7 @@ export default function SetupPage() {
 
                 <div className="flex flex-col gap-3 pt-2">
                   <Button 
-                    className="h-12 text-lg font-bold gradient-accent shadow-xl shadow-primary/20"
+                    className="h-12 rounded-full text-base font-semibold"
                     onClick={handleFinalSave}
                     disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && !newCourseName.trim())}
                   >
@@ -783,9 +783,9 @@ function TrackOption({ icon, label, selected, onClick }: { icon: any, label: str
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 group ${selected ? 'border-primary bg-primary/5 shadow-inner' : 'border-border/50 bg-background hover:bg-muted/50'}`}
+      className={`flex cursor-pointer flex-col items-center gap-2 rounded-2xl border p-4 transition-colors group ${selected ? 'border-primary bg-primary/5' : 'border-border/60 bg-background hover:bg-muted/50'}`}
     >
-      <div className={`p-2 rounded-xl transition-all ${selected ? 'gradient-accent shadow-lg shadow-primary/20 text-white scale-110' : 'bg-muted text-muted-foreground group-hover:scale-105'}`}>
+      <div className={`rounded-xl p-2 transition-colors ${selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
         {icon}
       </div>
       <span className={`text-xs font-bold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>

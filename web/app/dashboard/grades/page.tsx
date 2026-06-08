@@ -245,7 +245,7 @@ export default function GradesPage() {
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <motion.div variants={item} initial="hidden" animate="show">
-        <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Grades & Scores</span></h1>
+        <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Grades & Scores</span></h1>
         <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
       </motion.div>
 
@@ -281,7 +281,7 @@ export default function GradesPage() {
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
                 {/* SGPA Summary Card */}
                 <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-                  <Card className="gradient-accent text-white border-0 shadow-lg h-full relative">
+                  <Card className="bg-primary text-primary-foreground border-0 h-full relative">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2"><BookOpen className="w-5 h-5"/> SGPA</div>
@@ -317,7 +317,7 @@ export default function GradesPage() {
 
                 {/* CGPA Summary Card */}
                 <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-                  <Card className="gradient-accent text-white border-0 shadow-lg h-full relative">
+                  <Card className="bg-primary text-primary-foreground border-0 h-full relative">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2"><Target className="w-5 h-5"/> CGPA</CardTitle>
                     <CardDescription className="text-white/80">Cumulative Grade Point Average</CardDescription>
@@ -342,7 +342,7 @@ export default function GradesPage() {
                     <CardDescription>Semester academic grade</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-5xl font-black gradient-accent-text">{acadPct}<span className="text-2xl text-muted-foreground font-bold">%</span></p>
+                    <p className="text-5xl font-black text-primary">{acadPct}<span className="text-2xl text-muted-foreground font-bold">%</span></p>
                     <div className="mt-3 pt-3 border-t border-border/50">
                       <p className="text-xs font-bold opacity-90">Total Marks</p>
                       <p className="font-mono text-base text-muted-foreground">{(Math.round(acadScoreCurrent * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxCurrent}</span></p>
@@ -382,7 +382,7 @@ export default function GradesPage() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
             {/* Personal Summary Card — first item in the grid */}
             <motion.div variants={item} whileHover={{ scale: 1.02 }}>
-              <Card className="gradient-accent text-white border-0 shadow-sm h-full">
+              <Card className="bg-primary text-primary-foreground border-0 h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5"/> Personal</CardTitle>
                 <CardDescription className="text-white/80">Cumulative personal score</CardDescription>

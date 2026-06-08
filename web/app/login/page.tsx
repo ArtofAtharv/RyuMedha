@@ -1,6 +1,6 @@
 'use client'
 
-// app/login/page.tsx — theme-aware WhatsApp OTP login page
+// app/login/page.tsx — WhatsApp OTP login, Apple HIG polish
 
 import { Suspense, useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
@@ -25,8 +25,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from '@/components/ui/input-otp'
-import { ThemeToggle } from '@/components/theme-toggle'
-import { ThemeSelector } from '@/components/theme-selector'
+
 
 // ─── Countdown hook ───────────────────────────────────────────────────────────
 function useCountdown(seconds: number, active: boolean) {
@@ -86,7 +85,7 @@ function LoginPageInner() {
       setExpiresIn(data.expiresIn ?? 300)
       setStep('otp')
     } catch {
-      setError('Network error. Check your connection.')
+      setError('Network error. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -118,239 +117,258 @@ function LoginPageInner() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Page content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-12">
-        {/* Subtle background radial */}
-        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-          <div className="absolute left-1/2 top-1/3 h-125 w-125 -translate-x-1/2 rounded-full bg-primary/5 blur-3xl" />
-        </div>
-
         <div className="w-full max-w-sm space-y-6">
-          {/* Brand */}
-          <div className="text-center space-y-2">
-            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground text-2xl font-black mx-auto shadow-lg">
+
+          {/* ── Brand ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+            className="text-center space-y-3"
+          >
+            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground text-2xl font-black mx-auto shadow-sm">
               R
             </div>
-            <h1 className="text-2xl font-black tracking-tight">Ryu Medha</h1>
-            <p className="text-sm text-muted-foreground">Sign in to your dashboard</p>
-          </div>
+            <div>
+              <h1 className="text-2xl font-black tracking-tight">Ryu Medha</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your academics, always within reach.
+              </p>
+            </div>
+          </motion.div>
 
-          {/* Card */}
-          <Card className="overflow-hidden border-primary/10 shadow-xl shadow-primary/5 bg-background/60 backdrop-blur-xl">
-            <AnimatePresence mode="wait">
-            {/* ── Step 1: Phone ── */}
-            {step === 'phone' && (
-              <motion.div
-                key="phone-step"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              >
-                <CardHeader className="space-y-1 pb-4">
-                  <CardTitle className="text-lg font-bold flex items-center gap-2">
-                    <MessageCircle className="h-5 w-5 text-primary" />
-                    Login with WhatsApp
-                  </CardTitle>
-                  <CardDescription>
-                    We'll send a one-time code to your WhatsApp.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form onSubmit={handleRequestOTP} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">WhatsApp Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        inputMode="tel"
-                        placeholder="+919876543210"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        disabled={loading}
-                        className="font-mono text-base h-11"
-                        autoFocus
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Include country code, e.g. +91 for India
-                      </p>
-                    </div>
+          {/* ── Card ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 26, delay: 0.08 }}
+          >
+            <Card className="overflow-hidden border-border/60 bg-background/60 backdrop-blur-xl shadow-sm">
+              <AnimatePresence mode="wait">
 
-                    {error && (
-                      <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    )}
-
-                    <Button
-                      type="submit"
-                      disabled={loading || !/^\+\d{7,15}$/.test(phone.trim())}
-                      className="w-full h-11 font-bold"
-                    >
-                      {loading
-                        ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending OTP…</>
-                        : 'Send OTP'}
-                    </Button>
-
-                    <p className="text-center text-xs text-muted-foreground pt-1">
-                      First time?{' '}
-                      <a
-                        href="https://wa.me/message/P4QSZGK7MV2PL1"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-semibold text-primary hover:opacity-80 transition-opacity"
-                      >
-                        Sign up via WhatsApp bot
-                      </a>
-                    </p>
-                  </form>
-                </CardContent>
-              </motion.div>
-            )}
-
-            {/* ── Step 2: OTP ── */}
-            {step === 'otp' && (
-              <motion.div
-                key="otp-step"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              >
-                <CardHeader className="space-y-1 pb-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleBack}
-                      className="p-1 rounded-lg hover:bg-accent transition-colors text-muted-foreground"
-                      aria-label="Go back"
-                    >
-                      <ArrowLeft className="h-4 w-4" />
-                    </button>
-                    <CardTitle className="text-lg font-bold flex items-center gap-2">
-                      <CheckCircle2 className="h-5 w-5 text-primary" />
-                      Enter the code
-                    </CardTitle>
-                  </div>
-                  <CardDescription className="pl-8">
-                    Sent to{' '}
-                    <span className="font-semibold text-foreground">{phone}</span>
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent>
-                  <form onSubmit={handleVerifyOTP} className="space-y-5">
-                    <div className="space-y-3">
-                      <Label>6-digit code</Label>
-                      <div className="flex justify-center">
-                        <InputOTP
-                          maxLength={6}
-                          value={otp}
-                          onChange={setOtp}
-                          disabled={loading || expired}
-                          autoFocus
-                        >
-                          <InputOTPGroup className="grid grid-cols-6 gap-2">
-                            <InputOTPSlot index={0} />
-                            <InputOTPSlot index={1} />
-                            <InputOTPSlot index={2} />
-                            <InputOTPSlot index={3} />
-                            <InputOTPSlot index={4} />
-                            <InputOTPSlot index={5} />
-                          </InputOTPGroup>
-                        </InputOTP>
-                      </div>
-
-                      <div className="text-center">
-                        {expired ? (
-                          <p className="text-sm text-destructive font-medium">
-                            OTP expired —{' '}
-                            <button
-                              type="button"
-                              onClick={handleBack}
-                              className="underline hover:opacity-80"
-                            >
-                              request a new one
-                            </button>
+                {/* ── Step 1: Phone ── */}
+                {step === 'phone' && (
+                  <motion.div
+                    key="phone-step"
+                    initial={{ opacity: 0, x: -18 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 18 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 26 }}
+                  >
+                    <CardHeader className="space-y-1 pb-4">
+                      <CardTitle className="text-lg font-bold flex items-center gap-2">
+                        <MessageCircle className="h-5 w-5 text-primary" />
+                        Sign in with WhatsApp
+                      </CardTitle>
+                      <CardDescription>
+                        We'll send a 6-digit code to your WhatsApp. No password needed.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <form onSubmit={handleRequestOTP} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">WhatsApp Number</Label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            inputMode="tel"
+                            placeholder="+919876543210"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            disabled={loading}
+                            className="font-mono text-base h-11"
+                            autoFocus
+                            required
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Include your country code — e.g. <span className="font-medium text-foreground">+91</span> for India.
                           </p>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">
-                            Expires in{' '}
-                            <span className={`font-mono font-semibold ${countdown < 60 ? 'text-destructive' : 'text-foreground'}`}>
-                              {fmt(countdown)}
-                            </span>
-                          </p>
+                        </div>
+
+                        {error && (
+                          <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                          </Alert>
                         )}
+
+                        <Button
+                          type="submit"
+                          disabled={loading || !/^\+\d{7,15}$/.test(phone.trim())}
+                          className="w-full h-11 font-bold"
+                        >
+                          {loading
+                            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending code…</>
+                            : 'Send Code'}
+                        </Button>
+
+                        <p className="text-center text-xs text-muted-foreground pt-1">
+                          New here?{' '}
+                          <a
+                            href="https://wa.me/message/P4QSZGK7MV2PL1"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-semibold text-primary hover:opacity-80 transition-opacity"
+                          >
+                            Create an account via WhatsApp →
+                          </a>
+                        </p>
+                      </form>
+                    </CardContent>
+                  </motion.div>
+                )}
+
+                {/* ── Step 2: OTP ── */}
+                {step === 'otp' && (
+                  <motion.div
+                    key="otp-step"
+                    initial={{ opacity: 0, x: -18 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 18 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 26 }}
+                  >
+                    <CardHeader className="space-y-1 pb-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={handleBack}
+                          className="p-1 rounded-lg hover:bg-accent transition-colors text-muted-foreground"
+                          aria-label="Go back"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                        <CardTitle className="text-lg font-bold flex items-center gap-2">
+                          <CheckCircle2 className="h-5 w-5 text-primary" />
+                          Check your WhatsApp
+                        </CardTitle>
                       </div>
-                    </div>
+                      <CardDescription className="pl-8">
+                        We sent a 6-digit code to{' '}
+                        <span className="font-semibold text-foreground">{phone}</span>
+                      </CardDescription>
+                    </CardHeader>
 
-                    {error && (
-                      <Alert variant="destructive">
-                        <AlertDescription>{error}</AlertDescription>
-                      </Alert>
-                    )}
+                    <CardContent>
+                      <form onSubmit={handleVerifyOTP} className="space-y-5">
+                        <div className="space-y-3">
+                          <Label>Enter the 6-digit code</Label>
+                          <div className="flex justify-center">
+                            <InputOTP
+                              maxLength={6}
+                              value={otp}
+                              onChange={setOtp}
+                              disabled={loading || expired}
+                              autoFocus
+                            >
+                              <InputOTPGroup className="grid grid-cols-6 gap-2">
+                                <InputOTPSlot index={0} />
+                                <InputOTPSlot index={1} />
+                                <InputOTPSlot index={2} />
+                                <InputOTPSlot index={3} />
+                                <InputOTPSlot index={4} />
+                                <InputOTPSlot index={5} />
+                              </InputOTPGroup>
+                            </InputOTP>
+                          </div>
 
-                    <Button
-                      type="submit"
-                      disabled={loading || otp.length !== 6 || expired}
-                      className="w-full h-11 font-bold"
-                    >
-                      {loading
-                        ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
-                        : 'Verify & Sign In'}
-                    </Button>
+                          <div className="text-center">
+                            {expired ? (
+                              <p className="text-sm text-destructive font-medium">
+                                Code expired —{' '}
+                                <button
+                                  type="button"
+                                  onClick={handleBack}
+                                  className="underline hover:opacity-80"
+                                >
+                                  request a new one
+                                </button>
+                              </p>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">
+                                Code expires in{' '}
+                                <span className={`font-mono font-semibold ${countdown < 60 ? 'text-destructive' : 'text-foreground'}`}>
+                                  {fmt(countdown)}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
 
-                    <p className="text-center text-xs text-muted-foreground">
-                      Didn't receive it?{' '}
-                      <button
-                        type="button"
-                        onClick={handleBack}
-                        className="font-semibold text-primary hover:opacity-80 transition-opacity"
-                      >
-                        Resend OTP
-                      </button>
-                    </p>
-                  </form>
-                </CardContent>
-              </motion.div>
-            )}
-            </AnimatePresence>
-          </Card>
+                        {error && (
+                          <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                          </Alert>
+                        )}
 
-          <p className="text-center text-xs text-muted-foreground">
+                        <Button
+                          type="submit"
+                          disabled={loading || otp.length !== 6 || expired}
+                          className="w-full h-11 font-bold"
+                        >
+                          {loading
+                            ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
+                            : 'Verify & Sign In'}
+                        </Button>
+
+                        <p className="text-center text-xs text-muted-foreground">
+                          Didn't get it?{' '}
+                          <button
+                            type="button"
+                            onClick={handleBack}
+                            className="font-semibold text-primary hover:opacity-80 transition-opacity"
+                          >
+                            Resend code
+                          </button>
+                        </p>
+                      </form>
+                    </CardContent>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Card>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-center text-xs text-muted-foreground"
+          >
             <Link href="/" className="text-foreground hover:text-primary transition-colors">
               ← Back to home
             </Link>
-          </p>
+          </motion.p>
         </div>
       </div>
-      {/* Signup Overlay */}
+
+      {/* ── Signup Overlay ── */}
       {showSignupOverlay && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-300">
-          <Card className="w-full max-w-sm shadow-2xl border-primary/20 animate-in zoom-in-95 duration-300">
-            <CardHeader className="text-center space-y-2">
-              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-2">
+          <Card className="w-full max-w-sm border-border/60 shadow-xl animate-in zoom-in-95 duration-300">
+            <CardHeader className="text-center space-y-3">
+              <div className="w-16 h-16 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center mx-auto">
                 <MessageCircle className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-xl font-bold">Signup Required</CardTitle>
-              <CardDescription className="text-base">
-                You need to signup from the WhatsApp bot first to use the website dashboard.
-              </CardDescription>
+              <div>
+                <CardTitle className="text-xl font-bold">Let's get you set up</CardTitle>
+                <CardDescription className="text-sm mt-2 leading-relaxed">
+                  Your number isn't registered yet. Start a quick chat with our WhatsApp bot to create your account — it only takes a minute.
+                </CardDescription>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
+              <Button
                 onClick={() => window.open('https://wa.me/message/P4QSZGK7MV2PL1', '_blank')}
                 className="w-full h-12 text-base font-bold gap-2"
               >
                 <MessageCircle className="h-5 w-5" />
-                Continue to WhatsApp
+                Open WhatsApp to Sign Up
               </Button>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 onClick={() => setShowSignupOverlay(false)}
                 className="w-full h-11 text-muted-foreground"
               >
-                Cancel
+                Go back
               </Button>
             </CardContent>
           </Card>

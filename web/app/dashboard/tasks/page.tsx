@@ -373,7 +373,7 @@ export default function TasksPage() {
       
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 relative">
         <div>
-          <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Tasks & Exams</span></h1>
+          <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Tasks & Exams</span></h1>
           <p className="text-muted-foreground mt-1">Keep track of your assignments, to-dos, and upcoming assessments.</p>
         </div>
         
@@ -484,7 +484,7 @@ export default function TasksPage() {
                         className="bg-background shadow-sm border-muted-foreground/20 h-10" 
                       />
                     </div>
-                    <Button type="submit" className="h-12 sm:h-10 px-8 font-bold w-full sm:w-auto gradient-accent shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                    <Button type="submit" className="h-12 sm:h-10 px-8 font-bold w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-all">
                       <Plus className="w-5 h-5 mr-2" /> Add Task
                     </Button>
                   </div>

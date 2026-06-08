@@ -157,7 +157,7 @@ export function GradeSubjectCard({
   }
 
   return (
-    <Card className="overflow-hidden border-2 shadow-sm transition-all hover:shadow-md">
+    <Card className="overflow-hidden border-2 shadow-sm transition-colors">
       {/* Corner accent — hex gradient or theme gradient */}
       {(() => { const g = getAccentGradient(subject.color_hex); return (
         <div
