@@ -176,7 +176,7 @@ export default function WhatsAppAdminPage() {
           </div>
           <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
             <MessageSquare className="w-8 h-8 text-primary" />
-            <span className="gradient-accent-text">WhatsApp Console</span>
+            <span className="text-primary">WhatsApp Console</span>
           </h1>
           <p className="text-muted-foreground mt-1">Monitor 24-hour windows and message delivery logs.</p>
         </div>

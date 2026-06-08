@@ -31,7 +31,7 @@ export function SubjectList({ subjects }: SubjectListProps) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base font-bold flex items-center gap-2">
-          <BookOpen className="h-4 w-4 gradient-accent-text" />
+          <BookOpen className="h-4 w-4 text-primary" />
           Active Subjects
         </CardTitle>
       </CardHeader>

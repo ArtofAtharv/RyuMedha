@@ -63,7 +63,7 @@ export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background/95 backdrop-blur-md border border-border/50 p-3 rounded-xl shadow-xl text-slate-900 dark:text-slate-100">
+        <div className="bg-background/95 backdrop-blur-md border border-border/50 p-3 rounded-xl text-slate-900 dark:text-slate-100">
           <p className="font-bold mb-2 text-slate-900 dark:text-slate-100">{label}</p>
           {payload.map((entry: any, index: number) => (
             <div key={index} className="flex items-center gap-2 text-sm font-medium">

@@ -101,14 +101,14 @@ export default async function DashboardPage() {
           <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
             <div className="flex items-center justify-between space-y-2">
               <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-                Namaste, <span className="gradient-accent-text">{displayName}</span>
+                Namaste, <span className="text-primary">{displayName}</span>
               </h2>
             </div>
             
             <Card className="border-dashed border-2 bg-muted/20 border-primary/20 rounded-3xl overflow-hidden backdrop-blur-sm">
               <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-8">
                 <div className="relative">
-                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse shadow-inner shadow-primary/5">
+                  <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center animate-pulse shadow-inner">
                     <PlusCircle className="w-12 h-12 text-primary" />
                   </div>
                   <div className="absolute -top-1 -right-1 w-6 h-6 bg-primary rounded-full animate-ping opacity-20" />
@@ -120,7 +120,7 @@ export default async function DashboardPage() {
                   </CardDescription>
                 </div>
                 <Link href="/dashboard/subjects">
-                  <Button size="lg" className="font-bold h-14 px-10 text-lg rounded-2xl gradient-accent shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all">
+                  <Button size="lg" className="font-bold h-14 px-10 text-lg rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 active:scale-95 transition-all">
                     <PlusCircle className="mr-2 h-6 w-6" /> Add First Subject
                   </Button>
                 </Link>
