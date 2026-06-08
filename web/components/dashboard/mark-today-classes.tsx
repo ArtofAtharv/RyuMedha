@@ -38,7 +38,7 @@ export function MarkTodayClasses({ subjectsInfo, token, profileId }: { subjectsI
     <Button 
       onClick={handleMarkAll}
       disabled={isMarking || subjectsInfo.length === 0}
-      className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all font-bold gap-2"
+      className="bg-primary hover:bg-primary/90 transition-colors font-bold gap-2"
     >
       <CheckCircle2 className={`w-4 h-4 ${isMarking ? "animate-spin" : ""}`} />
       {isMarking ? "Marking..." : "Mark All Present"}

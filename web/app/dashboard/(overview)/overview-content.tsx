@@ -53,20 +53,18 @@ export function OverviewContent({
     >
       {/* ─── GAMIFICATION HERO / PLAYER PROFILE ─── */}
       <motion.section variants={item} className="hidden">
-        <Card className="overflow-hidden border-2 border-primary/20 bg-background/50 backdrop-blur-xl shadow-2xl relative group">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 opacity-50 z-0"></div>
+        <Card className="overflow-hidden border-2 border-primary/20 bg-background/50 backdrop-blur-xl relative group">
           <CardContent className="p-6 relative z-10">
             <div className="flex flex-col md:flex-row items-center gap-6">
               
               {/* Avatar / Level Badge */}
               <div className="relative">
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-primary to-accent p-1 shadow-lg shadow-primary/20 group-hover:shadow-primary/40 transition-shadow duration-500">
+                <div className="w-24 h-24 rounded-2xl bg-primary p-1 duration-500">
                   <div className="w-full h-full bg-card rounded-xl flex items-center justify-center relative overflow-hidden">
                     <Sparkles className="w-10 h-10 text-primary animate-pulse" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent"></div>
                   </div>
                 </div>
-                <div className="absolute -bottom-3 -right-3 w-10 h-10 rounded-full bg-background border-2 border-primary flex items-center justify-center shadow-lg font-black text-primary">
+                <div className="absolute -bottom-3 -right-3 w-10 h-10 rounded-full bg-background border-2 border-primary flex items-center justify-center font-black text-primary">
                   {level}
                 </div>
               </div>
@@ -91,7 +89,7 @@ export function OverviewContent({
                   </div>
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden shadow-inner">
                     <motion.div 
-                      className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
+                      className="h-full bg-primary rounded-full"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 1, type: "spring" }}
@@ -205,7 +203,7 @@ export function OverviewContent({
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-lg font-bold flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${academicOverviewData.unmarkedSubjectsToday > 0 ? 'bg-primary animate-pulse shadow-[0_0_10px_rgba(var(--primary),0.5)]' : 'bg-green-500'}`}/>
+                      <span className={`w-2.5 h-2.5 rounded-full ${academicOverviewData.unmarkedSubjectsToday > 0 ? 'bg-primary animate-pulse' : 'bg-green-500'}`}/>
                       Attendance Quest
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1 font-medium">
@@ -239,7 +237,7 @@ export function OverviewContent({
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-lg font-bold flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${academicOverviewData.pendingTasksToday > 0 ? 'bg-orange-500 animate-pulse shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-green-500'}`}/>
+                      <span className={`w-2.5 h-2.5 rounded-full ${academicOverviewData.pendingTasksToday > 0 ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`}/>
                       Task Quest
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1 font-medium">

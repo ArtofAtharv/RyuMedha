@@ -522,7 +522,7 @@ export default function ProfilePage() {
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="gradient-accent rounded-3xl p-8 text-white relative overflow-hidden"
+        className="bg-primary rounded-3xl p-8 text-primary-foreground relative overflow-hidden"
       >
         <div className="absolute inset-0 bg-black/10 rounded-3xl" />
         <div className="relative z-10">
@@ -843,7 +843,7 @@ function ProfileRow({
               <button
                 onClick={onSave}
                 disabled={saving}
-                className="w-8 h-8 rounded-lg gradient-accent text-white flex items-center justify-center shrink-0 hover:opacity-90 transition-opacity disabled:opacity-50 shadow-sm"
+                className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
@@ -1033,7 +1033,7 @@ function TrackToggle({
       } disabled:opacity-50`}
     >
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm border border-black/5 dark:border-white/5 ${
-        enabled ? "gradient-accent text-white" : "bg-muted text-muted-foreground"
+        enabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
       }`}>
         {icon}
       </div>

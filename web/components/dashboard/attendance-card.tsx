@@ -27,13 +27,10 @@ interface AttendanceCardProps {
   onLog?: (subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') => void
 }
 
-function hexToGradient(hex: string) {
+function hexToAccentStyle(hex: string) {
   if (!hex) return {}
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
   return {
-    background: `linear-gradient(135deg, ${hex}, rgba(${r},${g},${b},0.6))`
+    background: hex
   }
 }
 
@@ -103,10 +100,10 @@ export function AttendanceCard({
     >
       <Card 
         onClick={handleCardClick}
-        className="relative overflow-hidden group hover:shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.12)] transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
+        className="relative overflow-hidden group transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
       >
-        {/* Top Subtle Gradient Bar */}
-        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToGradient(accentColor || '#8b5cf6')} />
+        {/* Top accent bar */}
+        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToAccentStyle(accentColor || '#8b5cf6')} />
 
         <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
         <div className="flex justify-between items-start mb-4">
@@ -169,7 +166,7 @@ export function AttendanceCard({
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
               transition={{ duration: 1, delay: 0.2, type: "spring" }}
-              style={hexToGradient(accentColor || '#8b5cf6')}
+              style={hexToAccentStyle(accentColor || '#8b5cf6')}
             />
           </div>
 

@@ -573,7 +573,7 @@ export default function TimersPage() {
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
       <motion.div variants={itemVariants} initial="hidden" animate="show">
-        <h1 className="text-3xl font-black tracking-tight"><span className="gradient-accent-text">Study Timers</span></h1>
+        <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Study Timers</span></h1>
         <p className="text-muted-foreground mt-1">Track your dedicated study sessions to build powerful reports.</p>
       </motion.div>
 
@@ -646,14 +646,14 @@ export default function TimersPage() {
             {activeTimer ? (
               <div className="text-center py-6 space-y-4">
                 <p className="text-lg font-medium text-muted-foreground">{activeTimer.subjects?.name}</p>
-                <div className={`text-5xl font-mono font-black tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'gradient-accent-text'}`}>
+                <div className={`text-5xl font-mono font-black tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'text-primary'}`}>
                   {formatTime(elapsed)}
                 </div>
                 {activeTimer.pause_started_at && <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest animate-pulse">Paused</p>}
                 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
                   {activeTimer.pause_started_at ? (
-                    <Button onClick={resumeTimer} size="lg" className="w-full sm:w-auto gap-2 gradient-accent text-white border-0 hover:opacity-90 transition-opacity">
+                    <Button onClick={resumeTimer} size="lg" className="w-full sm:w-auto gap-2 bg-primary text-primary-foreground border-0 hover:bg-primary/90 transition-colors">
                       <Play className="fill-current w-4 h-4"/> Resume
                     </Button>
                   ) : (
@@ -682,7 +682,7 @@ export default function TimersPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button onClick={startTimer} disabled={!selectedSubject} size="lg" className="w-full gap-2 gradient-accent text-white border-0 hover:opacity-90 transition-opacity">
+                <Button onClick={startTimer} disabled={!selectedSubject} size="lg" className="w-full gap-2 bg-primary text-primary-foreground border-0 hover:bg-primary/90 transition-colors">
                   <Play className="fill-current w-4 h-4"/> Start Focusing
                 </Button>
               </div>
@@ -803,10 +803,10 @@ export default function TimersPage() {
                     <div className="flex gap-2 p-1.5 bg-background/50 backdrop-blur-md rounded-full mb-4">
                       <button onClick={() => handlePomoModeSwitch('pomodoro')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'pomodoro' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Pomodoro</button>
                       <button onClick={() => handlePomoModeSwitch('shortBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'shortBreak' ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Short Break</button>
-                      <button onClick={() => handlePomoModeSwitch('longBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'longBreak' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Long Break</button>
+                      <button onClick={() => handlePomoModeSwitch('longBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'longBreak' ? 'bg-blue-500 text-white' : 'text-muted-foreground hover:bg-muted'}`}>Long Break</button>
                     </div>
 
-                    <div className="text-[100px] leading-none font-mono font-black tracking-tighter tabular-nums drop-shadow-2xl">
+                    <div className="text-[100px] leading-none font-mono font-black tracking-tighter tabular-nums">
                       {formatPomoTime(pomoTimeLeft)}
                     </div>
 
@@ -814,11 +814,11 @@ export default function TimersPage() {
                       <Button 
                         onClick={togglePomo} 
                         size="lg" 
-                        className={`text-xl font-black h-16 px-12 rounded-3xl transition-all shadow-xl hover:scale-105 ${
+                        className={`text-xl font-black h-16 px-12 rounded-3xl transition-all hover:scale-105 ${
                           pomoIsActive ? 'bg-background text-foreground border-2 border-border/50 hover:bg-muted' : 
                           pomoMode === 'pomodoro' ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20' :
                           pomoMode === 'shortBreak' ? 'bg-teal-500 text-white hover:bg-teal-600 shadow-teal-500/20' :
-                          'bg-blue-500 text-white hover:bg-blue-600 shadow-blue-500/20'
+                          'bg-blue-500 text-white hover:bg-blue-600'
                         }`}
                       >
                         {pomoIsActive ? 'PAUSE' : 'START'}
@@ -902,7 +902,7 @@ export default function TimersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
-            <Button onClick={saveTimerEdit} className="gradient-accent text-white border-0">Save Changes</Button>
+            <Button onClick={saveTimerEdit} className="bg-primary text-primary-foreground border-0 hover:bg-primary/90">Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -947,7 +947,7 @@ export default function TimersPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsSettingsModalOpen(false)}>Cancel</Button>
-            <Button onClick={savePomoSettings} className="gradient-accent text-white border-0">Save Settings</Button>
+            <Button onClick={savePomoSettings} className="bg-primary text-primary-foreground border-0 hover:bg-primary/90">Save Settings</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
