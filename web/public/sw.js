@@ -4,7 +4,7 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body,
     icon: "/icon.png", // Assuming you have an icon at public/icon.png
-    badge: "/icon-transparent.png", // Assuming a badge
+    badge: "/badge.png", // Assuming a badge
     vibrate: [100, 50, 100],
     data: {
       url: data.url
