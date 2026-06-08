@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { getSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@supabase/supabase-js"
+import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { motion, AnimatePresence } from "motion/react"
 import { 
   User, Phone, GraduationCap, Target, BookOpen, 
@@ -15,31 +15,52 @@ import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
+interface IdName { id: string; name: string }
+interface SessionData { user: { phone?: string; supabaseToken?: string; name?: string | null } }
+
+interface ProfileData {
+  id: string
+  display_name?: string
+  whatsapp_number?: string
+  current_university_id?: string | null
+  current_program_id?: string | null
+  current_semester_id?: string | null
+  target_attendance_pct?: number
+  academics_enabled?: boolean
+  personal_enabled?: boolean
+  timezone?: string
+  max_gpa?: number
+  is_admin?: boolean
+}
+
+interface SubjectRow {
+  id: string
+  is_active?: boolean
+  source_course_id?: { semester_id?: string } | Array<{ semester_id?: string }>
+}
+
 export default function ProfilePage() {
   const router = useRouter()
-  const [session, setSession] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
+  const [session, setSession] = useState<SessionData | null>(null)
+  const [profile, setProfile] = useState<ProfileData | null>(null)
   
-  // Reference data lists
-  const [universities, setUniversities] = useState<any[]>([])
-  const [programs, setPrograms] = useState<any[]>([])
-  const [semesters, setSemesters] = useState<any[]>([])
+  const [universities, setUniversities] = useState<IdName[]>([])
+  const [programs, setPrograms] = useState<IdName[]>([])
+  const [semesters, setSemesters] = useState<(IdName & { semester_number: number })[]>([])
 
-  // Display names for active relational fields
   const [uniName, setUniName] = useState("Not Set")
   const [progName, setProgName] = useState("Not Set")
   const [semName, setSemName] = useState("Not Set")
   
-  const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [loading, setLoading] = useState(true)
+  const [, setIsSubmitting] = useState(false)
 
-  // Inline edit states
   const [editField, setEditField] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Dynamic Management state
   const [isAddingUni, setIsAddingUni] = useState(false)
   const [newUniName, setNewUniName] = useState("")
   
@@ -50,7 +71,6 @@ export default function ProfilePage() {
   const [newSemName, setNewSemName] = useState("")
   const [newSemNumber, setNewSemNumber] = useState("")
 
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [hasArchivedSubjects, setHasArchivedSubjects] = useState(false)
   const [hasActiveSubjects, setHasActiveSubjects] = useState(false)
 
@@ -70,10 +90,10 @@ export default function ProfilePage() {
       let activeCount = 0
       let archivedCount = 0
       
-      ;(subs || []).forEach((s: any) => {
+      ;(subs || []).forEach((s: SubjectRow) => {
         const semId = Array.isArray(s.source_course_id) 
           ? s.source_course_id[0]?.semester_id 
-          : (s.source_course_id as any)?.semester_id
+          : (s.source_course_id as { semester_id?: string })?.semester_id
         if (semId === profile.current_semester_id) {
           if (s.is_active) activeCount++
           else archivedCount++
@@ -86,25 +106,7 @@ export default function ProfilePage() {
     checkSemesterStatus()
   }, [profile?.current_semester_id, supabaseClient, profile?.id])
 
-  useEffect(() => {
-    async function init() {
-      const sess = await getSession()
-      if (!sess) return
-      setSession(sess)
-      
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
-      )
-      
-      setSupabaseClient(supabase)
-      await fetchInitialData(supabase, sess)
-    }
-    init()
-  }, [])
-
-  async function fetchInitialData(supabase: any, sess: any) {
+  async function fetchInitialData(supabase: AppSupabaseClient, sess: SessionData) {
     // Fetch profile and all universities
     const [{ data: prof }, { data: unis }] = await Promise.all([
       supabase.from('profiles').select('*').eq('whatsapp_number', sess.user.phone).single(),
@@ -151,6 +153,24 @@ export default function ProfilePage() {
     setLoading(false)
   }
 
+  useEffect(() => {
+    async function init() {
+      const sess = await getSession()
+      if (!sess) return
+      setSession(sess)
+      
+      const supabase = createAppClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
+      )
+      
+      setSupabaseClient(supabase)
+      await fetchInitialData(supabase, sess)
+    }
+    init()
+  }, [])
+
   // Refetch just the profile and names
   async function refreshProfileData() {
     if (!supabaseClient || !session) return
@@ -179,7 +199,7 @@ export default function ProfilePage() {
     if (!profile || !supabaseClient) return
     setSaving(true)
 
-    const updates: any = {}
+    const updates: Record<string, string | null> = {}
     
     if (field === 'current_university_id') {
       updates.current_university_id = newId || null
@@ -220,7 +240,7 @@ export default function ProfilePage() {
   }
 
   // Handle simple scalar field saves
-  async function saveField(field: string, value: any) {
+  async function saveField(field: string, value: string | number | boolean) {
     if (!profile || !supabaseClient) return
     setSaving(true)
     await supabaseClient.from('profiles').update({ [field]: value }).eq('id', profile.id)
@@ -230,7 +250,7 @@ export default function ProfilePage() {
     setEditField(null)
   }
 
-  function startEdit(field: string, currentValue: any) {
+  function startEdit(field: string, currentValue: string | number | null | undefined) {
     setEditField(field)
     setEditValue(currentValue?.toString() || "")
   }
@@ -405,12 +425,12 @@ export default function ProfilePage() {
         .eq('type', 'academic')
         .eq('is_active', true)
 
-      const subjectIdsToArchive = (subs || []).filter((s: any) => {
+      const subjectIdsToArchive = (subs || []).filter((s: SubjectRow) => {
         const semId = Array.isArray(s.source_course_id) 
           ? s.source_course_id[0]?.semester_id 
-          : (s.source_course_id as any)?.semester_id
+          : (s.source_course_id as { semester_id?: string })?.semester_id
         return semId === profile.current_semester_id
-      }).map((s: any) => s.id)
+      }).map((s: SubjectRow) => s.id)
 
       if (subjectIdsToArchive.length > 0) {
         await supabaseClient
@@ -427,7 +447,7 @@ export default function ProfilePage() {
       await refreshProfileData()
       toast.success("Semester archived! Setup your new semester below.")
       router.refresh()
-    } catch (err) {
+    } catch (_err) {
       toast.error("Failed to archive semester")
     } finally {
       setSaving(false)
@@ -445,12 +465,12 @@ export default function ProfilePage() {
         .eq('type', 'academic')
         .eq('is_active', false)
 
-      const subjectIdsToRestore = (subs || []).filter((s: any) => {
+      const subjectIdsToRestore = (subs || []).filter((s: SubjectRow) => {
         const semId = Array.isArray(s.source_course_id) 
           ? s.source_course_id[0]?.semester_id 
-          : (s.source_course_id as any)?.semester_id
+          : (s.source_course_id as { semester_id?: string })?.semester_id
         return semId === profile.current_semester_id
-      }).map((s: any) => s.id)
+      }).map((s: SubjectRow) => s.id)
 
       if (subjectIdsToRestore.length > 0) {
         await supabaseClient
@@ -462,7 +482,7 @@ export default function ProfilePage() {
       setHasActiveSubjects(true)
       toast.success("Semester unarchived successfully!")
       router.refresh()
-    } catch (err) {
+    } catch (_err) {
       toast.error("Failed to unarchive semester")
     } finally {
       setSaving(false)
@@ -567,7 +587,7 @@ export default function ProfilePage() {
           <ProfileRow
             icon={<User className="w-4 h-4" />}
             label="Display Name"
-            value={displayName}
+            value={displayName ?? ""}
             isEditing={editField === "display_name"}
             editValue={editValue}
             saving={saving}
@@ -613,7 +633,7 @@ export default function ProfilePage() {
               label="University"
               value={uniName}
               options={universities}
-              currentId={profile.current_university_id}
+              currentId={profile.current_university_id ?? null}
               saving={saving}
               isAdding={isAddingUni}
               onSetIsAdding={setIsAddingUni}
@@ -633,7 +653,7 @@ export default function ProfilePage() {
               label="Degree Program"
               value={progName}
               options={programs}
-              currentId={profile.current_program_id}
+              currentId={profile.current_program_id ?? null}
               saving={saving}
               isAdding={isAddingProg}
               onSetIsAdding={setIsAddingProg}
@@ -655,7 +675,7 @@ export default function ProfilePage() {
               label="Current Semester"
               value={semName}
               options={semesters}
-              currentId={profile.current_semester_id}
+              currentId={profile.current_semester_id ?? null}
               saving={saving}
               isAdding={isAddingSem}
               onSetIsAdding={setIsAddingSem}
@@ -746,14 +766,14 @@ export default function ProfilePage() {
           <TrackToggle
             icon={<GraduationCap className="w-4 h-4" />}
             label="Academic"
-            enabled={profile.academics_enabled}
+            enabled={profile.academics_enabled ?? false}
             saving={saving}
             onToggle={() => saveField("academics_enabled", !profile.academics_enabled)}
           />
           <TrackToggle
             icon={<FolderOpen className="w-4 h-4" />}
             label="Personal"
-            enabled={profile.personal_enabled}
+            enabled={profile.personal_enabled ?? false}
             saving={saving}
             onToggle={() => saveField("personal_enabled", !profile.personal_enabled)}
           />
@@ -878,7 +898,7 @@ function ProfileRow({
 
 /* ─── Reusable Dropdown Row (Relational FKs) ─── */
 function DropdownRow({
-  icon, label, value, options, currentId, saving,
+  icon, label, value: _value, options, currentId, saving: _saving,
   onChange, disabled, disabledMessage, placeholder,
   isAdding, onSetIsAdding, newName, onNewNameChange, onCreate, onDelete,
   addLabel, addValue, isSemester, newNumber, onNewNumberChange
@@ -886,7 +906,7 @@ function DropdownRow({
   icon: React.ReactNode
   label: string
   value: string
-  options: any[]
+  options: IdName[]
   currentId: string | null
   saving: boolean
   onChange: (id: string) => void

@@ -38,6 +38,7 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedXp = localStorage.getItem(`rpg_xp_${profile?.whatsapp_number || 'guest'}`);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (savedXp) setXp(parseInt(savedXp, 10));
       
       const savedCombo = localStorage.getItem(`rpg_combo_${profile?.whatsapp_number || 'guest'}`);

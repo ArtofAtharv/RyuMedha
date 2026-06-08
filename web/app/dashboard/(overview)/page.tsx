@@ -5,7 +5,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PlusCircle } from 'lucide-react'
 import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-context'
@@ -79,15 +79,11 @@ export default async function DashboardPage() {
   ])
 
   // Filter subjects by the current academic hierarchy (Semester)
-  const subjectsData = rawSubjectsData?.filter((s: any) => {
+  const subjectsData = rawSubjectsData?.filter((s) => {
     if (s.type === 'personal') return true
-    
-    // Access semester_id from joined source_course_id (handling potential array from Supabase join types)
     const semesterId = Array.isArray(s.source_course_id) 
-      ? s.source_course_id[0]?.semester_id 
-      : (s.source_course_id as any)?.semester_id
-
-    // If academic, it MUST belong to the current semester
+      ? (s.source_course_id as Array<{semester_id?: string}>)[0]?.semester_id 
+      : (s.source_course_id as {semester_id?: string})?.semester_id
     return semesterId === profile?.current_semester_id
   }) || []
 
@@ -116,7 +112,7 @@ export default async function DashboardPage() {
                 <div className="space-y-3 max-w-sm">
                   <CardTitle className="text-3xl font-black tracking-tight">Your journey starts here</CardTitle>
                   <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
-                    You haven't added any subjects yet. Add your first subject to start tracking your attendance, tasks, and progress!
+                    You haven&apos;t added any subjects yet. Add your first subject to start tracking your attendance, tasks, and progress!
                   </CardDescription>
                 </div>
                 <Link href="/dashboard/subjects">
@@ -159,7 +155,7 @@ export default async function DashboardPage() {
   let pendingTasksToday = 0
   
   pendingTasks?.forEach(t => {
-    // @ts-ignore
+    // @ts-expect-error — Supabase join returns subjects as object
     const type = t.subjects?.type
     if (type === 'academic') academicPendingTasks++
     else if (type === 'personal') personalPendingTasks++
@@ -172,17 +168,18 @@ export default async function DashboardPage() {
 
   const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
   const personalSubjects = subjectsData?.filter(s => s.type === 'personal') || []
-  const unmarkedSubjectsToday = academicSubjects.filter(sub => {
+  const unmarkedAcademicSubjects = academicSubjects.filter(sub => {
     return !attendanceLogs?.some(log => 
       log.subject_id === sub.id && 
       log.lecture_date === todayStr
     )
-  }).length
+  })
+  const unmarkedSubjectsToday = unmarkedAcademicSubjects.length
 
   let academicStudySecs = 0
   let personalStudySecs = 0
   timersData?.forEach(t => {
-    // @ts-ignore
+    // @ts-expect-error — Supabase join returns subjects as object
     const type = t.subjects?.type
     
     // Manual JS-based calculation: (End - Start) - Pause
@@ -214,7 +211,7 @@ export default async function DashboardPage() {
   let personalMax = 0
 
   gradesData?.forEach(g => {
-    // @ts-ignore
+    // @ts-expect-error — Supabase join returns subjects as object
     const type = g.subjects?.type
     if (type === 'academic') {
       academicScore += Number(g.marks)
@@ -252,9 +249,10 @@ export default async function DashboardPage() {
               academicStudyTimeFormatted,
               attendanceData,
               academicSubjects,
+              unmarkedAcademicSubjects,
               unmarkedSubjectsToday,
               pendingTasksToday,
-              timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'academic') || [],
+              timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'academic') || [],
               token: session.user.supabaseToken,
               profileId: profile?.id,
               targetPct
@@ -264,7 +262,7 @@ export default async function DashboardPage() {
               personalPendingTasks,
               personalStudyTimeFormatted,
               personalSubjects,
-              timersSessionData: timersData?.filter(t => (t.subjects as any)?.type === 'personal') || [],
+              timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'personal') || [],
               categories
             }}
           />

@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@supabase/supabase-js"
+import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   BookOpen, FolderOpen, User, ArrowRight, CheckCircle2, 
@@ -18,11 +17,20 @@ import {
 import { toast } from "sonner"
 import { motion, AnimatePresence } from "motion/react"
 
+interface SessionUser {
+  supabaseToken?: string
+  phone?: string
+}
+
+interface SessionData {
+  user: SessionUser
+}
+
 export default function SetupPage() {
   const router = useRouter()
-  const [step, setStep] = useState(1) // 1: Basics, 2: Academic, 3: First Subject
-  const [session, setSession] = useState<any>(null)
-  const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [step, setStep] = useState(1)
+  const [session, setSession] = useState<SessionData | null>(null)
+  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string | null>(null)
   
   // Step 1: Basics
@@ -31,9 +39,14 @@ export default function SetupPage() {
   const [personalEnabled, setPersonalEnabled] = useState(true)
   
   // Step 2: Academic Details
-  const [universities, setUniversities] = useState<any[]>([])
-  const [programs, setPrograms] = useState<any[]>([])
-  const [semesters, setSemesters] = useState<any[]>([])
+  interface IdName { id: string; name: string }
+  interface Program extends IdName { default_target_attendance?: number }
+  interface Semester extends IdName { semester_number: number }
+  interface Course { id: string; course_name: string }
+
+  const [universities, setUniversities] = useState<IdName[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [semesters, setSemesters] = useState<Semester[]>([])
   
   const [selectedUniId, setSelectedUniId] = useState<string>("")
   const [selectedProgId, setSelectedProgId] = useState<string>("")
@@ -50,10 +63,9 @@ export default function SetupPage() {
   const [newSemNumber, setNewSemNumber] = useState("")
   
   // Step 3: Subjects
-  const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
   const [newCourseName, setNewCourseName] = useState("")
-  const [isAddingNewCourse, setIsAddingNewCourse] = useState(false)
   
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
@@ -67,7 +79,7 @@ export default function SetupPage() {
       }
       setSession(sess)
       
-      const supabase = createClient(
+      const supabase = createAppClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
@@ -82,7 +94,7 @@ export default function SetupPage() {
         
       if (profile) {
         setProfileId(profile.id)
-        if (!displayName) setDisplayName(profile.display_name || "")
+        setDisplayName((prev) => prev || profile.display_name || "")
         setAcademicsEnabled(profile.academics_enabled ?? true)
         setPersonalEnabled(profile.personal_enabled ?? true)
         setTargetAttendance(profile.target_attendance_pct?.toString() || "75")
@@ -99,7 +111,7 @@ export default function SetupPage() {
   useEffect(() => {
     if (selectedUniId && supabaseClient) {
       supabaseClient.from('programs').select('id, name, default_target_attendance').eq('university_id', selectedUniId).order('name')
-        .then(({ data }: any) => {
+        .then(({ data }: { data: Program[] | null }) => {
           setPrograms(data || [])
           setSelectedProgId("")
           setSemesters([])
@@ -113,11 +125,12 @@ export default function SetupPage() {
       // Find the selected program to get its default target attendance
       const prog = programs.find(p => p.id === selectedProgId)
       if (prog && prog.default_target_attendance) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setTargetAttendance(prog.default_target_attendance.toString())
       }
 
       supabaseClient.from('semesters').select('id, name, semester_number').eq('program_id', selectedProgId).order('semester_number')
-        .then(({ data }: any) => {
+        .then(({ data }: { data: Semester[] | null }) => {
           setSemesters(data || [])
           setSelectedSemId("")
         })
@@ -249,6 +262,7 @@ export default function SetupPage() {
   }
 
   async function saveProfileOnly() {
+    if (!supabaseClient || !session?.user?.phone) return
     setIsSubmitting(true)
     const { error } = await supabaseClient
       .from('profiles')
@@ -265,6 +279,7 @@ export default function SetupPage() {
   }
 
   async function handleStep2Next() {
+    if (!supabaseClient) return
     if (!selectedUniId || !selectedProgId || !selectedSemId) {
       setErrorMsg("Please complete all academic details.")
       return
@@ -290,11 +305,12 @@ export default function SetupPage() {
 
   async function handleFinalSave(e: React.FormEvent) {
     e.preventDefault()
+    if (!supabaseClient || !session?.user?.phone) return
     setIsSubmitting(true)
     setErrorMsg("")
 
     // 1. Update Profile
-    const profileUpdates: any = {
+    const profileUpdates: Record<string, unknown> = {
       display_name: displayName.trim(),
       academics_enabled: academicsEnabled,
       personal_enabled: personalEnabled,
@@ -326,7 +342,7 @@ export default function SetupPage() {
         .select('source_course_id')
         .eq('profile_id', profileId)
       
-      const existingIds = existingSubjects?.map((s: any) => s.source_course_id) || []
+      const existingIds = existingSubjects?.map((s: { source_course_id: string }) => s.source_course_id) || []
       const deduplicatedCourseIds = selectedCourseIds.filter(id => !existingIds.includes(id))
       const skippedCount = selectedCourseIds.length - deduplicatedCourseIds.length
 
@@ -761,7 +777,7 @@ export default function SetupPage() {
                   <Button 
                     variant="ghost" 
                     className="text-muted-foreground"
-                    onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as any) }}
+                    onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as React.FormEvent) }}
                     disabled={isSubmitting}
                   >
                     Skip to Dashboard
@@ -777,7 +793,7 @@ export default function SetupPage() {
   )
 }
 
-function TrackOption({ icon, label, selected, onClick }: { icon: any, label: string, selected: boolean, onClick: () => void }) {
+function TrackOption({ icon, label, selected, onClick }: { icon: React.ReactNode, label: string, selected: boolean, onClick: () => void }) {
   return (
     <motion.div 
       whileHover={{ scale: 1.02 }}

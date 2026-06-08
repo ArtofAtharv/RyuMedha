@@ -3,14 +3,12 @@
 import { UserProfile, useProfile } from "@/components/dashboard/profile-context"
 import { useGamification } from "@/components/dashboard/gamification-context"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target, Sparkles, Trophy, Flame } from 'lucide-react'
-import { format } from 'date-fns'
+import { BookOpen, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target, Sparkles, Flame } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-attendance-grid'
+import { InteractiveAttendanceGrid, type AttendanceData, type SubjectInfo } from '@/components/dashboard/interactive-attendance-grid'
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { StudyAnalyticsChart } from '@/components/dashboard/study-analytics-chart'
-import { useState, useEffect } from 'react'
 import { motion, Variants } from "motion/react"
 
 const container: Variants = {
@@ -26,23 +24,60 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 }
 
+interface CategoryInfo {
+  id: string
+  name: string
+  color_hex?: string
+}
+
+interface TimerEntry {
+  started_at: string
+  ended_at: string
+  total_pause_seconds?: number
+  timer_type?: string
+  subject_id?: string
+}
+
+interface AcademicOverviewData {
+  overallAttendancePct: number | null
+  totalPresent: number
+  totalAbsent: number
+  totalDeemed?: number
+  academicGradePct: number | null
+  academicPendingTasks: number
+  academicStudyTimeFormatted: string | null
+  attendanceData: AttendanceData[]
+  academicSubjects: SubjectInfo[]
+  unmarkedAcademicSubjects: SubjectInfo[]
+  unmarkedSubjectsToday: number
+  pendingTasksToday: number
+  timersSessionData: TimerEntry[]
+  token: string
+  profileId: string
+  targetPct: number
+}
+
+interface PersonalOverviewData {
+  personalScorePct: number | null
+  personalPendingTasks: number
+  personalStudyTimeFormatted: string | null
+  personalSubjects: SubjectInfo[]
+  timersSessionData: TimerEntry[]
+  categories: CategoryInfo[]
+}
+
 export function OverviewContent({
   profile,
   academicOverviewData,
   personalOverviewData
 }: {
   profile: UserProfile,
-  academicOverviewData: any,
-  personalOverviewData: any
+  academicOverviewData: AcademicOverviewData,
+  personalOverviewData: PersonalOverviewData
 }) {
   const { profile: contextProfile } = useProfile()
   const { xp, level, progress, combo } = useGamification()
   const activeProfile = contextProfile || profile
-  const [mounted, setMounted] = useState(false)
-  
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   return (
     <motion.div 
@@ -220,9 +255,7 @@ export function OverviewContent({
                   <div className="mt-4 pt-4 border-t border-border/20">
                     <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Pending Subjects</p>
                     <div className="flex flex-wrap gap-2">
-                      {academicOverviewData.academicSubjects
-                        .filter((s: any) => !academicOverviewData.attendanceData.some((log: any) => log.subject_id === s.id && log.lecture_date === new Date().toLocaleDateString('en-CA', { timeZone: profile.timezone || 'Asia/Kolkata' })))
-                        .map((s: any) => (
+                      {academicOverviewData.unmarkedAcademicSubjects.map((s) => (
                           <span key={s.id} className="text-[10px] font-bold px-2 py-1 rounded-md bg-muted text-muted-foreground border border-border/50">
                             {s.name}
                           </span>
@@ -366,8 +399,8 @@ export function OverviewContent({
 
           <motion.div variants={item} className="pt-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {personalOverviewData.personalSubjects.map((sub: any, i: number) => {
-                const subCategory = personalOverviewData.categories.find((c: any) => c.id === sub.category_id)
+              {personalOverviewData.personalSubjects.map((sub, i) => {
+                const subCategory = personalOverviewData.categories.find((c) => c.id === sub.category_id)
                 return (
                   <motion.div key={sub.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }}>
                     <SubjectGridCard 
