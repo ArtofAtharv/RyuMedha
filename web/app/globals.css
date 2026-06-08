@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import url('https://fonts.googleapis.com/css2?family=Playball&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -263,9 +262,9 @@
   mix-blend-mode: normal;
 }
 
-.playball-regular {
-  font-family: "Playball", cursive;
-  font-weight: 400;
-  font-style: normal;
-}
-
+const playball = Playball({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-playball',  // expose as CSS var
+})
