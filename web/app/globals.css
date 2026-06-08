@@ -262,9 +262,3 @@
   mix-blend-mode: normal;
 }
 
-const playball = Playball({
-  weight: '400',
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-playball',  // expose as CSS var
-})
