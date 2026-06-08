@@ -128,7 +128,7 @@ function LoginPageInner() {
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
             className="text-center space-y-3"
           >
-            <div className="flex flex-col items-center gap-2.5 group transition-transform hover:scale-95">
+            <div className="flex flex-col items-center gap-2.5 group">
             <Image
               src="/badge.png"
               alt="Ryu Medha"
