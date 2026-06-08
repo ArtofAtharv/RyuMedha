@@ -127,7 +127,7 @@ function LoginPageInner() {
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
             className="text-center space-y-3"
           >
-            <Link href="/" className="flex flex-col items-center gap-2.5 group transition-transform hover:scale-95" aria-label="Ryu Medha home">
+            <div className="flex flex-col items-center gap-2.5 group transition-transform hover:scale-95">
             <Image
               src="/badge.png"
               alt="Ryu Medha"
@@ -136,7 +136,7 @@ function LoginPageInner() {
               className="rounded-full invert dark:invert-0"
             />
             <span className="text-3xl tracking-tight font-playball">Ryu Medha</span>
-          </Link>
+          </div>
               <p className="text-sm text-muted-foreground mt-1">
                 Your academics, always within reach.
               </p>
