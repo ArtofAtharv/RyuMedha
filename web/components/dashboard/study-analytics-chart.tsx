@@ -14,7 +14,48 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { BarChart3 } from "lucide-react"
 
-export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
+interface TimerEntry {
+  ended_at: string
+  started_at: string
+  timer_type?: string
+  total_pause_seconds?: number
+}
+
+interface TooltipPayloadEntry {
+  name: string
+  value: number
+  color: string
+}
+
+interface CustomTooltipProps {
+  active?: boolean
+  payload?: TooltipPayloadEntry[]
+  label?: string
+}
+
+function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-background/95 backdrop-blur-md border border-border/50 p-3 rounded-xl text-slate-900 dark:text-slate-100">
+        <p className="font-bold mb-2 text-slate-900 dark:text-slate-100">{label}</p>
+        {payload.map((entry, index) => (
+          <div key={index} className="flex items-center gap-2 text-sm font-medium">
+            <div className="w-3 h-3 rounded-full border border-border/20 shadow-sm" style={{ backgroundColor: entry.color }} />
+            <span className="capitalize text-slate-600 dark:text-slate-400">{entry.name}:</span>
+            <span className="text-slate-900 dark:text-slate-100">{entry.value}h</span>
+          </div>
+        ))}
+        <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-black text-slate-900 dark:text-slate-100">
+          <span>Total:</span>
+          <span>{Number(payload.reduce((sum, entry) => sum + entry.value, 0)).toFixed(1)}h</span>
+        </div>
+      </div>
+    )
+  }
+  return null
+}
+
+export function StudyAnalyticsChart({ timersData }: { timersData: TimerEntry[] }) {
   const chartData = useMemo(() => {
     if (!timersData || timersData.length === 0) return []
 
@@ -60,27 +101,7 @@ export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
     }))
   }, [timersData])
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-background/95 backdrop-blur-md border border-border/50 p-3 rounded-xl text-slate-900 dark:text-slate-100">
-          <p className="font-bold mb-2 text-slate-900 dark:text-slate-100">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2 text-sm font-medium">
-              <div className="w-3 h-3 rounded-full border border-border/20 shadow-sm" style={{ backgroundColor: entry.color }} />
-              <span className="capitalize text-slate-600 dark:text-slate-400">{entry.name}:</span>
-              <span className="text-slate-900 dark:text-slate-100">{entry.value}h</span>
-            </div>
-          ))}
-          <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-black text-slate-900 dark:text-slate-100">
-            <span>Total:</span>
-            <span>{Number(payload.reduce((sum: number, entry: any) => sum + entry.value, 0)).toFixed(1)}h</span>
-          </div>
-        </div>
-      )
-    }
-    return null
-  }
+  const CustomTooltipElement = <CustomTooltip />
 
   return (
     <Card className="h-full bg-card/60 backdrop-blur-md border-border/50 shadow-sm overflow-hidden flex flex-col">
@@ -122,7 +143,7 @@ export function StudyAnalyticsChart({ timersData }: { timersData: any[] }) {
                 dx={-10}
                 tickFormatter={(val) => `${val}h`}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--color-muted)', opacity: 0.5, radius: 8 }} />
+              <Tooltip content={CustomTooltipElement} cursor={{ fill: 'var(--color-muted)', opacity: 0.5, radius: 8 }} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
               <Bar 
                 dataKey="pomodoro" 

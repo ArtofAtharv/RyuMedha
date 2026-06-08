@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { useCallback, useEffect, useState } from "react"
+import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,23 +14,23 @@ import { haptic } from "@/lib/haptic"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useProfile } from '@/components/dashboard/profile-context'
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DatePicker } from "@/components/ui/date-picker"
-import { format, parseISO } from "date-fns"
+import type { DashboardSubject, TaskItem } from "@/lib/dashboard-types"
+import { getSourceCourse } from "@/lib/source-course"
+import type { UserProfile } from "@/components/dashboard/profile-context"
 
-const pColors = {
-  high: "bg-orange-500",
-  medium: "bg-blue-500", 
-  low: "bg-green-500",
-  urgent: "bg-red-500"
+const PRIORITY_COLORS: Record<string, string> = {
+  urgent: 'bg-red-500',
+  high: 'bg-orange-500',
+  medium: 'bg-yellow-500',
+  low: 'bg-green-500',
 }
 
 export default function TasksPage() {
   const { profile } = useProfile()
-  const [tasks, setTasks] = useState<any[]>([])
-  const [completedTasks, setCompletedTasks] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [completedTasks, setCompletedTasks] = useState<TaskItem[]>([])
+  const [subjects, setSubjects] = useState<DashboardSubject[]>([])
   const [loading, setLoading] = useState(true)
   
   const [title, setTitle] = useState("")
@@ -48,7 +48,7 @@ export default function TasksPage() {
   // Filter State
   const [filterType, setFilterType] = useState("all") // all, exams, generic
 
-  const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
   
   // Edit State
@@ -62,38 +62,6 @@ export default function TasksPage() {
   const [editRemind1Day, setEditRemind1Day] = useState(false)
   const [editRemindCustom, setEditRemindCustom] = useState(false)
   const [editCustomHours, setEditCustomHours] = useState(2)
-  const [isAddDatePickerOpen, setIsAddDatePickerOpen] = useState(false)
-  const [isEditDatePickerOpen, setIsEditDatePickerOpen] = useState(false)
-
-  useEffect(() => {
-    async function init() {
-      const session = await getSession()
-      if (!session) return
-      
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
-      )
-      
-      setSupabaseClient(supabase)
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, push_notifications_enabled')
-        .eq('whatsapp_number', session.user.phone)
-        .single()
-        
-      if (profile) {
-        setProfileId(profile.id)
-        setPushEnabled(profile.push_notifications_enabled || false)
-      }
-
-      await fetchTasksAndSubjects(supabase, profile?.id)
-    }
-    init()
-  }, [])
-
   async function urlB64ToUint8Array(base64String: string) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
     const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
@@ -155,7 +123,7 @@ export default function TasksPage() {
     }
   }
 
-  async function fetchTasksAndSubjects(supabase: any, pid: string | null) {
+  const fetchTasksAndSubjects = useCallback(async (supabase: AppSupabaseClient, pid: string | null) => {
     if (!pid) return
     setLoading(true)
     
@@ -166,12 +134,9 @@ export default function TasksPage() {
       .eq('is_active', true)
       .order('name')
 
-    const subs = rawSubs?.filter((s: any) => {
+    const subs = (rawSubs as DashboardSubject[] | null)?.filter((s) => {
       if (s.type === 'personal') return true
-      const semId = Array.isArray(s.source_course_id) 
-        ? s.source_course_id[0]?.semester_id 
-        : (s.source_course_id as any)?.semester_id
-      return semId === profile?.current_semester_id
+      return getSourceCourse(s.source_course_id)?.semester_id === profile?.current_semester_id
     }) || []
     setSubjects(subs)
 
@@ -190,12 +155,41 @@ export default function TasksPage() {
       .order('completed_at', { ascending: false })
       .limit(10)
 
-    const validSubjectIds = new Set(subs.map((s: any) => s.id))
+    const validSubjectIds = new Set(subs.map((s) => s.id))
     
-    setTasks((pending || []).filter((t: any) => t.subject_id === null || validSubjectIds.has(t.subject_id)))
-    setCompletedTasks((done || []).filter((t: any) => t.subject_id === null || validSubjectIds.has(t.subject_id)))
+    setTasks(((pending as TaskItem[] | null) ?? []).filter((t) => !t.subject_id || validSubjectIds.has(t.subject_id)))
+    setCompletedTasks(((done as TaskItem[] | null) ?? []).filter((t) => !t.subject_id || validSubjectIds.has(t.subject_id)))
     setLoading(false)
-  }
+  }, [profile?.current_semester_id])
+
+  useEffect(() => {
+    async function init() {
+      const session = await getSession()
+      if (!session) return
+      
+      const supabase = createAppClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
+      )
+      
+      setSupabaseClient(supabase)
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, push_notifications_enabled')
+        .eq('whatsapp_number', session.user.phone)
+        .single()
+        
+      if (profile) {
+        setProfileId(profile.id)
+        setPushEnabled(profile.push_notifications_enabled || false)
+      }
+
+      await fetchTasksAndSubjects(supabase, profile?.id)
+    }
+    init()
+  }, [fetchTasksAndSubjects])
 
   // Helper to reliably parse local date string 'YYYY-MM-DD' into a stable UTC ISO string for DB
   // This expects the Date object direct from the datepicker now.
@@ -215,12 +209,13 @@ export default function TasksPage() {
 
   async function handleAddTask(e: React.FormEvent) {
     e.preventDefault()
+    if (!supabaseClient || !profileId) return
     haptic()
     if (!title.trim()) return
 
     const finalDate = dueDate ? getDateISO(new Date(dueDate), dueTime) : null
     
-    const { data: newTask, error } = await supabaseClient
+    const { data: newTask, error: _addError } = await supabaseClient
       .from('tasks')
       .insert([{
         profile_id: profileId,
@@ -257,7 +252,8 @@ export default function TasksPage() {
     fetchTasksAndSubjects(supabaseClient, profileId)
   }
 
-  async function toggleComplete(task: any) {
+  async function toggleComplete(task: TaskItem) {
+    if (!supabaseClient || !profileId) return
     haptic()
     await supabaseClient
       .from('tasks')
@@ -269,7 +265,7 @@ export default function TasksPage() {
     fetchTasksAndSubjects(supabaseClient, profileId)
   }
 
-  function startEdit(task: any) {
+  function startEdit(task: TaskItem) {
     haptic()
     setEditingTaskId(task.id)
     setEditTitle(task.title)
@@ -280,19 +276,17 @@ export default function TasksPage() {
     setEditRemindCustom(false)
     setEditCustomHours(2)
     
-    if (task.task_reminders) {
-      task.task_reminders.forEach((r: any) => {
-        if (r.reminder_type === 'due_date') setEditRemindOnDue(true)
-        if (r.reminder_type === '1_day_prior') setEditRemind1Day(true)
-        if (r.reminder_type === 'custom_hours') {
-           setEditRemindCustom(true)
-           if (task.due_date) {
-             const diffMs = new Date(task.due_date).getTime() - new Date(r.scheduled_for).getTime()
-             setEditCustomHours(Math.round(diffMs / 3600000))
-           }
+    task.task_reminders?.forEach((r) => {
+      if (r.reminder_type === 'due_date') setEditRemindOnDue(true)
+      if (r.reminder_type === '1_day_prior') setEditRemind1Day(true)
+      if (r.reminder_type === 'custom_hours') {
+        setEditRemindCustom(true)
+        if (task.due_date && r.scheduled_for) {
+          const diffMs = new Date(task.due_date).getTime() - new Date(r.scheduled_for).getTime()
+          setEditCustomHours(Math.round(diffMs / 3600000))
         }
-      })
-    }
+      }
+    })
     
     if (task.due_date) {
       const rt = new Date(task.due_date);
@@ -315,6 +309,7 @@ export default function TasksPage() {
   }
 
   async function saveEdit() {
+    if (!supabaseClient || !profileId) return
     haptic()
     if (!editingTaskId || !editTitle.trim()) return
 
@@ -354,19 +349,19 @@ export default function TasksPage() {
       toast.success("Task updated successfully!")
       setEditingTaskId(null)
       fetchTasksAndSubjects(supabaseClient, profileId)
-    } catch (err: any) {
-      console.error("Save Edit Error:", err)
-      toast.error(`Failed to save task: ${err.message}`)
+    } catch (err: unknown) {
+      const saveErr = err as Error
+      console.error("Save Edit Error:", saveErr)
+      toast.error(`Failed to save task: ${saveErr.message}`)
     }
   }
 
   async function deleteTask(id: string) {
+    if (!supabaseClient || !profileId) return
     haptic()
     await supabaseClient.from('tasks').delete().eq('id', id)
     fetchTasksAndSubjects(supabaseClient, profileId)
   }
-
-  const pColors: any = { urgent: 'bg-red-500', high: 'bg-orange-500', medium: 'bg-yellow-500', low: 'bg-green-500' }
 
   return (
     <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
@@ -554,7 +549,6 @@ export default function TasksPage() {
                               editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom}
                               editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
                               
-                              isEditDatePickerOpen={isEditDatePickerOpen} setIsEditDatePickerOpen={setIsEditDatePickerOpen}
                               saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
                             />
                           ))}
@@ -594,7 +588,6 @@ export default function TasksPage() {
                               editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom}
                               editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
                               
-                              isEditDatePickerOpen={isEditDatePickerOpen} setIsEditDatePickerOpen={setIsEditDatePickerOpen}
                               saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
                             />
                           ))}
@@ -661,9 +654,23 @@ function TaskRow({
   editDueDate, setEditDueDate, editDueTime, setEditDueTime,
   editRemindOnDue, setEditRemindOnDue, editRemind1Day, setEditRemind1Day,
   editRemindCustom, setEditRemindCustom, editCustomHours, setEditCustomHours,
-  isEditDatePickerOpen, setIsEditDatePickerOpen,
+  isEditDatePickerOpen: _isEditDatePickerOpen, setIsEditDatePickerOpen: _setIsEditDatePickerOpen,
   saveEdit, setEditingTaskId
-}: any) {
+}: {
+  task: TaskItem; subjects: DashboardSubject[]; profile: UserProfile | null; editingTaskId: string | null;
+  toggleComplete: (t: TaskItem) => void; startEdit: (t: TaskItem) => void; deleteTask: (id: string) => void;
+  editTitle: string; setEditTitle: (v: string) => void;
+  editSubjectId: string; setEditSubjectId: (v: string) => void;
+  editPriority: string; setEditPriority: (v: string) => void;
+  editDueDate: Date | null; setEditDueDate: React.Dispatch<React.SetStateAction<Date | null>>;
+  editDueTime: string; setEditDueTime: (v: string) => void;
+  editRemindOnDue: boolean; setEditRemindOnDue: (v: boolean) => void;
+  editRemind1Day: boolean; setEditRemind1Day: (v: boolean) => void;
+  editRemindCustom: boolean; setEditRemindCustom: (v: boolean) => void;
+  editCustomHours: number; setEditCustomHours: (v: number) => void;
+  isEditDatePickerOpen?: boolean; setIsEditDatePickerOpen?: (v: boolean) => void;
+  saveEdit: () => void; setEditingTaskId: (v: string | null) => void;
+}) {
   return (
     <motion.div 
       layout
@@ -690,8 +697,8 @@ function TaskRow({
                 <SelectContent>
                   <SelectItem value="none">No Subject</SelectItem>
                   {subjects
-                    .filter((s: any) => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
-                    .map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                    .filter((s) => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
+                    .map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
                   }
                 </SelectContent>
               </Select>
@@ -711,7 +718,7 @@ function TaskRow({
                 </Select>
                 <DatePicker
                   date={editDueDate ? new Date(editDueDate) : undefined}
-                  setDate={(d) => setEditDueDate(d ? d.toISOString() : null)}
+                  setDate={(d) => setEditDueDate(d ?? null)}
                   className="w-[140px] h-9 px-3"
                 />
               </div>
@@ -754,7 +761,7 @@ function TaskRow({
             </div>
             
             <div className="flex gap-2 items-center mt-1 flex-wrap">
-              <Badge className={`${pColors[t.priority as keyof typeof pColors]} text-white border-0 text-[10px] px-1.5 py-0 uppercase tracking-wider`}>
+              <Badge className={`${PRIORITY_COLORS[t.priority as keyof typeof PRIORITY_COLORS]} text-white border-0 text-[10px] px-1.5 py-0 uppercase tracking-wider`}>
                 {t.priority}
               </Badge>
               {t.subjects && (

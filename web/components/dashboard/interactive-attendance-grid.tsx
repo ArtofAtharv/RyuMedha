@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { AttendanceCard } from "./attendance-card"
 import { useRouter } from "next/navigation"
 import { motion, Variants } from "motion/react"
 import { toast } from "sonner"
 import { useGamification } from "./gamification-context"
+import { getSourceCourse } from "@/lib/source-course"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -25,7 +26,40 @@ const cardVariants: Variants = {
   },
 }
 
-export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId, targetPct }: { initialData: any[], subjectsInfo: any[], token: string, profileId: string, targetPct: number }) {
+export interface SubjectInfo {
+  id: string
+  name: string
+  type: string
+  is_active: boolean
+  color_hex?: string
+  expected_total_lectures?: number
+  instructor_name?: string
+  label?: string
+  category_id?: string
+  source_course_id?:
+    | {
+        semester_id?: string
+        expected_total_lectures?: number
+        instructor_name?: string
+        exam_dates?: Record<string, string>
+      }
+    | Array<{
+        semester_id?: string
+        expected_total_lectures?: number
+        instructor_name?: string
+        exam_dates?: Record<string, string>
+      }>
+}
+
+export interface AttendanceData {
+  subject_id: string
+  total_present: number
+  total_absent: number
+  total_deemed?: number
+  [key: string]: unknown
+}
+
+export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId, targetPct }: { initialData: AttendanceData[], subjectsInfo: SubjectInfo[], token: string, profileId: string, targetPct: number }) {
   const [data, setData] = useState(initialData)
   const [isUpdating, setIsUpdating] = useState(false)
   const router = useRouter()
@@ -37,7 +71,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     { global: { headers: { Authorization: `Bearer ${token}` } } }
   )
 
-  function calculateAdvice(totalPresent: number, totalAbsent: number, totalDeemed: number, expectedTotal: number) {
+  const calculateAdvice = useCallback(function calculateAdvice(totalPresent: number, totalAbsent: number, totalDeemed: number, expectedTotal: number) {
     const totalLogged = totalPresent + totalAbsent + totalDeemed
     const pct = totalLogged > 0 ? ((totalPresent + totalDeemed) / totalLogged) * 100 : 0
     
@@ -81,20 +115,20 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
       currentMisses: totalAbsent,
       remainingLectures: Math.max(0, expectedTotal - totalLogged)
     }
-  }
+  }, [targetPct])
 
   // Merge Subjects with Attendance Data to ensure all Academic subjects show up
   // AND ensure advice is calculated for all rows on initial load and updates
   const mergedData = useMemo(() => {
-    const academicSubjects = subjectsInfo.filter((s: any) => s.type === 'academic' && s.is_active === true)
+    const academicSubjects = subjectsInfo.filter((s) => s.type === 'academic' && s.is_active === true)
     
-    return academicSubjects.map((sub: any) => {
-      const existingAtt = data.find((d: any) => d.subject_id === sub.id)
+    return academicSubjects.map((sub) => {
+      const existingAtt = data.find((d) => d.subject_id === sub.id)
       
       const present = existingAtt ? existingAtt.total_present : 0
       const absent = existingAtt ? existingAtt.total_absent : 0
       const deemed = existingAtt ? (existingAtt.total_deemed || 0) : 0
-      const expectedTotal = sub.expected_total_lectures || sub.source_course_id?.expected_total_lectures || 0
+      const expectedTotal = sub.expected_total_lectures || getSourceCourse(sub.source_course_id)?.expected_total_lectures || 0
 
       const { 
         pct, 
@@ -122,8 +156,8 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         current_misses: currentMisses,
         remaining_lectures: remainingLectures
       }
-    }).sort((a: any, b: any) => a.attendance_percentage - b.attendance_percentage)
-  }, [data, subjectsInfo, targetPct])
+    }).sort((a, b) => a.attendance_percentage - b.attendance_percentage)
+  }, [data, subjectsInfo, calculateAdvice])
 
   async function handleLogAttendance(subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') {
     if (isUpdating || !subjectId) return
@@ -136,7 +170,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
     setData(prev => {
       const exists = prev.find(item => item.subject_id === subjectId)
       
-      const updateRow = (item: any) => {
+      const updateRow = (item: AttendanceData) => {
         let newPresent = item.total_present
         let newAbsent = item.total_absent
         let newDeemed = item.total_deemed ?? 0
@@ -152,7 +186,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         }
 
         const subInfo = subjectsInfo.find(s => s.id === subjectId)
-        const expectedTotal = subInfo?.expected_total_lectures || subInfo?.source_course_id?.expected_total_lectures || 0
+        const expectedTotal = subInfo?.expected_total_lectures || getSourceCourse(subInfo?.source_course_id)?.expected_total_lectures || 0
         const { pct, bunksRemaining, neededToRecover, maxPossiblePct, isPossibleToRecover, maxAllowedMisses, currentMisses, remainingLectures } = calculateAdvice(newPresent, newAbsent, newDeemed, expectedTotal)
 
         return { 
@@ -266,15 +300,15 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         animate="visible"
         className="grid grid-cols-1 lg:grid-cols-2 gap-4"
       >
-      {mergedData.map((item: any, idx: number) => {
+      {mergedData.map((item, idx) => {
         // Calculate percentage dynamically here if it was 0 from synthesis
         let pct = item.attendance_percentage
         if (pct === 0 && (item.total_present > 0 || item.total_absent > 0 || item.total_deemed > 0)) {
            pct = ((item.total_present + (item.total_deemed || 0)) / (item.total_present + item.total_absent + (item.total_deemed || 0))) * 100
         }
 
-        const subRecord = subjectsInfo?.find((s: any) => s.id === item.subject_id)
-        const instructorName = subRecord?.source_course_id?.instructor_name || subRecord?.instructor_name || undefined
+        const subRecord = subjectsInfo?.find((s) => s.id === item.subject_id)
+        const instructorName = getSourceCourse(subRecord?.source_course_id)?.instructor_name || subRecord?.instructor_name || undefined
 
         return (
           <motion.div key={item.subject_id || `subj-${idx}`} variants={cardVariants}>

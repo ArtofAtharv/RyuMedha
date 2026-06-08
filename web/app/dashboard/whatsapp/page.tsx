@@ -1,22 +1,40 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2, BellRing } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
-import { motion } from "motion/react"
 import { toast } from "sonner"
+
+// Types for admin page data
+interface WindowStatusRow {
+  profile_id: string
+  display_name: string
+  whatsapp_number: string
+  window_status: string
+  hours_remaining: number
+}
+
+interface MessageLog {
+  id: string
+  status: string
+  message_type: string
+  body: string
+  created_at: string
+  wa_message_id: string
+  profiles?: { display_name: string; whatsapp_number: string }
+}
 
 export default function WhatsAppAdminPage() {
   const { profile } = useProfile()
-  const [windowStatus, setWindowStatus] = useState<any[]>([])
-  const [messageLogs, setMessageLogs] = useState<any[]>([])
+  const [windowStatus, setWindowStatus] = useState<WindowStatusRow[]>([])
+  const [messageLogs, setMessageLogs] = useState<MessageLog[]>([])
   const [loading, setLoading] = useState(true)
-  const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [engagingId, setEngagingId] = useState<string | null>(null)
 
   // Use the database is_admin flag
@@ -32,7 +50,7 @@ export default function WhatsAppAdminPage() {
       const session = await getSession()
       if (!session) return
       
-      const supabase = createClient(
+      const supabase = createAppClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
@@ -44,7 +62,7 @@ export default function WhatsAppAdminPage() {
     init()
   }, [isAdmin])
 
-  async function fetchData(supabase: any) {
+  async function fetchData(supabase: AppSupabaseClient) {
     setLoading(true)
     
     // 1. Fetch Window Status via Secure RPC Function
@@ -71,16 +89,17 @@ export default function WhatsAppAdminPage() {
     setEngagingId(profileId)
     
     try {
-      const { data, error } = await supabaseClient.functions.invoke('whatsapp-engagement', {
+      const { error } = await supabaseClient.functions.invoke('whatsapp-engagement', {
         body: { profile_id: profileId, type: 'manual' }
       })
       
       if (error) throw error
       toast.success("Engagement message sent successfully!")
       await fetchData(supabaseClient) // Refresh logs
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
       console.error("Engagement Error:", err)
-      toast.error(`Failed to send message: ${err.message}`)
+      toast.error(`Failed to send message: ${message}`)
     } finally {
       setEngagingId(null)
     }
@@ -97,9 +116,10 @@ export default function WhatsAppAdminPage() {
         toast.success(`Task reminders triggered! Sent: ${data?.processedCount || 0}`)
       }
       await fetchData(supabaseClient)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
       console.error("Tasks Reminder Error:", err)
-      toast.error(`Failed: ${err.message}`)
+      toast.error(`Failed: ${message}`)
     }
   }
 
@@ -118,9 +138,10 @@ export default function WhatsAppAdminPage() {
       const data = await res.json()
       toast.success(`Pending Tasks blast sent to ${data.sent || 0} users!`)
       await fetchData(supabaseClient)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
       console.error("Pending Tasks Blast Error:", err)
-      toast.error(`Failed: ${err.message}`)
+      toast.error(`Failed: ${message}`)
     }
   }
 
@@ -139,9 +160,10 @@ export default function WhatsAppAdminPage() {
       const data = await res.json()
       toast.success(`Attendance Guardian triggered! Messages sent: ${data.sent || 0}`)
       await fetchData(supabaseClient)
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
       console.error("Attendance Guardian Error:", err)
-      toast.error(`Failed: ${err.message}`)
+      toast.error(`Failed: ${message}`)
     }
   }
 
@@ -190,11 +212,12 @@ export default function WhatsAppAdminPage() {
           <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
             <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
           </Button>
-          <Button onClick={() => fetchData(supabaseClient)} variant="outline" size="sm" className="shrink-0 gap-2">
+          <Button onClick={() => { if (supabaseClient) fetchData(supabaseClient) }} variant="outline" size="sm" className="shrink-0 gap-2">
             <Zap className="w-4 h-4" /> Refresh
           </Button>
           <Button 
             onClick={async () => {
+              if (!supabaseClient) return
               if (confirm("Are you sure you want to clear all message logs?")) {
                 const { error } = await supabaseClient.rpc('clear_whatsapp_logs')
                 if (error) {

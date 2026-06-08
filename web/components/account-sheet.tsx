@@ -54,6 +54,7 @@ function useColorTheme() {
   useEffect(() => {
     let saved = (localStorage.getItem(STORAGE_KEY) as ColorTheme) ?? "neutral"
     if ((saved as string) === "blue") saved = "violet" // migrate old value
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActive(saved)
     applyTheme(saved)
   }, [])
@@ -163,6 +164,7 @@ function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMobile(mq.matches)
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
     mq.addEventListener("change", handler)
@@ -344,6 +346,7 @@ function BottomSheet({ open, onClose }: AccountSheetProps) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!open) setDragY(0)
   }, [open])
 
@@ -433,6 +436,7 @@ export function AccountSheet({ open, onClose }: AccountSheetProps) {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

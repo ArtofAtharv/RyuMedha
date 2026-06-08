@@ -1,9 +1,8 @@
 "use client"
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, XCircle, User, FolderOpen, BookOpen, Fingerprint } from 'lucide-react'
+import { CheckCircle2, XCircle, User, BookOpen, Fingerprint } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { motion } from "motion/react"
 
 interface AttendanceCardProps {
@@ -43,14 +42,13 @@ export function AttendanceCard({
   percentage,
   accentColor,
   instructorName,
-  label,
+  // label and remainingLectures are part of the API contract but not rendered in this card
   bunksRemaining,
   maxAllowedSkips,
   currentSkips,
   neededToRecover,
   maxPossiblePct,
   isPossibleToRecover,
-  remainingLectures,
   targetPct = 75,
   onLog,
 }: AttendanceCardProps) {
@@ -59,6 +57,7 @@ export function AttendanceCard({
   const router = useRouter()
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProgress(pct)
   }, [pct])
 
@@ -179,7 +178,7 @@ export function AttendanceCard({
                     if (bunksRemaining === 0) {
                       return (
                         <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                          🛑 High risk: Can't afford to skip any lectures. Attend daily to meet {targetPct}%
+                          🛑 High risk: Can&apos;t afford to skip any lectures. Attend daily to meet {targetPct}%
                         </p>
                       );
                     }
@@ -211,7 +210,7 @@ export function AttendanceCard({
                   ) : (
                     <div className="space-y-1">
                       <p className="text-[9px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                        ⚠️ Goal: Attending daily will make your attendance {Math.round(maxPossiblePct || 0)}%. Don't skip anymore!
+                        ⚠️ Goal: Attending daily will make your attendance {Math.round(maxPossiblePct || 0)}%. Don&apos;t skip anymore!
                       </p>
                     </div>
                   )}

@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button"
 import { CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-export function MarkTodayClasses({ subjectsInfo, token, profileId }: { subjectsInfo: any[], token: string, profileId: string }) {
+interface SubjectInfo {
+  id: string
+}
+
+export function MarkTodayClasses({ subjectsInfo, token, profileId }: { subjectsInfo: SubjectInfo[], token: string, profileId: string }) {
   const [isMarking, setIsMarking] = useState(false)
   const router = useRouter()
 
