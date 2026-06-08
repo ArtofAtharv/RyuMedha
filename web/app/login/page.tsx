@@ -25,6 +25,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from '@/components/ui/input-otp'
+import Image from 'next/image'
 
 
 // ─── Countdown hook ───────────────────────────────────────────────────────────
