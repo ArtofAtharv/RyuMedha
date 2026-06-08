@@ -6,10 +6,6 @@
 
 @theme {
   --font-playball: var(--font-playball);
-  --font-geist-sans: var(--font-geist-sans);
-  --font-geist-mono: var(--font-geist-mono);
-  --font-engagement: var(--font-engagement);
-  --font-cookie: var(--font-cookie);
 }
 
 @theme inline {
