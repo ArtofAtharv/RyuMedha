@@ -1,7 +1,9 @@
-theme: {
-  extend: {
-    fontFamily: {
-      playball: ['var(--font-playball)'],
+module.exports = {
+  theme: {
+    extend: {
+      fontFamily: {
+        playball: ['var(--font-playball)'],
+      }
     }
   }
 }
