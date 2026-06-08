@@ -46,6 +46,8 @@ export default function SubjectsPage() {
   const [categories, setCategories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
+  // UI Tab state (must be declared unconditionally to preserve Hooks order)
+  const [tab, setTab] = useState<"academics" | "personal">("academics")
   
   // Add Form State
   const [name, setName] = useState("")
@@ -488,7 +490,134 @@ export default function SubjectsPage() {
           <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Subjects</span></h1>
           <p className="text-muted-foreground mt-1">Manage your active academic courses and personal learning tracks.</p>
         </div>
+        <div className="relative flex gap-2 bg-accent/50 rounded-full p-1">
+          {/* Animated indicator moves between active Button using shared layoutId */}
+          {profile?.academics_enabled && (
+            <Button
+              variant="ghost"
+              onClick={() => setTab("academics")}
+              className="relative gap-2 px-3 py-1 rounded-full"
+            >
+              {tab === "academics" && (
+                <motion.span
+                  layoutId="subjects-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <BookOpen className={`w-4 h-4 ${tab === "academics" ? 'text-foreground' : 'text-muted-foreground'}`} />
+                <span className={`${tab === "academics" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Academics</span>
+              </span>
+            </Button>
+          )}
+
+          {profile?.personal_enabled && (
+            <Button
+              variant="ghost"
+              onClick={() => setTab("personal")}
+              className="relative gap-2 px-3 py-1 rounded-full"
+            >
+              {tab === "personal" && (
+                <motion.span
+                  layoutId="subjects-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <FolderOpen className={`w-4 h-4 ${tab === "personal" ? 'text-foreground' : 'text-muted-foreground'}`} />
+                <span className={`${tab === "personal" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Personal</span>
+              </span>
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* --- ACADEMIC SUBJECTS --- */}
+      {profile?.academics_enabled && tab === "academics" && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold flex items-center gap-2">
+            <BookOpen className="w-5 h-5 text-primary" /> Academic Track
+          </h2>
+          {academicSubjects.length === 0 ? (
+            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
+              <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
+            </div>
+          ) : (
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {academicSubjects.map(sub => (
+                <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
+                  <SubjectGridCard 
+                    subject={sub} 
+                    onEdit={() => setEditingSubject({
+                      ...sub, 
+                      instructor_name: sub.source_course_id?.instructor_name || "",
+                      expected_total_lectures: sub.source_course_id?.expected_total_lectures || sub.expected_total_lectures || 0
+                    })}
+                    onDelete={() => setSubjectToDelete(sub)}
+                    onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </section>
+      )}
+
+      {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
+      {profile?.personal_enabled && tab === "personal" && (
+        <section className="space-y-6 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <FolderOpen className="w-5 h-5 text-primary" /> Personal Learning
+            </h2>
+            
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
+                <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="h-8 shrink-0 font-bold border-black/10 dark:border-white/10 shadow-sm text-xs px-2 sm:px-3">
+                <Folder className="w-3.5 h-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
+              </Button>
+            </div>
+          </div>
+
+          {personalSubjects.length === 0 ? (
+            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
+              <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
+            </div>
+          ) : (
+            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredSubjects
+                .filter(s => s.type === 'personal')
+                .map(sub => {
+                  const subCategory = categories.find(c => c.id === sub.category_id)
+                  return (
+                    <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
+                      <SubjectGridCard 
+                        subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
+                        category={subCategory}
+                        onEdit={() => setEditingSubject({...sub})}
+                        onDelete={() => setSubjectToDelete(sub)}
+                        onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                      />
+                    </motion.div>
+                  )
+              })}
+            </motion.div>
+          )}
+
+        </section>
+      )}
 
       {/* --- ADD SUBJECT FORM --- */}
       <Card className="bg-muted/30 border-dashed border-2">
@@ -510,9 +639,9 @@ export default function SubjectsPage() {
             
             <motion.div 
               layout 
-              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-4' : 'lg:col-span-10'}`}
+              className={`space-y-2 sm:col-span-12 ${tab === 'personal' ? 'lg:col-span-4' : 'lg:col-span-10'}`}
             >
-              {type === 'academic' ? (
+              {tab === "academics" ? (
                 <div className="space-y-2">
                   <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
                   
@@ -592,35 +721,13 @@ export default function SubjectsPage() {
               ) : (
                 <>
                   <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Contract Law" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tab === 'personal' ? 'e.g. Personal Development' : 'e.g. Contract Law'} className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
                 </>
               )}
             </motion.div>
-            
-            <motion.div 
-              layout 
-              className={`space-y-2 sm:col-span-6 ${type === 'personal' ? 'lg:col-span-3' : 'lg:col-span-2'}`}
-            >
-              <Label htmlFor="type" className="text-sm font-semibold text-muted-foreground">Type</Label>
-              <div className="w-full">
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
-                    <SelectValue placeholder="Track type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {profile?.academics_enabled && (
-                      <SelectItem value="academic"><span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5"/> Academic</span></SelectItem>
-                    )}
-                    {profile?.personal_enabled && (
-                      <SelectItem value="personal"><span className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5"/> Personal</span></SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </motion.div>
 
             <AnimatePresence mode="popLayout">
-              {type === 'personal' && (
+              {tab === 'personal' && (
                 <motion.div 
                   layout
                   initial={{ opacity: 0, scale: 0.95, x: 20 }}
@@ -646,7 +753,7 @@ export default function SubjectsPage() {
 
             <motion.div 
               layout 
-              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-2' : 'lg:col-span-12'}`}
+              className={`space-y-2 sm:col-span-12 ${tab === 'personal' ? 'lg:col-span-2' : 'lg:col-span-12'}`}
             >
               <Button type="submit" className="w-full h-10 font-bold tracking-tight shadow-sm">
                 Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
@@ -655,93 +762,6 @@ export default function SubjectsPage() {
           </form>
         </CardContent>
       </Card>
-
-
-      {/* --- ACADEMIC SUBJECTS --- */}
-      {profile?.academics_enabled && (
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" /> Academic Track
-          </h2>
-          {academicSubjects.length === 0 ? (
-            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
-              <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
-            </div>
-          ) : (
-            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {academicSubjects.map(sub => (
-                <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
-                  <SubjectGridCard 
-                    subject={sub} 
-                    onEdit={() => setEditingSubject({
-                      ...sub, 
-                      instructor_name: sub.source_course_id?.instructor_name || "",
-                      expected_total_lectures: sub.source_course_id?.expected_total_lectures || sub.expected_total_lectures || 0
-                    })}
-                    onDelete={() => setSubjectToDelete(sub)}
-                    onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                  />
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </section>
-      )}
-
-      {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
-      {profile?.personal_enabled && (
-        <section className="space-y-6 pt-4 border-t">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-primary" /> Personal Learning
-            </h2>
-            
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="uncategorized">Uncategorized</SelectItem>
-                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-
-              <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="h-8 shrink-0 font-bold border-black/10 dark:border-white/10 shadow-sm text-xs px-2 sm:px-3">
-                <Folder className="w-3.5 h-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
-              </Button>
-            </div>
-          </div>
-
-          {personalSubjects.length === 0 ? (
-            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
-              <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
-            </div>
-          ) : (
-            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredSubjects
-                .filter(s => s.type === 'personal')
-                .map(sub => {
-                  const subCategory = categories.find(c => c.id === sub.category_id)
-                  return (
-                    <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
-                      <SubjectGridCard 
-                        subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
-                        category={subCategory}
-                        onEdit={() => setEditingSubject({...sub})}
-                        onDelete={() => setSubjectToDelete(sub)}
-                        onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                      />
-                    </motion.div>
-                  )
-              })}
-            </motion.div>
-          )}
-
-
-        </section>
-      )}
 
       {/* --- EDIT SUBJECT MODAL --- */}
       <Dialog open={!!editingSubject} onOpenChange={(open: boolean) => !open && setEditingSubject(null)}>

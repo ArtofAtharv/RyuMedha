@@ -25,6 +25,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from '@/components/ui/input-otp'
+import Image from 'next/image'
 
 
 // ─── Countdown hook ───────────────────────────────────────────────────────────
@@ -127,15 +128,19 @@ function LoginPageInner() {
             transition={{ type: 'spring', stiffness: 260, damping: 24 }}
             className="text-center space-y-3"
           >
-            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center text-primary-foreground text-2xl font-black mx-auto shadow-sm">
-              R
-            </div>
-            <div>
-              <h1 className="text-2xl font-black tracking-tight">Ryu Medha</h1>
+            <Link href="/" className="flex flex-col items-center gap-2.5 group transition-transform hover:scale-95" aria-label="Ryu Medha home">
+            <Image
+              src="/badge.png"
+              alt="Ryu Medha"
+              width={56}
+              height={56}
+              className="rounded-full invert dark:invert-0"
+            />
+            <span className="text-3xl tracking-tight font-playball">Ryu Medha</span>
+          </Link>
               <p className="text-sm text-muted-foreground mt-1">
                 Your academics, always within reach.
               </p>
-            </div>
           </motion.div>
 
           {/* ── Card ── */}

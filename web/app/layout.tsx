@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playball } from "next/font/google";
+import { Geist, Geist_Mono, Playball, Engagement, Cookie } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Navigation from "@/components/navigation";
@@ -24,6 +24,20 @@ const playball = Playball({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-playball',
+})
+
+const engagement = Engagement({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-engagement',
+})
+
+const cookie = Cookie({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-cookie',
 })
 
 export const metadata: Metadata = {
@@ -76,7 +90,7 @@ export default function RootLayout({
     // the html element before React hydrates — this suppresses the mismatch warning
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[80px] md:pb-0`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playball.variable} ${engagement.variable} ${cookie.variable} antialiased pb-[80px] md:pb-0`}
         suppressHydrationWarning
       >
         {/* Restore color theme from localStorage before first paint — no flash */}

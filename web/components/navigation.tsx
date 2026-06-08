@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useSession } from "next-auth/react"
 import { User } from "lucide-react"
 import { AccountSheet } from "@/components/account-sheet"
+import Image from "next/image"
 
 export default function Navigation() {
   const { data: session, status } = useSession()
@@ -26,11 +27,15 @@ export default function Navigation() {
         <div className="px-5 sm:px-8 lg:px-14 xl:px-20 h-14 flex items-center justify-between">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group" aria-label="Ryu Medha home">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-xs font-bold text-primary-foreground transition-transform group-hover:scale-105">
-              R
-            </span>
-            <span className="text-sm font-semibold tracking-tight font-playball">Ryu Medha</span>
+          <Link href="/" className="flex items-center gap-2.5 group transition-transform hover:scale-95" aria-label="Ryu Medha home">
+            <Image
+              src="/badge.png"
+              alt="Ryu Medha"
+              width={32}
+              height={32}
+              className="rounded-full invert dark:invert-0"
+            />
+            <span className="text-xl tracking-tight font-playball">Ryu Medha</span>
           </Link>
 
           {/* Account avatar — opens AccountSheet */}
