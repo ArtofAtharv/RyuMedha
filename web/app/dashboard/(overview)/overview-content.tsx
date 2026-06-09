@@ -3,6 +3,7 @@
 import { UserProfile, useProfile } from "@/components/dashboard/profile-context"
 import { useGamification } from "@/components/dashboard/gamification-context"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { BookOpen, CircleCheck, ChartColumn, Clock, ListTodo, GraduationCap, FolderOpen, Target, Sparkles, Trophy, Flame } from 'lucide-react'
 import { format } from 'date-fns'
 import Link from 'next/link'
@@ -11,14 +12,11 @@ import { InteractiveAttendanceGrid } from '@/components/dashboard/interactive-at
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { StudyAnalyticsChart } from '@/components/dashboard/study-analytics-chart'
 import { useState, useEffect } from 'react'
-import { motion, Variants } from "motion/react"
+import { AnimatePresence, motion, Variants } from "motion/react"
 
 const container: Variants = {
   hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+  show: { opacity: 1 }
 }
 
 const item: Variants = {
@@ -38,19 +36,22 @@ export function OverviewContent({
   const { profile: contextProfile } = useProfile()
   const { xp, level, progress, combo } = useGamification()
   const activeProfile = contextProfile || profile
-  const [mounted, setMounted] = useState(false)
-  
+
+  const [tab, setTab] = useState<'academics' | 'personal'>('academics')
+
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    if (!activeProfile) return
+    if (activeProfile.academics_enabled && activeProfile.personal_enabled) return
+
+    if (activeProfile.academics_enabled) {
+      setTab('academics')
+    } else if (activeProfile.personal_enabled) {
+      setTab('personal')
+    }
+  }, [activeProfile?.academics_enabled, activeProfile?.personal_enabled])
 
   return (
-    <motion.div 
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="space-y-8"
-    >
+    <motion.div className="space-y-8">
       {/* ─── GAMIFICATION HERO / PLAYER PROFILE ─── */}
       <motion.section variants={item} className="hidden">
         <Card className="overflow-hidden border-2 border-primary/20 bg-background/50 backdrop-blur-xl relative group">
@@ -102,11 +103,58 @@ export function OverviewContent({
           </CardContent>
         </Card>
       </motion.section>
+      {/* ─── TABS ─── */}
+        {activeProfile?.academics_enabled && activeProfile?.personal_enabled && (
+          <div className="relative flex gap-2 bg-accent/50 rounded-full p-1 w-max mx-auto md:mx-0">
+            <Button
+              variant="ghost"
+              onClick={() => setTab("academics")}
+              className="relative gap-2 px-3 py-1 rounded-full"
+            >
+              {tab === "academics" && (
+                <motion.span
+                  layoutId="subjects-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <BookOpen className={`w-4 h-4 ${tab === "academics" ? 'text-foreground' : 'text-muted-foreground'}`} />
+                <span className={`${tab === "academics" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Academics</span>
+              </span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              onClick={() => setTab("personal")}
+              className="relative gap-2 px-3 py-1 rounded-full"
+            >
+              {tab === "personal" && (
+                <motion.span
+                  layoutId="subjects-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <FolderOpen className={`w-4 h-4 ${tab === "personal" ? 'text-foreground' : 'text-muted-foreground'}`} />
+                <span className={`${tab === "personal" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Personal</span>
+              </span>
+            </Button>
+          </div>
+        )}
 
       {/* ─── ACADEMIC OVERVIEW ─── */}
-      {activeProfile?.academics_enabled && (
-        <motion.section variants={item} className="space-y-6">
-          <div className="flex items-center gap-3 border-b border-border/50 pb-2">
+      <AnimatePresence initial={false} mode="sync">
+        {activeProfile?.academics_enabled && tab === "academics" && (
+          <motion.section
+            key="academics"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="flex items-center gap-3 border-b border-border/50 pb-2">
             <BookOpen className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-bold tracking-tight">Academic Overview</h2>
           </div>
@@ -185,7 +233,7 @@ export function OverviewContent({
             </motion.div>
           </div>
 
-          <motion.div variants={item} className="col-span-2 md:col-span-4 h-[350px]">
+          <motion.div variants={item} className="col-span-2 md:col-span-4 h-87.5">
             {academicOverviewData.timersSessionData?.length > 0 ? (
               <StudyAnalyticsChart timersData={academicOverviewData.timersSessionData} />
             ) : (
@@ -273,11 +321,19 @@ export function OverviewContent({
           </motion.div>
         </motion.section>
       )}
+      </AnimatePresence>
 
       {/* ─── PERSONAL OVERVIEW ─── */}
-      {activeProfile?.personal_enabled && (
-        <motion.section variants={item} className="space-y-6 pt-6">
-          <div className="flex items-center gap-3 border-b border-border/50 pb-2">
+      <AnimatePresence initial={false} mode="sync">
+        {activeProfile?.personal_enabled && tab === "personal" && (
+          <motion.section
+            key="personal"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6 pt-6"
+          >
+            <div className="flex items-center gap-3 border-b border-border/50 pb-2">
             <FolderOpen className="w-5 h-5 text-accent" />
             <h2 className="text-xl font-bold tracking-tight">Personal Overview</h2>
           </div>
@@ -352,7 +408,7 @@ export function OverviewContent({
             </motion.div>
           </div>
 
-          <motion.div variants={item} className="col-span-2 md:col-span-4 h-[350px]">
+          <motion.div variants={item} className="col-span-2 md:col-span-4 h-87.5">
             {personalOverviewData.timersSessionData?.length > 0 ? (
               <StudyAnalyticsChart timersData={personalOverviewData.timersSessionData} />
             ) : (
@@ -369,7 +425,7 @@ export function OverviewContent({
               {personalOverviewData.personalSubjects.map((sub: any, i: number) => {
                 const subCategory = personalOverviewData.categories.find((c: any) => c.id === sub.category_id)
                 return (
-                  <motion.div key={sub.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }}>
+                  <motion.div key={sub.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
                     <SubjectGridCard 
                       subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
                       category={subCategory}
@@ -385,7 +441,8 @@ export function OverviewContent({
             )}
           </motion.div>
         </motion.section>
-      )}
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

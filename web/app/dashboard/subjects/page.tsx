@@ -51,7 +51,7 @@ export default function SubjectsPage() {
   
   // Add Form State
   const [name, setName] = useState("")
-  const [type, setType] = useState("academic")
+  const [type, setType] = useState<"academic" | "personal">("academic")
   const [categoryId, setCategoryId] = useState("none")
   
   // Modals Data
@@ -236,6 +236,10 @@ export default function SubjectsPage() {
 
     // Personal Subject Flow
 
+    const colorHex = type === 'personal'
+      ? (categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : '#8b5cf6')
+      : null
+
     const { error } = await supabaseClient
       .from('subjects')
       .insert([{
@@ -244,7 +248,7 @@ export default function SubjectsPage() {
         type: type,
         source_course_id: sourceCourseId,
         category_id: type === 'personal' && categoryId !== "none" ? categoryId : null,
-        color_hex: type === 'personal' && categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : (type === 'academic' ? null : '#8b5cf6')
+        color_hex: colorHex
       }])
 
     if (error) {
@@ -301,6 +305,23 @@ export default function SubjectsPage() {
     setEditingSubject(null)
     fetchSubjects(supabase)
   }
+
+  useEffect(() => {
+    if (!profile) return
+    if (profile.academics_enabled && profile.personal_enabled) return
+
+    if (profile.academics_enabled) {
+      setTab('academics')
+      setType('academic')
+    } else if (profile.personal_enabled) {
+      setTab('personal')
+      setType('personal')
+    }
+  }, [profile?.academics_enabled, profile?.personal_enabled])
+
+  useEffect(() => {
+    setType(tab === 'academics' ? 'academic' : 'personal')
+  }, [tab])
 
   /* -------------------------------------------------------------------------- */
   /*                            EXAM DATES (TASKS)                              */
@@ -490,12 +511,15 @@ export default function SubjectsPage() {
           <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Subjects</span></h1>
           <p className="text-muted-foreground mt-1">Manage your active academic courses and personal learning tracks.</p>
         </div>
+        {profile?.academics_enabled && profile?.personal_enabled && (
         <div className="relative flex gap-2 bg-accent/50 rounded-full p-1">
           {/* Animated indicator moves between active Button using shared layoutId */}
-          {profile?.academics_enabled && (
             <Button
               variant="ghost"
-              onClick={() => setTab("academics")}
+              onClick={() => {
+                setTab("academics")
+                setType("academic")
+              }}
               className="relative gap-2 px-3 py-1 rounded-full"
             >
               {tab === "academics" && (
@@ -510,12 +534,12 @@ export default function SubjectsPage() {
                 <span className={`${tab === "academics" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Academics</span>
               </span>
             </Button>
-          )}
-
-          {profile?.personal_enabled && (
             <Button
               variant="ghost"
-              onClick={() => setTab("personal")}
+              onClick={() => {
+                setTab("personal")
+                setType("personal")
+              }}
               className="relative gap-2 px-3 py-1 rounded-full"
             >
               {tab === "personal" && (
@@ -530,8 +554,8 @@ export default function SubjectsPage() {
                 <span className={`${tab === "personal" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Personal</span>
               </span>
             </Button>
-          )}
         </div>
+        )}
       </div>
 
       {/* --- ACADEMIC SUBJECTS --- */}
@@ -575,7 +599,7 @@ export default function SubjectsPage() {
             
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
+                <SelectTrigger className="h-8 w-full sm:w-45 text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -658,7 +682,7 @@ export default function SubjectsPage() {
                       <div className="p-2 border-b bg-muted/20">
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
                       </div>
-                      <div className="max-h-[250px] overflow-y-auto p-1">
+                      <div className="max-h-62.5 overflow-y-auto p-1">
                         {availableCourses.length > 0 ? (
                           [...availableCourses]
                             .sort((a, b) => {
@@ -695,7 +719,7 @@ export default function SubjectsPage() {
                         )}
                       </div>
                       <div className="p-2 border-t bg-muted/10">
-                        <Button variant="secondary" className="w-full h-8 text-[10px] font-black uppercase tracking-wider h-10" onClick={(e) => {
+                        <Button variant="secondary" className="w-full text-[10px] font-black uppercase tracking-wider h-10" onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
                           setIsPopoverOpen(false);
@@ -858,7 +882,7 @@ export default function SubjectsPage() {
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">New Category</Label>
                 <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-muted/30" />
               </div>
-              <div className="space-y-1.5 w-[50px]">
+              <div className="space-y-1.5 w-12.5">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Color</Label>
                 <Input type="color" value={newCategoryColor} onChange={e => setNewCategoryColor(e.target.value)} className="h-10 w-full p-1 cursor-pointer" />
               </div>
