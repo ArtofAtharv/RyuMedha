@@ -8,7 +8,6 @@ import { ArrowRight, Check, ChevronDown, Loader2, MessageCircle } from 'lucide-r
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { Label } from '@/components/ui/label'
 import {
@@ -17,6 +16,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+
+// ─── Types & Data ─────────────────────────────────────────────────────────────
 
 type CountryOption = {
   code: string
@@ -28,32 +29,17 @@ type CountryOption = {
 }
 
 const COUNTRIES: CountryOption[] = [
-  { code: '91',  flag: '🇮🇳', name: 'India',         label: 'India', groups: [5, 5],      placeholder: '98765 43210' },
-  { code: '1',   flag: '🇺🇸', name: 'United States', label: 'USA',   groups: [3, 3, 4],   placeholder: '202 555 0198' },
-  { code: '44',  flag: '🇬🇧', name: 'United Kingdom',label: 'UK',    groups: [4, 3, 4],   placeholder: '7400 123 456' },
-  { code: '81',  flag: '🇯🇵', name: 'Japan',         label: 'Japan', groups: [2, 4, 4],   placeholder: '90 1234 5678' },
-  { code: '82',  flag: '🇰🇷', name: 'South Korea',   label: 'Korea', groups: [2, 4, 4],   placeholder: '10 1234 5678' },
+  { code: '91', flag: '🇮🇳', name: 'India',          label: 'India', groups: [5, 5],    placeholder: '98765 43210'  },
+  { code: '1',  flag: '🇺🇸', name: 'United States',  label: 'USA',   groups: [3, 3, 4], placeholder: '202 555 0198' },
+  { code: '44', flag: '🇬🇧', name: 'United Kingdom', label: 'UK',    groups: [4, 3, 4], placeholder: '7400 123 456' },
+  { code: '81', flag: '🇯🇵', name: 'Japan',          label: 'Japan', groups: [2, 4, 4], placeholder: '90 1234 5678' },
+  { code: '82', flag: '🇰🇷', name: 'South Korea',    label: 'Korea', groups: [2, 4, 4], placeholder: '10 1234 5678' },
 ]
 
-function useCountdown(seconds: number, active: boolean) {
-  const [remaining, setRemaining] = useState(seconds)
-  const secondsRef = useRef(seconds)
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  useEffect(() => { secondsRef.current = seconds }, [seconds])
-
-  useEffect(() => {
-    if (!active) { setRemaining(secondsRef.current); return }
-    setRemaining(secondsRef.current)
-    const id = setInterval(() => setRemaining((s) => Math.max(0, s - 1)), 1000)
-    return () => clearInterval(id)
-  }, [active])
-
-  return remaining
-}
-
-function formatTime(seconds: number) {
-  const m = Math.floor(seconds / 60)
-  return `${m}:${(seconds % 60).toString().padStart(2, '0')}`
+function maxDigits(country: CountryOption) {
+  return country.groups.reduce((t, g) => t + g, 0)
 }
 
 function onlyDigits(value: string, max = 15) {
@@ -76,29 +62,41 @@ function getCountry(code: string) {
   return COUNTRIES.find((c) => c.code === code) ?? COUNTRIES[0]
 }
 
-function maxDigits(country: CountryOption) {
-  return country.groups.reduce((t, g) => t + g, 0)
-}
-
 function getPhoneValidation(country: CountryOption, digits: string) {
   const expected = maxDigits(country)
   const compact = `+${country.code}${digits}`
   const total = country.code.length + digits.length
-  if (!digits) return { compact, valid: false, message: 'Enter your WhatsApp number.' }
-  if (digits.length < 6) return { compact, valid: false, message: 'Enter the full number.' }
-  if (digits.length !== expected) return { compact, valid: false, message: `${expected} digits required for ${country.name}.` }
-  if (total < 8 || total > 15) return { compact, valid: false, message: 'Use a valid international phone number.' }
-  if (/^(\d)\1+$/.test(digits)) return { compact, valid: false, message: 'Use a real WhatsApp number.' }
+  if (!digits)                          return { compact, valid: false, message: 'Enter your WhatsApp number.' }
+  if (digits.length < 6)               return { compact, valid: false, message: 'Enter the full number.' }
+  if (digits.length !== expected)      return { compact, valid: false, message: `${expected} digits required for ${country.name}.` }
+  if (total < 8 || total > 15)         return { compact, valid: false, message: 'Use a valid international phone number.' }
+  if (/^(\d)\1+$/.test(digits))        return { compact, valid: false, message: 'Use a real WhatsApp number.' }
   return { compact, valid: true, message: '' }
 }
 
-// ─── Phone Input ─────────────────────────────────────────────────────────────
-// BUG FIX: Store raw digits only. Format for display, but never store spaces.
-// Previously localPhone stored the formatted string with spaces, so backspacing
-// mid-string would delete a space (no visible change) causing erratic edits.
+function formatTime(s: number) {
+  return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
+}
+
+// ─── Countdown hook ───────────────────────────────────────────────────────────
+
+function useCountdown(seconds: number, active: boolean) {
+  const [remaining, setRemaining] = useState(seconds)
+  const ref = useRef(seconds)
+  useEffect(() => { ref.current = seconds }, [seconds])
+  useEffect(() => {
+    if (!active) { setRemaining(ref.current); return }
+    setRemaining(ref.current)
+    const id = setInterval(() => setRemaining((s) => Math.max(0, s - 1)), 1000)
+    return () => clearInterval(id)
+  }, [active])
+  return remaining
+}
+
+// ─── Phone Input (bug-fixed: stores raw digits, restores cursor) ──────────────
 
 function PhoneInput({
-  digits,          // raw digits, no spaces
+  digits,
   country,
   onChange,
   onBlur,
@@ -107,16 +105,14 @@ function PhoneInput({
 }: {
   digits: string
   country: CountryOption
-  onChange: (digits: string) => void
+  onChange: (d: string) => void
   onBlur: () => void
   disabled: boolean
   hasError: boolean
 }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  // Display value: formatted with spaces
-  const displayed = groupDigits(digits, country.groups)
-  // We track cursor so we can restore it after React re-render
+  const inputRef  = useRef<HTMLInputElement>(null)
   const cursorRef = useRef<number | null>(null)
+  const displayed = groupDigits(digits, country.groups)
 
   useEffect(() => {
     const el = inputRef.current
@@ -127,25 +123,19 @@ function PhoneInput({
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value
+    const raw       = e.target.value
     const cursorPos = e.target.selectionStart ?? raw.length
-
-    // Extract only digits from what was typed
     const newDigits = onlyDigits(raw, maxDigits(country))
-    // Re-format so we can compute correct cursor position
-    const newFormatted = groupDigits(newDigits, country.groups)
+    const newFmt    = groupDigits(newDigits, country.groups)
 
-    // Map cursor from raw input position to formatted position:
-    // count digits before cursor in raw, then find same digit-count position in formatted
     const rawBefore = raw.slice(0, cursorPos).replace(/\D/g, '').length
-    let digitsSeen = 0
-    let newCursor = newFormatted.length
-    for (let i = 0; i < newFormatted.length; i++) {
-      if (newFormatted[i] !== ' ') digitsSeen++
+    let digitsSeen  = 0
+    let newCursor   = newFmt.length
+    for (let i = 0; i < newFmt.length; i++) {
+      if (newFmt[i] !== ' ') digitsSeen++
       if (digitsSeen === rawBefore) { newCursor = i + 1; break }
     }
-    // If cursor is right after a space, nudge it forward
-    if (newFormatted[newCursor - 1] === ' ') newCursor++
+    if (newFmt[newCursor - 1] === ' ') newCursor++
 
     cursorRef.current = newCursor
     onChange(newDigits)
@@ -165,11 +155,7 @@ function PhoneInput({
       disabled={disabled}
       aria-invalid={hasError || undefined}
       autoFocus
-      className={[
-        'h-14 flex-1 min-w-0 bg-transparent px-4 font-mono text-[18px] outline-none',
-        'placeholder:text-muted-foreground/40',
-        'disabled:opacity-50 disabled:cursor-not-allowed',
-      ].join(' ')}
+      className="flex-1 min-w-0 bg-transparent px-3 py-3.5 font-mono text-[17px] text-foreground outline-none placeholder:text-muted-foreground/35 disabled:opacity-50 disabled:cursor-not-allowed"
     />
   )
 }
@@ -177,29 +163,29 @@ function PhoneInput({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function LoginPageInner() {
-  const router = useRouter()
+  const router       = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard'
+  const callbackUrl  = searchParams.get('callbackUrl') ?? '/dashboard'
 
-  const [step, setStep] = useState<'phone' | 'otp'>('phone')
-  const [countryCode, setCountryCode] = useState('91')
-  const [digits, setDigits] = useState('')        // raw digits only — the fix
-  const [otp, setOtp] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [expiresIn, setExpiresIn] = useState(300)
+  const [step,              setStep]              = useState<'phone' | 'otp'>('phone')
+  const [countryCode,       setCountryCode]       = useState('91')
+  const [digits,            setDigits]            = useState('')
+  const [otp,               setOtp]               = useState('')
+  const [loading,           setLoading]           = useState(false)
+  const [error,             setError]             = useState('')
+  const [expiresIn,         setExpiresIn]         = useState(300)
   const [showSignupOverlay, setShowSignupOverlay] = useState(false)
-  const [phoneTouched, setPhoneTouched] = useState(false)
-  const [otpTouched, setOtpTouched] = useState(false)
+  const [phoneTouched,      setPhoneTouched]      = useState(false)
+  const [otpTouched,        setOtpTouched]        = useState(false)
 
-  const country = useMemo(() => getCountry(countryCode), [countryCode])
+  const country        = useMemo(() => getCountry(countryCode), [countryCode])
   const phoneValidation = getPhoneValidation(country, digits)
-  const displayPhone = `+${country.code} ${groupDigits(digits, country.groups)}`.trim()
-  const countdown = useCountdown(expiresIn, step === 'otp')
-  const expired = countdown === 0 && step === 'otp'
-  const otpValid = /^\d{6}$/.test(otp)
+  const displayPhone   = `+${country.code} ${groupDigits(digits, country.groups)}`.trim()
+  const countdown      = useCountdown(expiresIn, step === 'otp')
+  const expired        = countdown === 0 && step === 'otp'
+  const otpValid       = /^\d{6}$/.test(otp)
   const showPhoneError = phoneTouched && !phoneValidation.valid
-  const showOtpError = otpTouched && otp.length > 0 && !otpValid
+  const showOtpError   = otpTouched && otp.length > 0 && !otpValid
 
   function handleCountryChange(code: string) {
     const next = getCountry(code)
@@ -216,17 +202,17 @@ function LoginPageInner() {
     if (!phoneValidation.valid) return
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/request-otp', {
-        method: 'POST',
+      const res  = await fetch('/api/auth/request-otp', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: phoneValidation.compact }),
+        body:    JSON.stringify({ phone_number: phoneValidation.compact }),
       })
       const data = await res.json()
       const isNotRegistered =
         data.not_registered === true ||
         (res.status === 404 && (data.status === 'not_registered' || data.error?.toLowerCase().includes('not registered')))
       if (isNotRegistered) { setShowSignupOverlay(true); return }
-      if (!res.ok) { setError(data.error ?? 'Failed to send code.'); return }
+      if (!res.ok)         { setError(data.error ?? 'Failed to send code.'); return }
       setExpiresIn(data.expiresIn ?? 300)
       setStep('otp')
     } catch {
@@ -245,7 +231,7 @@ function LoginPageInner() {
     try {
       const result = await signIn('whatsapp-otp', { phone_number: phoneValidation.compact, otp, redirect: false })
       if (result?.error) { setError(result.error); setOtp(''); setOtpTouched(false); return }
-      if (result?.ok) { router.push(callbackUrl); router.refresh() }
+      if (result?.ok)    { router.push(callbackUrl); router.refresh() }
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -261,81 +247,89 @@ function LoginPageInner() {
   }
 
   return (
-    <main className="min-h-[calc(100vh-73px)] bg-background text-foreground flex items-center justify-center px-4 py-10">
-      <div className="w-full max-w-[380px] space-y-6">
-
-        {/* Logo */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col items-center gap-3 pb-2"
-        >
-          <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-primary text-primary-foreground text-lg font-bold shadow-md shadow-primary/20">
+    <main className="flex items-center justify-center px-4 py-16 bg-background text-foreground">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[340px] flex flex-col items-center gap-7"
+      >
+        {/* Brand block — Apple-style: logo + name stacked, nothing else */}
+        <div className="flex flex-col items-center gap-3">
+          {/* Logo: fully rounded, no shadow/glow */}
+          <div className="flex h-[60px] w-[60px] items-center justify-center rounded-[20px] bg-primary text-primary-foreground text-2xl font-bold select-none">
             R
           </div>
-          <span className="text-sm font-semibold tracking-tight text-foreground/70">Ryu Medha</span>
-        </motion.div>
+          {/* Brand name: bold, slightly larger, plain foreground */}
+          <span className="text-[17px] font-bold tracking-tight text-foreground">
+            Ryu Medha
+          </span>
+        </div>
 
         {/* Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1], delay: 0.04 }}
-          className="rounded-3xl border border-border/60 bg-card shadow-xl shadow-black/[0.06] dark:shadow-black/20 overflow-hidden"
-        >
+        <div className="w-full rounded-[20px] border border-border/60 bg-card overflow-hidden">
           <AnimatePresence mode="wait" initial={false}>
-            {step === 'phone' ? (
+
+            {/* ── Phone step ── */}
+            {step === 'phone' && (
               <motion.form
                 key="phone"
-                initial={{ opacity: 0, x: -16 }}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 16 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 onSubmit={handleRequestOTP}
                 noValidate
-                className="p-7 space-y-5"
+                className="px-8 py-8 flex flex-col gap-6"
               >
-                <div className="space-y-1">
-                  <h1 className="text-[22px] font-semibold tracking-tight leading-tight">Sign in</h1>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    Enter your WhatsApp number to continue.
+                {/* Heading — Apple puts a clear title at the top of the card */}
+                <div className="flex flex-col gap-1 text-center">
+                  <h1 className="text-[22px] font-semibold tracking-tight text-foreground leading-snug">
+                    Sign in to Ryu Medha
+                  </h1>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">
+                    Enter your WhatsApp number to receive a one-time code.
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    WhatsApp number
-                  </Label>
-                  <div
-                    className={[
-                      'flex items-center rounded-2xl border bg-background/60 dark:bg-input/20 transition-all duration-150',
-                      showPhoneError
-                        ? 'border-destructive ring-1 ring-destructive/30'
-                        : 'border-border/70 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/10',
-                    ].join(' ')}
+                {/* Phone field */}
+                <div className="flex flex-col gap-1.5">
+                  <Label
+                    htmlFor="phone"
+                    className="text-[12px] font-medium text-muted-foreground pl-0.5"
                   >
+                    WhatsApp Number
+                  </Label>
+
+                  {/* Input row — subtle border, no shadows */}
+                  <div className={[
+                    'flex items-center rounded-[12px] border bg-background transition-all duration-150',
+                    showPhoneError
+                      ? 'border-destructive'
+                      : 'border-border focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10',
+                  ].join(' ')}>
                     {/* Country picker */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild disabled={loading}>
                         <button
                           type="button"
-                          className="flex h-14 items-center gap-1.5 pl-4 pr-3 border-r border-border/60 rounded-l-2xl font-mono text-sm outline-none hover:bg-muted/30 transition-colors disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                          className="flex items-center gap-1 pl-3 pr-2 py-3.5 border-r border-border/60 rounded-l-[12px] font-mono text-[14px] text-foreground outline-none hover:bg-muted/40 transition-colors disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                          aria-label="Select country"
                         >
-                          <span className="text-[17px] leading-none">{country.flag}</span>
-                          <span className="text-foreground/80">+{country.code}</span>
-                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-[15px] leading-none">{country.flag}</span>
+                          <span>+{country.code}</span>
+                          <ChevronDown className="h-3 w-3 text-muted-foreground ml-0.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-52 rounded-2xl p-1.5">
+                      <DropdownMenuContent align="start" className="w-48 rounded-2xl p-1.5">
                         {COUNTRIES.map((opt) => (
                           <DropdownMenuItem
                             key={opt.code}
                             onSelect={() => handleCountryChange(opt.code)}
-                            className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer"
+                            className="flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer"
                           >
-                            <span className="text-base leading-none">{opt.flag}</span>
-                            <span className="font-medium text-sm">{opt.label}</span>
+                            <span className="text-sm leading-none">{opt.flag}</span>
+                            <span className="text-sm font-medium">{opt.label}</span>
                             <span className="ml-auto font-mono text-xs text-muted-foreground">+{opt.code}</span>
                             {opt.code === countryCode && <Check className="h-3.5 w-3.5 text-primary" />}
                           </DropdownMenuItem>
@@ -343,7 +337,7 @@ function LoginPageInner() {
                       </DropdownMenuContent>
                     </DropdownMenu>
 
-                    {/* Fixed phone input — stores only raw digits */}
+                    {/* Phone number input */}
                     <PhoneInput
                       digits={digits}
                       country={country}
@@ -354,184 +348,186 @@ function LoginPageInner() {
                     />
                   </div>
 
-                  <div className="h-4">
+                  {/* Inline hint / error */}
+                  <div className="min-h-[16px] pl-0.5">
                     {showPhoneError ? (
-                      <p className="text-xs text-destructive">{phoneValidation.message}</p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        {digits ? `We'll send a code to ${displayPhone}` : 'Your registered WhatsApp number'}
+                      <p className="text-[12px] text-destructive">{phoneValidation.message}</p>
+                    ) : digits ? (
+                      <p className="text-[12px] text-muted-foreground">
+                        Code will be sent to {displayPhone}
                       </p>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
+                {/* Server error */}
                 {error && (
-                  <Alert variant="destructive" className="rounded-xl py-3">
-                    <AlertDescription className="text-sm">{error}</AlertDescription>
+                  <Alert variant="destructive" className="rounded-xl py-2.5">
+                    <AlertDescription className="text-[13px]">{error}</AlertDescription>
                   </Alert>
                 )}
 
+                {/* CTA — full-width pill, Apple blue equivalent = primary */}
                 <Button
                   type="submit"
                   disabled={loading || !phoneValidation.valid}
-                  className="h-12 w-full rounded-full font-semibold text-[15px] shadow-sm shadow-primary/15"
+                  className="h-11 w-full rounded-full font-semibold text-[15px]"
                 >
                   {loading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</>
                   ) : (
-                    <>Continue <ArrowRight className="ml-2 h-4 w-4" /></>
+                    <>Continue <ArrowRight className="ml-1.5 h-4 w-4" /></>
                   )}
                 </Button>
 
-                <p className="text-center text-sm text-muted-foreground">
-                  New here?{' '}
+                {/* Create account link — Apple always has this below the button */}
+                <p className="text-center text-[13px] text-muted-foreground">
+                  Don't have an account?{' '}
                   <a
                     href="https://wa.me/message/P4QSZGK7MV2PL1"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-medium text-primary hover:underline"
+                    className="text-primary font-medium hover:underline"
                   >
-                    Create account
+                    Create one
                   </a>
                 </p>
               </motion.form>
-            ) : (
+            )}
+
+            {/* ── OTP step ── */}
+            {step === 'otp' && (
               <motion.form
                 key="otp"
-                initial={{ opacity: 0, x: -16 }}
+                initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 16 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                 onSubmit={handleVerifyOTP}
                 noValidate
-                className="p-7 space-y-5"
+                className="px-8 py-8 flex flex-col gap-6"
               >
-                <div className="space-y-1">
-                  <h1 className="text-[22px] font-semibold tracking-tight leading-tight">Check WhatsApp</h1>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    We sent a 6-digit code to{' '}
-                    <span className="font-medium text-foreground">{displayPhone}</span>.
+                <div className="flex flex-col gap-1 text-center">
+                  <h1 className="text-[22px] font-semibold tracking-tight text-foreground leading-snug">
+                    Enter verification code
+                  </h1>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">
+                    Sent to{' '}
+                    <span className="text-foreground font-medium">{displayPhone}</span>
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Verification code
-                  </Label>
-                  <div className="flex justify-center">
-                    <InputOTP
-                      maxLength={6}
-                      value={otp}
-                      onChange={(v) => { setOtp(onlyDigits(v, 6)); if (error) setError('') }}
-                      disabled={loading || expired}
-                      onBlur={() => setOtpTouched(true)}
-                      autoFocus
-                    >
-                      <InputOTPGroup className="grid grid-cols-6 gap-2">
-                        {[0, 1, 2, 3, 4, 5].map((i) => (
-                          <InputOTPSlot
-                            key={i}
-                            index={i}
-                            className="h-12 w-full rounded-xl border-border/70 bg-background/70 text-base dark:bg-input/20"
-                          />
-                        ))}
-                      </InputOTPGroup>
-                    </InputOTP>
-                  </div>
-                  <div className="h-4 text-center">
+                {/* OTP slots */}
+                <div className="flex flex-col items-center gap-2">
+                  <InputOTP
+                    maxLength={6}
+                    value={otp}
+                    onChange={(v) => { setOtp(onlyDigits(v, 6)); if (error) setError('') }}
+                    disabled={loading || expired}
+                    onBlur={() => setOtpTouched(true)}
+                    autoFocus
+                  >
+                    <InputOTPGroup className="grid grid-cols-6 gap-1.5">
+                      {[0, 1, 2, 3, 4, 5].map((i) => (
+                        <InputOTPSlot
+                          key={i}
+                          index={i}
+                          className="h-11 w-full rounded-[10px] border-border/70 bg-background text-[16px]"
+                        />
+                      ))}
+                    </InputOTPGroup>
+                  </InputOTP>
+
+                  {/* Timer / expired / error */}
+                  <div className="min-h-[16px] text-center">
                     {showOtpError ? (
-                      <p className="text-xs text-destructive">Enter the 6-digit code.</p>
+                      <p className="text-[12px] text-destructive">Enter the 6-digit code.</p>
                     ) : expired ? (
-                      <span className="text-xs text-muted-foreground">
+                      <p className="text-[12px] text-muted-foreground">
                         Code expired.{' '}
                         <button type="button" onClick={handleBack} className="text-primary font-medium hover:underline">
-                          Request another
+                          Request a new one
                         </button>
-                      </span>
+                      </p>
                     ) : (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-[12px] text-muted-foreground">
                         Expires in{' '}
-                        <span className="font-mono font-medium text-foreground">{formatTime(countdown)}</span>
+                        <span className="font-mono text-foreground font-medium">{formatTime(countdown)}</span>
                       </p>
                     )}
                   </div>
                 </div>
 
                 {error && (
-                  <Alert variant="destructive" className="rounded-xl py-3">
-                    <AlertDescription className="text-sm">{error}</AlertDescription>
+                  <Alert variant="destructive" className="rounded-xl py-2.5">
+                    <AlertDescription className="text-[13px]">{error}</AlertDescription>
                   </Alert>
                 )}
 
                 <Button
                   type="submit"
                   disabled={loading || !otpValid || expired}
-                  className="h-12 w-full rounded-full font-semibold text-[15px] shadow-sm shadow-primary/15"
+                  className="h-11 w-full rounded-full font-semibold text-[15px]"
                 >
                   {loading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
                   ) : 'Sign in'}
                 </Button>
 
-                <div className="flex items-center justify-between text-sm">
+                {/* Secondary actions — Apple-style text links below button */}
+                <div className="flex items-center justify-between text-[13px]">
                   <button
                     type="button"
                     onClick={handleBack}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-primary font-medium hover:underline"
                   >
-                    ← Change number
+                    Change number
                   </button>
                   <button
                     type="button"
                     onClick={handleBack}
-                    className="font-medium text-primary hover:underline"
+                    className="text-primary font-medium hover:underline"
                   >
                     Resend code
                   </button>
                 </div>
               </motion.form>
             )}
+
           </AnimatePresence>
-        </motion.div>
+        </div>
+        {/* Apple always ends with a simple legal/help line — keeping it minimal */}
+      </motion.div>
 
-        {/* Footer */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-          className="text-center text-xs text-muted-foreground/60"
-        >
-          Your academic workspace by Ryu Medha
-        </motion.p>
-      </div>
-
-      {/* Signup overlay */}
+      {/* ── Not-registered overlay ── */}
       <AnimatePresence>
         {showSignupOverlay && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xl p-5"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/75 backdrop-blur-xl p-5"
           >
             <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              initial={{ opacity: 0, scale: 0.97, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 8 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-sm rounded-3xl border border-border bg-card p-7 text-center shadow-2xl shadow-foreground/5"
+              exit={{ opacity: 0, scale: 0.97, y: 10 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full max-w-[320px] rounded-[20px] border border-border bg-card px-8 py-8 text-center"
             >
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+              <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                 <MessageCircle className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="text-xl font-semibold tracking-tight">Not registered yet</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                This number isn't in our system. Start a quick WhatsApp chat to create your account.
+              <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
+                Not registered
+              </h2>
+              <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+                This number isn't in our system. Open WhatsApp to create your account.
               </p>
-              <div className="mt-6 space-y-2.5">
+              <div className="mt-6 flex flex-col gap-2.5">
                 <Button
                   onClick={() => window.open('https://wa.me/message/P4QSZGK7MV2PL1', '_blank')}
-                  className="h-12 w-full rounded-full text-sm font-semibold"
+                  className="h-11 w-full rounded-full text-[14px] font-semibold"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Open WhatsApp
@@ -539,7 +535,7 @@ function LoginPageInner() {
                 <Button
                   variant="ghost"
                   onClick={() => setShowSignupOverlay(false)}
-                  className="h-11 w-full rounded-full text-sm"
+                  className="h-10 w-full rounded-full text-[14px] text-muted-foreground"
                 >
                   Go back
                 </Button>
@@ -556,7 +552,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-background">
+        <main className="flex items-center justify-center py-32 bg-background">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </main>
       }
