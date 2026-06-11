@@ -41,6 +41,19 @@ const COUNTRIES: CountryOption[] = [
 function maxDigits(country: CountryOption) {
   return country.groups.reduce((t, g) => t + g, 0)
 }
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp'
+import Image from 'next/image'
 
 function onlyDigits(value: string, max = 15) {
   return value.replace(/\D/g, '').slice(0, max)
@@ -269,6 +282,27 @@ function LoginPageInner() {
         {/* Card */}
         <div className="w-full rounded-[20px] border border-border/60 bg-card overflow-hidden">
           <AnimatePresence mode="wait" initial={false}>
+          {/* ── Brand ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+            className="text-center space-y-3"
+          >
+            <div className="flex flex-col items-center gap-2.5 group">
+            <Image
+              src="/badge.png"
+              alt="Ryu Medha"
+              width={56}
+              height={56}
+              className="rounded-full invert dark:invert-0"
+            />
+            <span className="text-3xl tracking-tight font-playball">Ryu Medha</span>
+          </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your academics, always within reach.
+              </p>
+          </motion.div>
 
             {/* ── Phone step ── */}
             {step === 'phone' && (

@@ -57,9 +57,11 @@ export default function SubjectsPage() {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
+  // UI Tab state (must be declared unconditionally to preserve Hooks order)
+  const [tab, setTab] = useState<"academics" | "personal">("academics")
   
   const [name, setName] = useState("")
-  const [type, setType] = useState("academic")
+  const [type, setType] = useState<"academic" | "personal">("academic")
   const [categoryId, setCategoryId] = useState("none")
   
   const [editingSubject, setEditingSubject] = useState<SubjectRecord | null>(null)
@@ -244,6 +246,10 @@ export default function SubjectsPage() {
 
     // Personal Subject Flow
 
+    const colorHex = type === 'personal'
+      ? (categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : '#8b5cf6')
+      : null
+
     const { error } = await supabaseClient
       .from('subjects')
       .insert([{
@@ -252,7 +258,7 @@ export default function SubjectsPage() {
         type: type,
         source_course_id: null,
         category_id: type === 'personal' && categoryId !== "none" ? categoryId : null,
-        color_hex: type === 'personal' && categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : (type === 'academic' ? null : '#8b5cf6')
+        color_hex: colorHex
       }])
 
     if (error) {
@@ -311,6 +317,23 @@ export default function SubjectsPage() {
     setEditingSubject(null)
     fetchSubjects(supabase)
   }
+
+  useEffect(() => {
+    if (!profile) return
+    if (profile.academics_enabled && profile.personal_enabled) return
+
+    if (profile.academics_enabled) {
+      setTab('academics')
+      setType('academic')
+    } else if (profile.personal_enabled) {
+      setTab('personal')
+      setType('personal')
+    }
+  }, [profile?.academics_enabled, profile?.personal_enabled])
+
+  useEffect(() => {
+    setType(tab === 'academics' ? 'academic' : 'personal')
+  }, [tab])
 
   /* -------------------------------------------------------------------------- */
   /*                            EXAM DATES (TASKS)                              */
@@ -481,177 +504,55 @@ export default function SubjectsPage() {
           <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Subjects</span></h1>
           <p className="text-muted-foreground mt-1">Manage your active academic courses and personal learning tracks.</p>
         </div>
+        {profile?.academics_enabled && profile?.personal_enabled && (
+        <div className="relative flex gap-2 bg-accent/50 rounded-full p-1">
+          {/* Animated indicator moves between active Button using shared layoutId */}
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setTab("academics")
+                setType("academic")
+              }}
+              className="relative gap-2 px-3 py-1 rounded-full"
+            >
+              {tab === "academics" && (
+                <motion.span
+                  layoutId="subjects-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <BookOpen className={`w-4 h-4 ${tab === "academics" ? 'text-foreground' : 'text-muted-foreground'}`} />
+                <span className={`${tab === "academics" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Academics</span>
+              </span>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setTab("personal")
+                setType("personal")
+              }}
+              className="relative gap-2 px-3 py-1 rounded-full"
+            >
+              {tab === "personal" && (
+                <motion.span
+                  layoutId="subjects-tab-indicator"
+                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                <FolderOpen className={`w-4 h-4 ${tab === "personal" ? 'text-foreground' : 'text-muted-foreground'}`} />
+                <span className={`${tab === "personal" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Personal</span>
+              </span>
+            </Button>
+        </div>
+        )}
       </div>
 
-      {/* --- ADD SUBJECT FORM --- */}
-      <Card className="bg-muted/30 border-dashed border-2">
-        <CardContent className="p-4 w-full">
-          <form onSubmit={handleAddSubject} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-            <div className="sm:col-span-12 mb-2">
-              <h2 className="text-sm font-bold flex items-center gap-2 text-foreground">
-                <Plus className="w-4 h-4" /> Add New Subject
-              </h2>
-            </div>
-            {errorMsg && (
-              <div className="sm:col-span-12">
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{errorMsg}</AlertDescription>
-                </Alert>
-              </div>
-            )}
-            
-            <motion.div 
-              layout 
-              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-4' : 'lg:col-span-10'}`}
-            >
-              {type === 'academic' ? (
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
-                  
-                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} >
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
-                        {selectedCourseIds.length > 0 
-                          ? `${selectedCourseIds.length} course(s) selected` 
-                          : "Select academic courses..."}
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="min-w-full p-0" align="start">
-                      <div className="p-2 border-b bg-muted/20">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
-                      </div>
-                      <div className="max-h-[250px] overflow-y-auto p-1">
-                        {availableCourses.length > 0 ? (
-                          [...availableCourses]
-                            .sort((a, b) => {
-                              const aEnrolled = enrolledCourseIds.includes(a.id)
-                              const bEnrolled = enrolledCourseIds.includes(b.id)
-                              if (aEnrolled === bEnrolled) return 0
-                              return aEnrolled ? 1 : -1
-                            })
-                            .map(c => {
-                              const isEnrolled = enrolledCourseIds.includes(c.id)
-                              const isSelected = selectedCourseIds.includes(c.id)
-                              return (
-                                <div 
-                                  key={c.id}
-                                  onClick={() => {
-                                    if (isEnrolled) return 
-                                    if (isSelected) setSelectedCourseIds(prev => prev.filter(id => id !== c.id))
-                                    else setSelectedCourseIds(prev => [...prev, c.id])
-                                  }}
-                                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
-                                >
-                                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
-                                    {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
-                                    {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
-                                  </div>
-                                </div>
-                              )
-                            })
-                        ) : (
-                          <p className="text-xs text-muted-foreground italic p-4 text-center">No shared courses found for your semester.</p>
-                        )}
-                      </div>
-                      <div className="p-2 border-t bg-muted/10">
-                        <Button variant="secondary" className="w-full h-8 text-[10px] font-black uppercase tracking-wider h-10" onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsPopoverOpen(false);
-                        }}>
-                          Done
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  {availableCourses.length === 0 && (
-                    <p className="text-[10px] text-muted-foreground italic mb-2">
-                      Be the first from this semester to add courses!
-                    </p>
-                  )}
-                  
-                  <Input 
-                    value={newCourseName} 
-                    onChange={(e) => setNewCourseName(e.target.value)} 
-                    placeholder="Or type new course name..." 
-                    className="h-10 bg-background shadow-sm border-muted-foreground/20"
-                  />
-                </div>
-              ) : (
-                <>
-                  <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Contract Law" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
-                </>
-              )}
-            </motion.div>
-            
-            <motion.div 
-              layout 
-              className={`space-y-2 sm:col-span-6 ${type === 'personal' ? 'lg:col-span-3' : 'lg:col-span-2'}`}
-            >
-              <Label htmlFor="type" className="text-sm font-semibold text-muted-foreground">Type</Label>
-              <div className="w-full">
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
-                    <SelectValue placeholder="Track type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {profile?.academics_enabled && (
-                      <SelectItem value="academic"><span className="flex items-center gap-2"><BookOpen className="w-3.5 h-3.5"/> Academic</span></SelectItem>
-                    )}
-                    {profile?.personal_enabled && (
-                      <SelectItem value="personal"><span className="flex items-center gap-2"><FolderOpen className="w-3.5 h-3.5"/> Personal</span></SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </motion.div>
-
-            <AnimatePresence mode="popLayout">
-              {type === 'personal' && (
-                <motion.div 
-                  layout
-                  initial={{ opacity: 0, scale: 0.95, x: 20 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, x: 20 }}
-                  className="space-y-2 sm:col-span-6 lg:col-span-3"
-                >
-                  <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
-                  <div className="w-full">
-                    <Select value={categoryId} onValueChange={setCategoryId}>
-                      <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
-                        <SelectValue placeholder="No Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Uncategorized</SelectItem>
-                        {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <motion.div 
-              layout 
-              className={`space-y-2 sm:col-span-12 ${type === 'personal' ? 'lg:col-span-2' : 'lg:col-span-12'}`}
-            >
-              <Button type="submit" className="w-full h-10 font-bold tracking-tight shadow-sm">
-                Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
-              </Button>
-            </motion.div>
-          </form>
-        </CardContent>
-      </Card>
-
-
       {/* --- ACADEMIC SUBJECTS --- */}
-      {profile?.academics_enabled && (
+      {profile?.academics_enabled && tab === "academics" && (
         <section className="space-y-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-primary" /> Academic Track
@@ -685,7 +586,7 @@ export default function SubjectsPage() {
       )}
 
       {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
-      {profile?.personal_enabled && (
+      {profile?.personal_enabled && tab === "personal" && (
         <section className="space-y-6 pt-4 border-t">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h2 className="text-xl font-bold flex items-center gap-2">
@@ -694,7 +595,7 @@ export default function SubjectsPage() {
             
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                <SelectTrigger className="h-8 w-full sm:w-[180px] text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
+                <SelectTrigger className="h-8 w-full sm:w-45 text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
@@ -735,9 +636,152 @@ export default function SubjectsPage() {
             </motion.div>
           )}
 
-
         </section>
       )}
+
+      {/* --- ADD SUBJECT FORM --- */}
+      <Card className="bg-muted/30 border-dashed border-2">
+        <CardContent className="p-4 w-full">
+          <form onSubmit={handleAddSubject} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            <div className="sm:col-span-12 mb-2">
+              <h2 className="text-sm font-bold flex items-center gap-2 text-foreground">
+                <Plus className="w-4 h-4" /> Add New Subject
+              </h2>
+            </div>
+            {errorMsg && (
+              <div className="sm:col-span-12">
+                <Alert variant="destructive">
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{errorMsg}</AlertDescription>
+                </Alert>
+              </div>
+            )}
+            
+            <motion.div 
+              layout 
+              className={`space-y-2 sm:col-span-12 ${tab === 'personal' ? 'lg:col-span-4' : 'lg:col-span-10'}`}
+            >
+              {tab === "academics" ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
+                  
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} >
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
+                        {selectedCourseIds.length > 0 
+                          ? `${selectedCourseIds.length} course(s) selected` 
+                          : "Select academic courses..."}
+                        <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="min-w-full p-0" align="start">
+                      <div className="p-2 border-b bg-muted/20">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
+                      </div>
+                      <div className="max-h-62.5 overflow-y-auto p-1">
+                        {availableCourses.length > 0 ? (
+                          [...availableCourses]
+                            .sort((a, b) => {
+                              const aEnrolled = enrolledCourseIds.includes(a.id)
+                              const bEnrolled = enrolledCourseIds.includes(b.id)
+                              if (aEnrolled === bEnrolled) return 0
+                              return aEnrolled ? 1 : -1
+                            })
+                            .map(c => {
+                              const isEnrolled = enrolledCourseIds.includes(c.id)
+                              const isSelected = selectedCourseIds.includes(c.id)
+                              return (
+                                <div 
+                                  key={c.id}
+                                  onClick={() => {
+                                    if (isEnrolled) return 
+                                    if (isSelected) setSelectedCourseIds(prev => prev.filter(id => id !== c.id))
+                                    else setSelectedCourseIds(prev => [...prev, c.id])
+                                  }}
+                                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
+                                >
+                                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
+                                    {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
+                                    {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
+                                  </div>
+                                </div>
+                              )
+                            })
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic p-4 text-center">No shared courses found for your semester.</p>
+                        )}
+                      </div>
+                      <div className="p-2 border-t bg-muted/10">
+                        <Button variant="secondary" className="w-full text-[10px] font-black uppercase tracking-wider h-10" onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setIsPopoverOpen(false);
+                        }}>
+                          Done
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  {availableCourses.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground italic mb-2">
+                      Be the first from this semester to add courses!
+                    </p>
+                  )}
+                  
+                  <Input 
+                    value={newCourseName} 
+                    onChange={(e) => setNewCourseName(e.target.value)} 
+                    placeholder="Or type new course name..." 
+                    className="h-10 bg-background shadow-sm border-muted-foreground/20"
+                  />
+                </div>
+              ) : (
+                <>
+                  <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
+                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tab === 'personal' ? 'e.g. Personal Development' : 'e.g. Contract Law'} className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
+                </>
+              )}
+            </motion.div>
+
+            <AnimatePresence mode="popLayout">
+              {tab === 'personal' && (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, x: 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, x: 20 }}
+                  className="space-y-2 sm:col-span-6 lg:col-span-3"
+                >
+                  <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
+                  <div className="w-full">
+                    <Select value={categoryId} onValueChange={setCategoryId}>
+                      <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
+                        <SelectValue placeholder="No Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Uncategorized</SelectItem>
+                        {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <motion.div 
+              layout 
+              className={`space-y-2 sm:col-span-12 ${tab === 'personal' ? 'lg:col-span-2' : 'lg:col-span-12'}`}
+            >
+              <Button type="submit" className="w-full h-10 font-bold tracking-tight shadow-sm">
+                Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
+              </Button>
+            </motion.div>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* --- EDIT SUBJECT MODAL --- */}
       <Dialog open={!!editingSubject} onOpenChange={(open: boolean) => !open && setEditingSubject(null)}>
@@ -834,7 +878,7 @@ export default function SubjectsPage() {
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">New Category</Label>
                 <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-muted/30" />
               </div>
-              <div className="space-y-1.5 w-[50px]">
+              <div className="space-y-1.5 w-12.5">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Color</Label>
                 <Input type="color" value={newCategoryColor} onChange={e => setNewCategoryColor(e.target.value)} className="h-10 w-full p-1 cursor-pointer" />
               </div>

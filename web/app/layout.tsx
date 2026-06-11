@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Playball } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Navigation from "@/components/navigation";
 import Footer from "@/components/footer";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +18,13 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const playball = Playball({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-playball',
+})
 
 export const metadata: Metadata = {
   title: "Ryu Medha — Your Academic Edge",
@@ -67,7 +76,7 @@ export default function RootLayout({
     // the html element before React hydrates — this suppresses the mismatch warning
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased pb-[80px] md:pb-0`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playball.variable} antialiased pb-[80px] md:pb-0`}
         suppressHydrationWarning
       >
         {/* Restore color theme from localStorage before first paint — no flash */}
@@ -85,6 +94,8 @@ export default function RootLayout({
           <Footer />
           <Toaster />
         </Providers>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
