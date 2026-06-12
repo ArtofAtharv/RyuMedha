@@ -41,18 +41,13 @@ const COUNTRIES: CountryOption[] = [
 function maxDigits(country: CountryOption) {
   return country.groups.reduce((t, g) => t + g, 0)
 }
+import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from '@/components/ui/input-otp'
 import Image from 'next/image'
 
 function onlyDigits(value: string, max = 15) {
