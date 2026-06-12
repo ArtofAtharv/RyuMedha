@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { InteractiveAttendanceGrid, type AttendanceData, type SubjectInfo } from '@/components/dashboard/interactive-attendance-grid'
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { StudyAnalyticsChart } from '@/components/dashboard/study-analytics-chart'
-import { motion, Variants } from "motion/react"
 import { useState, useEffect } from 'react'
 import { AnimatePresence, motion, Variants } from "motion/react"
 
