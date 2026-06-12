@@ -1,11 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { useCallback, useEffect, useState } from "react"
+import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
-import { BookOpen, FolderOpen, Pencil, Check, X, Target } from "lucide-react"
+import { BookOpen, FolderOpen, Pencil, Check, Target } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { motion, Variants } from "motion/react"
 
@@ -22,16 +22,35 @@ const item: Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 }
 
+interface GradeRecord {
+  id?: string
+  subject_id: string
+  grade_type: string
+  marks: number
+  max_marks: number
+  assessed_date?: string
+}
+
+interface SubjectRecord {
+  id: string
+  name: string
+  color_hex?: string
+  type: string
+  label?: string
+  is_active?: boolean
+  source_course_id?: { semester_id?: string; credits?: number } | Array<{ semester_id?: string; credits?: number }>
+}
+
 export default function GradesPage() {
   const { profile } = useProfile()
-  const [grades, setGrades] = useState<any[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
+  const [grades, setGrades] = useState<GradeRecord[]>([])
+  const [subjects, setSubjects] = useState<SubjectRecord[]>([])
   const [isSyncing, setIsSyncing] = useState(false)
   
-  const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
   
-  const [allAcademicSubjects, setAllAcademicSubjects] = useState<any[]>([])
+  const [allAcademicSubjects, setAllAcademicSubjects] = useState<SubjectRecord[]>([])
   const [maxGpa, setMaxGpa] = useState<number>(10)
   const [isEditingGpa, setIsEditingGpa] = useState(false)
   const [editGpaValue, setEditGpaValue] = useState("10")
@@ -51,12 +70,44 @@ export default function GradesPage() {
     setIsEditingGpa(false)
   }
 
+  const fetchData = useCallback(async (supabase: AppSupabaseClient, pid: string | null) => {
+    if (!pid) return
+    
+    const { data: g } = await supabase
+      .from('grades')
+      .select('*, subjects(name)')
+      .eq('profile_id', pid)
+      .order('assessed_date', { ascending: false })
+      
+    setGrades(g || [])
+
+    const { data: rawSubs } = await supabase
+      .from('subjects')
+      .select('id, name, color_hex, type, label, source_course_id(semester_id, credits)')
+      .eq('profile_id', pid)
+      
+    const acadSubsAll = rawSubs?.filter((s: SubjectRecord) => s.type === 'academic') || []
+    setAllAcademicSubjects(acadSubsAll)
+
+    const subs = rawSubs?.filter((s: SubjectRecord) => {
+      if (s.type === 'personal') return s.is_active
+      const semId = Array.isArray(s.source_course_id) 
+        ? s.source_course_id[0]?.semester_id 
+        : (s.source_course_id as {semester_id?: string})?.semester_id
+      return semId === profile?.current_semester_id
+    }) || []
+    setSubjects(subs)
+
+    const validSubjectIds = new Set(rawSubs?.map((s: SubjectRecord) => s.id) || [])
+    setGrades((g || []).filter((entry: GradeRecord) => validSubjectIds.has(entry.subject_id)))
+  }, [profile?.current_semester_id])
+
   useEffect(() => {
     async function init() {
       const session = await getSession()
       if (!session) return
       
-      const supabase = createClient(
+      const supabase = createAppClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
@@ -81,42 +132,7 @@ export default function GradesPage() {
       await fetchData(supabase, profile?.id)
     }
     init()
-  }, [])
-
-  async function fetchData(supabase: any, pid: string | null) {
-    if (!pid) return
-    
-    // Fetch grades with subject names
-    const { data: g } = await supabase
-      .from('grades')
-      .select('*, subjects(name)')
-      .eq('profile_id', pid)
-      .order('assessed_date', { ascending: false })
-      
-    setGrades(g || [])
-
-    // Subjects for dropdown & cards - Fetch BOTH types, including inactive for CGPA
-    const { data: rawSubs } = await supabase
-      .from('subjects')
-      .select('id, name, color_hex, type, label, source_course_id(semester_id, credits)')
-      .eq('profile_id', pid)
-      
-    const acadSubsAll = rawSubs?.filter((s: any) => s.type === 'academic') || []
-    setAllAcademicSubjects(acadSubsAll)
-
-    const subs = rawSubs?.filter((s: any) => {
-      if (s.type === 'personal') return s.is_active
-      const semId = Array.isArray(s.source_course_id) 
-        ? s.source_course_id[0]?.semester_id 
-        : (s.source_course_id as any)?.semester_id
-      return semId === profile?.current_semester_id
-    }) || []
-    setSubjects(subs)
-
-    // We filter grades to all active/archived for personal, and all academic
-    const validSubjectIds = new Set(rawSubs?.map((s: any) => s.id) || [])
-    setGrades((g || []).filter((item: any) => validSubjectIds.has(item.subject_id)))
-  }
+  }, [fetchData])
 
   async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>) {
     if (!supabaseClient || !profileId) return
@@ -139,7 +155,14 @@ export default function GradesPage() {
         }
       }
       return null
-    }).filter(Boolean)
+    }).filter((row): row is {
+      profile_id: string
+      subject_id: string
+      grade_type: string
+      marks: number
+      max_marks: number
+      assessed_date: string
+    } => row !== null)
 
     if (upserts.length > 0) {
       // Delete existing grades for this subject then re-insert
@@ -149,7 +172,7 @@ export default function GradesPage() {
       for (const row of upserts) {
         const { error } = await supabaseClient.from('grades').insert([row])
         if (error) {
-          console.error(`Failed to save grade type ${(row as any).grade_type}:`, error.message)
+          console.error(`Failed to save grade type ${(row as GradeRecord).grade_type}:`, error.message)
         }
       }
     }

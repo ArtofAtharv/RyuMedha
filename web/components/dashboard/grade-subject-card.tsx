@@ -64,6 +64,18 @@ function getGradeDetails(percentage: number, maxGpa: number) {
   return { letter: "F", points: 0, color: "text-red-500", bg: "bg-red-500/10" }
 }
 
+interface SubjectRecord {
+  id: string
+  name: string
+  color_hex?: string
+}
+
+interface GradeRecord {
+  grade_type: string
+  marks: number
+  max_marks: number
+}
+
 export function GradeSubjectCard({ 
   subject, 
   existingGrades, 
@@ -71,8 +83,8 @@ export function GradeSubjectCard({
   isPersonal = false,
   maxGpa = 10
 }: { 
-  subject: any; 
-  existingGrades: any[]; 
+  subject: SubjectRecord; 
+  existingGrades: GradeRecord[]; 
   onSave: (subjectId: string, scoresToSave: GradeScores) => Promise<void>;
   isPersonal?: boolean;
   maxGpa?: number;
@@ -117,7 +129,7 @@ export function GradeSubjectCard({
   }, [scores, existingGrades])
 
   // Calculate live totals
-  const { totalObtained, totalMax, percentage, gradeInfo } = useMemo(() => {
+  const { totalObtained, totalMax, gradeInfo } = useMemo(() => {
     let obtained = 0
     let max = 0
     

@@ -1,23 +1,23 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Trash2, X, Pencil, User, FolderOpen, Target, BookOpen, GraduationCap, Plus, Folder, Loader2, Check, ChevronDown } from "lucide-react"
+import { Trash2, FolderOpen, BookOpen, Plus, Folder, Check, ChevronDown } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
-import { hexToGradient } from "@/lib/gradient"
-import Link from "next/link"
 import { AnimatePresence, motion, Variants } from "motion/react"
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
+import { hexToGradient } from "@/lib/gradient"
+import { getSourceCourse } from "@/lib/source-course"
+import type { DashboardSubject } from "@/lib/dashboard-types"
 import { useProfile } from '@/components/dashboard/profile-context'
 
 const containerVariants: Variants = {
@@ -33,40 +33,46 @@ const itemVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 }
 
+type SubjectRecord = DashboardSubject
+
+interface CategoryRecord {
+  id: string
+  name: string
+  color_hex?: string
+}
+
+interface CourseRecord {
+  id: string
+  course_name: string
+}
+
 export default function SubjectsPage() {
   const { profile } = useProfile()
-  const [session, setSession] = useState<any>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
-  const [supabaseClient, setSupabaseClient] = useState<any>(null)
+  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   
-  // Category Filter State
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all")
 
-  const [subjects, setSubjects] = useState<any[]>([])
-  const [categories, setCategories] = useState<any[]>([])
+  const [subjects, setSubjects] = useState<SubjectRecord[]>([])
+  const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
   // UI Tab state (must be declared unconditionally to preserve Hooks order)
   const [tab, setTab] = useState<"academics" | "personal">("academics")
   
-  // Add Form State
   const [name, setName] = useState("")
   const [type, setType] = useState<"academic" | "personal">("academic")
   const [categoryId, setCategoryId] = useState("none")
   
-  // Modals Data
-  const [editingSubject, setEditingSubject] = useState<any>(null)
-  const [subjectToDelete, setSubjectToDelete] = useState<any>(null)
+  const [editingSubject, setEditingSubject] = useState<SubjectRecord | null>(null)
+  const [subjectToDelete, setSubjectToDelete] = useState<SubjectRecord | null>(null)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
 
-  // Strict Hierarchy / Shared Courses
-  const [availableCourses, setAvailableCourses] = useState<any[]>([])
+  const [availableCourses, setAvailableCourses] = useState<CourseRecord[]>([])
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
-  const [isAddingNewCourse, setIsAddingNewCourse] = useState(false)
   const [newCourseName, setNewCourseName] = useState("")
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
 
-  // Category Manager State
   const [newCategoryName, setNewCategoryName] = useState("")
   const [newCategoryColor, setNewCategoryColor] = useState("#8b5cf6")
 
@@ -74,9 +80,8 @@ export default function SubjectsPage() {
     async function init() {
       const sess = await getSession()
       if (!sess) return
-      setSession(sess)
       
-      const supabase = createClient(
+      const supabase = createAppClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
         { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
@@ -95,7 +100,6 @@ export default function SubjectsPage() {
         await fetchSubjects(supabase)
         await fetchCategories(supabase, profile.id)
         
-        // Setup Hierarchy Info
         const { data: profileFull } = await supabase
           .from('profiles')
           .select('current_semester_id')
@@ -115,7 +119,7 @@ export default function SubjectsPage() {
     init()
   }, [])
 
-  async function fetchSubjects(supabase: any) {
+  async function fetchSubjects(supabase: AppSupabaseClient) {
     setLoading(true)
     const { data } = await supabase
       .from('subjects')
@@ -129,9 +133,13 @@ export default function SubjectsPage() {
 
   const enrolledCourseIds = subjects
     .filter(s => s.source_course_id)
-    .map(s => typeof s.source_course_id === 'object' ? s.source_course_id.id : s.source_course_id)
+    .map(s => {
+      if (typeof s.source_course_id === 'string') return s.source_course_id
+      return getSourceCourse(s.source_course_id)?.id
+    })
+    .filter((id): id is string => Boolean(id))
 
-  async function fetchCategories(supabase: any, pid: string) {
+  async function fetchCategories(supabase: AppSupabaseClient, pid: string) {
     if (!pid) return
     const { data } = await supabase
       .from('subject_categories')
@@ -147,6 +155,7 @@ export default function SubjectsPage() {
 
   async function handleAddSubject(e: React.FormEvent) {
     e.preventDefault()
+    if (!supabaseClient || !profileId) return
     
     // Fixed validation: personal needs name, academic needs selected courses or a new name
     if (type === 'personal' && !name.trim()) return
@@ -160,8 +169,6 @@ export default function SubjectsPage() {
       return
     }
 
-    let sourceCourseId = null
-
     if (type === 'academic') {
       if (!profile?.current_semester_id) {
         setErrorMsg("Please complete your academic setup in the Profile tab first.")
@@ -171,7 +178,9 @@ export default function SubjectsPage() {
       try {
         // Bulk Add Selected Courses
         if (selectedCourseIds.length > 0) {
-          const existingIds = subjects.map(s => s.source_course_id).filter(Boolean)
+          const existingIds = subjects
+            .map(s => typeof s.source_course_id === 'string' ? s.source_course_id : getSourceCourse(s.source_course_id)?.id)
+            .filter((id): id is string => Boolean(id))
           const deduplicatedIds = selectedCourseIds.filter(cid => !existingIds.includes(cid))
           const skippedCount = selectedCourseIds.length - deduplicatedIds.length
 
@@ -227,9 +236,10 @@ export default function SubjectsPage() {
         setSelectedCourseIds([])
         setNewCourseName("")
         fetchSubjects(supabaseClient)
-      } catch (err: any) {
-        toast.error(`Failed to add subjects: ${err.message}`)
-        setErrorMsg(err.message)
+      } catch (err: unknown) {
+        const error = err as Error
+        toast.error(`Failed to add subjects: ${error.message}`)
+        setErrorMsg(error.message)
       }
       return
     }
@@ -246,7 +256,7 @@ export default function SubjectsPage() {
         profile_id: profileId,
         name: name.trim(),
         type: type,
-        source_course_id: sourceCourseId,
+        source_course_id: null,
         category_id: type === 'personal' && categoryId !== "none" ? categoryId : null,
         color_hex: colorHex
       }])
@@ -261,21 +271,23 @@ export default function SubjectsPage() {
   }
 
   async function confirmDelete() {
-    if (!subjectToDelete) return
+    if (!subjectToDelete || !supabaseClient) return
     await supabaseClient.from('subjects').delete().eq('id', subjectToDelete.id)
     setSubjectToDelete(null)
     fetchSubjects(supabaseClient)
   }
 
   async function saveEdit() {
-    if (!editingSubject || !editingSubject.name.trim()) return
+    if (!editingSubject || !editingSubject.name.trim() || !supabaseClient) return
     const supabase = supabaseClient
 
     // Handle shared data if academic
     if (editingSubject.type === 'academic' && editingSubject.source_course_id) {
-      const courseId = typeof editingSubject.source_course_id === 'object' 
-        ? editingSubject.source_course_id.id 
-        : editingSubject.source_course_id
+      const courseId = typeof editingSubject.source_course_id === 'string'
+        ? editingSubject.source_course_id
+        : getSourceCourse(editingSubject.source_course_id)?.id
+
+      if (!courseId) return
 
       await supabase
         .from('academic_courses')
@@ -286,11 +298,11 @@ export default function SubjectsPage() {
         .eq('id', courseId)
     }
 
-    const updates: any = { 
+    const updates: Record<string, string | number | null | boolean> = { 
         name: editingSubject.name.trim(),
-        label: editingSubject.label,
-        color_hex: editingSubject.color_hex,
-        category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? editingSubject.category_id : null
+        label: editingSubject.label ?? null,
+        color_hex: editingSubject.color_hex ?? null,
+        category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? (editingSubject.category_id ?? null) : null
     }
 
     if (editingSubject.type === 'personal') {
@@ -328,7 +340,7 @@ export default function SubjectsPage() {
   /* -------------------------------------------------------------------------- */
 
   async function handleAddExamDate(subject_id: string, label: string, date: Date) {
-    if (!profileId || !subject_id) return
+    if (!profileId || !subject_id || !supabaseClient) return
 
     // 1. Try to update academic_courses so it is shared with everyone
     const { data: subjectData } = await supabaseClient
@@ -338,8 +350,8 @@ export default function SubjectsPage() {
       .single()
 
     if (subjectData && subjectData.type === 'academic' && subjectData.source_course_id) {
-      const courseId = Array.isArray(subjectData.source_course_id) ? subjectData.source_course_id[0]?.id : (subjectData.source_course_id as any)?.id;
-      const existingDates = Array.isArray(subjectData.source_course_id) ? (subjectData.source_course_id[0]?.exam_dates || {}) : ((subjectData.source_course_id as any)?.exam_dates || {});
+      const courseId = typeof subjectData.source_course_id === 'object' ? (subjectData.source_course_id as {id?: string})?.id : (subjectData.source_course_id as string);
+      const existingDates: Record<string, string> = typeof subjectData.source_course_id === 'object' && !Array.isArray(subjectData.source_course_id) ? ((subjectData.source_course_id as {exam_dates?: Record<string, string>})?.exam_dates || {}) : {};
        
       const updatedDates = { ...existingDates, [label]: formatOutputDate(date) };
 
@@ -392,7 +404,7 @@ export default function SubjectsPage() {
   /* -------------------------------------------------------------------------- */
 
   async function handleCreateCategory() {
-    if (!newCategoryName.trim() || !profileId) return
+    if (!newCategoryName.trim() || !profileId || !supabaseClient) return
     await supabaseClient
       .from('subject_categories')
       .insert([{
@@ -406,7 +418,7 @@ export default function SubjectsPage() {
   }
 
   async function handleDeleteCategory(id: string) {
-    if (!profileId) return
+    if (!profileId || !supabaseClient) return
     // Setting subjects with this category to NULL category first (handled conditionally by FK constraint IF ON DELETE SET NULL, but doing it safely anyway)
     await supabaseClient.from('subjects').update({ category_id: null }).eq('category_id', id)
     await supabaseClient.from('subject_categories').delete().eq('id', id)
@@ -438,25 +450,6 @@ export default function SubjectsPage() {
 
   const academicSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'academic'), [filteredSubjects])
   const personalSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'personal'), [filteredSubjects])
-
-  // Group personal subjects by category
-  const personalByCategory = useMemo(() => {
-    const grouped = new Map<string, any[]>()
-    
-    // Initialize map with all known categories
-    categories.forEach(c => grouped.set(c.id, []))
-    grouped.set('uncategorized', []) // Default group
-
-    personalSubjects.forEach(sub => {
-      if (sub.category_id && grouped.has(sub.category_id)) {
-        grouped.get(sub.category_id)!.push(sub)
-      } else {
-        grouped.get('uncategorized')!.push(sub)
-      }
-    })
-
-    return grouped
-  }, [personalSubjects, categories])
 
   if (loading && subjects.length === 0) {
     return (
@@ -574,11 +567,14 @@ export default function SubjectsPage() {
                 <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
                   <SubjectGridCard 
                     subject={sub} 
-                    onEdit={() => setEditingSubject({
-                      ...sub, 
-                      instructor_name: sub.source_course_id?.instructor_name || "",
-                      expected_total_lectures: sub.source_course_id?.expected_total_lectures || sub.expected_total_lectures || 0
-                    })}
+                    onEdit={() => {
+                      const sourceCourse = getSourceCourse(sub.source_course_id)
+                      setEditingSubject({
+                        ...sub, 
+                        instructor_name: sourceCourse?.instructor_name || sub.instructor_name || "",
+                        expected_total_lectures: sourceCourse?.expected_total_lectures || sub.expected_total_lectures || 0
+                      })
+                    }}
                     onDelete={() => setSubjectToDelete(sub)}
                     onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
                   />
@@ -818,7 +814,7 @@ export default function SubjectsPage() {
                 <>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
-                    <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: e.target.value})} className="bg-muted/30" />
+                    <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: Number(e.target.value) || 0})} className="bg-muted/30" />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Color Identity</Label>
@@ -899,7 +895,7 @@ export default function SubjectsPage() {
                   {categories.map(cat => (
                     <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
                       <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full shadow-sm" style={hexToGradient(cat.color_hex)} />
+                        <div className="w-4 h-4 rounded-full shadow-sm" style={hexToGradient(cat.color_hex ?? '#8b5cf6')} />
                         <span className="font-bold text-sm tracking-tight">{cat.name}</span>
                       </div>
                       <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(cat.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg">

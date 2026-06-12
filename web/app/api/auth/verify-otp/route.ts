@@ -3,18 +3,31 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
-const EDGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/auth?action=verify`
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set',
+        },
+        { status: 500 }
+      )
+    }
+
+    const edgeUrl = `${supabaseUrl}/functions/v1/auth?action=verify`
 
     // Use ANON KEY — the function verifies JWT generation logic internally
-    const res = await fetch(EDGE_URL, {
+    const res = await fetch(edgeUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${supabaseAnonKey}`,
       },
       body: JSON.stringify(body),
     })

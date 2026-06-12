@@ -8,11 +8,10 @@ import { useState } from 'react'
 import { motion } from "motion/react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar as CalIcon, X, Plus } from "lucide-react"
+import { Calendar as CalIcon } from "lucide-react"
+import { getSourceCourse } from "@/lib/source-course"
 function hexToAccentStyle(hex: string) {
   if (!hex) return {}
   return {
@@ -20,12 +19,36 @@ function hexToAccentStyle(hex: string) {
   }
 }
 
-export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExamDate }: { subject: any, category?: any, onEdit?: () => void, onDelete?: () => void, onAddExamDate?: (label: string, date: Date) => void }) {
+interface SubjectRecord {
+  id: string
+  name: string
+  type: string
+  color_hex?: string
+  label?: string
+  instructor_name?: string
+  source_course_id?:
+    | {
+        instructor_name?: string
+        exam_dates?: Record<string, string>
+      }
+    | Array<{
+        instructor_name?: string
+        exam_dates?: Record<string, string>
+      }>
+    | null
+}
+
+interface CategoryRecord {
+  id: string
+  name: string
+}
+
+export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExamDate }: { subject: SubjectRecord, category?: CategoryRecord, onEdit?: () => void, onDelete?: () => void, onAddExamDate?: (label: string, date: Date) => void }) {
   const [isExamModalOpen, setIsExamModalOpen] = useState(false)
   const [examLabel, setExamLabel] = useState("")
   const [examDate, setExamDate] = useState<Date | null>(null)
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const router = useRouter()
+  const sourceCourse = getSourceCourse(subject.source_course_id)
 
   const handleCardClick = () => {
     router.push(`/dashboard/subjects/${subject.id}`)
@@ -108,7 +131,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
             <>
               <User className="w-4 h-4 opacity-70 shrink-0" />
               <span className="truncate">
-                {subject.source_course_id?.instructor_name || subject.instructor_name || "No Instructor set"}
+                {sourceCourse?.instructor_name || subject.instructor_name || "No Instructor set"}
               </span>
             </>
           ) : (
@@ -119,11 +142,11 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
         </div>
 
         {/* Exam Dates Section */}
-        {subject.type === 'academic' && subject.source_course_id?.exam_dates && (
+        {subject.type === 'academic' && sourceCourse?.exam_dates && (
           <div className="mb-4 space-y-1.5 ">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Upcoming Exams</p>
             <div className="flex flex-wrap gap-1.5">
-              {Object.entries(subject.source_course_id.exam_dates).map(([label, date]: [string, any]) => (
+              {Object.entries(sourceCourse.exam_dates).map(([label, date]) => (
                 <div key={label} className="bg-primary/5 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1.5">
                   <span className="text-[10px] font-bold text-primary">{label}</span>
                   <span className="text-[10px] text-muted-foreground">{new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>

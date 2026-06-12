@@ -12,9 +12,7 @@ import {
   endOfWeek, 
   eachDayOfInterval, 
   isSameMonth, 
-  isSameDay, 
-  isToday,
-  parseISO
+  isToday
 } from "date-fns"
 import { 
   ChevronLeft, 
@@ -28,7 +26,6 @@ import {
   Trophy,
   Target,
   Clock,
-  Plus,
   Trash2,
   CalendarDays
 } from "lucide-react"
@@ -38,10 +35,33 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import Link from "next/link"
-import { motion, AnimatePresence } from "motion/react"
+import { motion } from "motion/react"
 import { haptic } from "@/lib/haptic"
 
-export function SubjectDetailContent({ subject, attendanceLogs, profile, token }: { subject: any, attendanceLogs: any[], profile: any, token: string }) {
+interface SubjectCourse {
+  instructor_name?: string
+}
+
+interface SubjectData {
+  id: string
+  name: string
+  color_hex?: string
+  source_course_id?: SubjectCourse
+}
+
+interface AttendanceLog {
+  id: string
+  status: string
+  lecture_date: string
+  created_at: string
+}
+
+interface ProfileData {
+  id: string
+  target_attendance_pct: number
+}
+
+export function SubjectDetailContent({ subject, attendanceLogs, profile, token }: { subject: SubjectData, attendanceLogs: AttendanceLog[], profile: ProfileData, token: string }) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -69,7 +89,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
     const total = present + absent + deemed
     const pct = total > 0 ? Math.round(((present + deemed) / total) * 100) : 0
     return { present, absent, deemed, total, pct }
-  }, [logs, subject])
+  }, [logs])
 
   const nextMonth = () => { haptic(); setCurrentDate(addMonths(currentDate, 1)); }
   const prevMonth = () => { haptic(); setCurrentDate(subMonths(currentDate, 1)); }
@@ -103,8 +123,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
       if (error) throw error
       setLogs(prev => [...prev, newLog])
       toast.success(`Added ${status} lecture`)
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e))
     } finally {
       setIsUpdating(false)
     }
@@ -123,8 +143,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
       if (error) throw error
       setLogs(prev => prev.filter(l => l.id !== id))
       toast.info("Lecture record removed")
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e))
     } finally {
       setIsUpdating(false)
     }

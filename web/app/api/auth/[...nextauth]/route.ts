@@ -5,8 +5,6 @@
 import NextAuth, { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
-const VERIFY_EDGE_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/auth?action=verify`
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -25,8 +23,13 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Guard against missing env var (fail fast with clear message)
-          if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-            throw new Error('Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL is not set')
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+          const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+          if (!supabaseUrl || !supabaseAnonKey) {
+            throw new Error(
+              'Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set'
+            )
           }
 
           // Normalize phone number (remove spaces) to match what request-otp does
@@ -34,12 +37,12 @@ export const authOptions: NextAuthOptions = {
 
           // Delegate verification to the Supabase edge function
           // (SERVICE_ROLE_KEY and JWT_SECRET live only in the edge runtime)
-          const res = await fetch(VERIFY_EDGE_URL, {
+          const res = await fetch(`${supabaseUrl}/functions/v1/auth?action=verify`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              Authorization: `Bearer ${supabaseAnonKey}`,
+              apikey: supabaseAnonKey,
             },
             body: JSON.stringify({ phone_number: cleanPhone, otp }),
           })
@@ -67,10 +70,10 @@ export const authOptions: NextAuthOptions = {
             phone: data.phone_number, // Use normalized phone from Edge Function
             supabaseToken: data.token,
           }
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Re-throw so the message is preserved in result.error on the client
-          // Without this, NextAuth turns ANY exception into error=Configuration
-          throw new Error(err.message ?? 'Authentication failed')
+          const message = err instanceof Error ? err.message : 'Authentication failed'
+          throw new Error(message)
         }
       },
     }),

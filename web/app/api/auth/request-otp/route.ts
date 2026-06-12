@@ -3,9 +3,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 
-// Update logic: point to 'auth' function with action=request
-const EDGE_FN_URL = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/auth?action=request`
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -29,14 +26,28 @@ export async function POST(req: NextRequest) {
 
     // Normalize for Edge Function
     const cleanPhone = `+${digits}`
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return NextResponse.json(
+        {
+          error:
+            'Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set',
+        },
+        { status: 500 }
+      )
+    }
+
+    const edgeFnUrl = `${supabaseUrl}/functions/v1/auth?action=request`
 
     // Call edge function
     // Use ANON KEY — the function itself has service role access internally to write to DB
-    const res = await fetch(EDGE_FN_URL, {
+    const res = await fetch(edgeFnUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${supabaseAnonKey}`,
       },
       body: JSON.stringify({ phone_number: cleanPhone }),
     })

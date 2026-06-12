@@ -35,10 +35,10 @@ function Calendar({
   onSelect,
   defaultMonth,
   className,
-  classNames,
-  mode,
-  captionLayout,
-  initialFocus,
+  classNames: _classNames,
+  mode: _mode,
+  captionLayout: _captionLayout,
+  initialFocus: _initialFocus,
   ...props
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = React.useState(defaultMonth || selected || new Date())
