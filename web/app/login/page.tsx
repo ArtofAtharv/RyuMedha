@@ -8,7 +8,8 @@ import { ArrowRight, Check, ChevronDown, Loader2, MessageCircle } from 'lucide-r
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp'
+import Image from 'next/image'
 import { Label } from '@/components/ui/label'
 import {
   DropdownMenu,
@@ -41,14 +42,6 @@ const COUNTRIES: CountryOption[] = [
 function maxDigits(country: CountryOption) {
   return country.groups.reduce((t, g) => t + g, 0)
 }
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import Image from 'next/image'
 
 function onlyDigits(value: string, max = 15) {
   return value.replace(/\D/g, '').slice(0, max)
@@ -255,69 +248,52 @@ function LoginPageInner() {
   }
 
   return (
-    <main className="flex items-center justify-center px-4 py-16 bg-background text-foreground">
+    <main className="flex items-center justify-center px-4 py-16 bg-background text-foreground min-h-[85vh]">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[340px] flex flex-col items-center gap-7"
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-[380px] flex flex-col items-center gap-6"
       >
-        {/* Brand block — Apple-style: logo + name stacked, nothing else */}
-        <div className="flex flex-col items-center gap-3">
-          {/* Logo: fully rounded, no shadow/glow */}
-          <div className="flex h-[60px] w-[60px] items-center justify-center rounded-[20px] bg-primary text-primary-foreground text-2xl font-bold select-none">
-            R
-          </div>
-          {/* Brand name: bold, slightly larger, plain foreground */}
-          <span className="text-[17px] font-bold tracking-tight text-foreground">
+        {/* Brand block — Sleek, modern logo + name stacked */}
+        <div className="flex flex-col items-center gap-2 text-center select-none">
+          <Image
+            src="/badge.png"
+            alt="Ryu Medha Logo"
+            width={64}
+            height={64}
+            className="rounded-full invert dark:invert-0 transition-all duration-300 hover:scale-105 hover:rotate-3 shadow-md"
+            priority
+          />
+          <span className="text-3xl font-normal tracking-tight font-playball text-foreground mt-1">
             Ryu Medha
           </span>
+          <p className="text-[13px] text-muted-foreground/80 font-medium">
+            Your academics, always within reach.
+          </p>
         </div>
 
         {/* Card */}
-        <div className="w-full rounded-[20px] border border-border/60 bg-card overflow-hidden">
+        <div className="w-full rounded-[24px] border border-border/50 bg-card/60 backdrop-blur-md shadow-xl overflow-hidden">
           <AnimatePresence mode="wait" initial={false}>
-          {/* ── Brand ── */}
-          <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-            className="text-center space-y-3"
-          >
-            <div className="flex flex-col items-center gap-2.5 group">
-            <Image
-              src="/badge.png"
-              alt="Ryu Medha"
-              width={56}
-              height={56}
-              className="rounded-full invert dark:invert-0"
-            />
-            <span className="text-3xl tracking-tight font-playball">Ryu Medha</span>
-          </div>
-              <p className="text-sm text-muted-foreground mt-1">
-                Your academics, always within reach.
-              </p>
-          </motion.div>
-
             {/* ── Phone step ── */}
             {step === 'phone' && (
               <motion.form
                 key="phone"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 onSubmit={handleRequestOTP}
                 noValidate
-                className="px-8 py-8 flex flex-col gap-6"
+                className="px-6 py-7 sm:px-8 sm:py-8 flex flex-col gap-5"
               >
-                {/* Heading — Apple puts a clear title at the top of the card */}
                 <div className="flex flex-col gap-1 text-center">
-                  <h1 className="text-[22px] font-semibold tracking-tight text-foreground leading-snug">
-                    Sign in to Ryu Medha
-                  </h1>
+                  <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
+                    Sign In
+                  </h2>
                   <p className="text-[13px] text-muted-foreground leading-relaxed">
-                    Enter your WhatsApp number to receive a one-time code.
+                    Enter your WhatsApp number to receive a secure login code.
                   </p>
                 </div>
 
@@ -325,37 +301,36 @@ function LoginPageInner() {
                 <div className="flex flex-col gap-1.5">
                   <Label
                     htmlFor="phone"
-                    className="text-[12px] font-medium text-muted-foreground pl-0.5"
+                    className="text-[12px] font-medium text-muted-foreground/90 pl-0.5"
                   >
                     WhatsApp Number
                   </Label>
 
-                  {/* Input row — subtle border, no shadows */}
                   <div className={[
-                    'flex items-center rounded-[12px] border bg-background transition-all duration-150',
+                    'flex items-center rounded-xl border bg-background/50 transition-all duration-200',
                     showPhoneError
-                      ? 'border-destructive'
-                      : 'border-border focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10',
+                      ? 'border-destructive ring-1 ring-destructive/20'
+                      : 'border-border focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/15 focus-within:bg-background',
                   ].join(' ')}>
                     {/* Country picker */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild disabled={loading}>
                         <button
                           type="button"
-                          className="flex items-center gap-1 pl-3 pr-2 py-3.5 border-r border-border/60 rounded-l-[12px] font-mono text-[14px] text-foreground outline-none hover:bg-muted/40 transition-colors disabled:opacity-50 disabled:pointer-events-none shrink-0"
+                          className="flex items-center gap-1.5 pl-3 pr-2.5 py-3 border-r border-border/60 rounded-l-xl font-mono text-[14px] text-foreground outline-none hover:bg-muted/40 transition-colors disabled:opacity-50 disabled:pointer-events-none shrink-0"
                           aria-label="Select country"
                         >
                           <span className="text-[15px] leading-none">{country.flag}</span>
                           <span>+{country.code}</span>
-                          <ChevronDown className="h-3 w-3 text-muted-foreground ml-0.5" />
+                          <ChevronDown className="h-3 w-3 text-muted-foreground/80 ml-0.5" />
                         </button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48 rounded-2xl p-1.5">
+                      <DropdownMenuContent align="start" className="w-48 rounded-2xl p-1.5 shadow-lg border border-border/60">
                         {COUNTRIES.map((opt) => (
                           <DropdownMenuItem
                             key={opt.code}
                             onSelect={() => handleCountryChange(opt.code)}
-                            className="flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer"
+                            className="flex items-center gap-2 rounded-xl px-3 py-2 cursor-pointer focus:bg-primary/5 focus:text-primary"
                           >
                             <span className="text-sm leading-none">{opt.flag}</span>
                             <span className="text-sm font-medium">{opt.label}</span>
@@ -380,27 +355,26 @@ function LoginPageInner() {
                   {/* Inline hint / error */}
                   <div className="min-h-[16px] pl-0.5">
                     {showPhoneError ? (
-                      <p className="text-[12px] text-destructive">{phoneValidation.message}</p>
+                      <p className="text-[12px] text-destructive font-medium">{phoneValidation.message}</p>
                     ) : digits ? (
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-[12px] text-muted-foreground/90">
                         Code will be sent to {displayPhone}
                       </p>
                     ) : null}
                   </div>
                 </div>
 
-                {/* Server error */}
                 {error && (
-                  <Alert variant="destructive" className="rounded-xl py-2.5">
-                    <AlertDescription className="text-[13px]">{error}</AlertDescription>
+                  <Alert variant="destructive" className="rounded-xl py-2.5 border-destructive/20 bg-destructive/5">
+                    <AlertDescription className="text-[13px] font-medium">{error}</AlertDescription>
                   </Alert>
                 )}
 
-                {/* CTA — full-width pill, Apple blue equivalent = primary */}
+                {/* CTA */}
                 <Button
                   type="submit"
                   disabled={loading || !phoneValidation.valid}
-                  className="h-11 w-full rounded-full font-semibold text-[15px]"
+                  className="h-11 w-full rounded-xl font-semibold text-[14px] shadow-sm cursor-pointer transition-all active:scale-[0.98]"
                 >
                   {loading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending…</>
@@ -409,14 +383,14 @@ function LoginPageInner() {
                   )}
                 </Button>
 
-                {/* Create account link — Apple always has this below the button */}
-                <p className="text-center text-[13px] text-muted-foreground">
+                {/* Create account link */}
+                <p className="text-center text-[13px] text-muted-foreground/90">
                   Don't have an account?{' '}
                   <a
                     href="https://wa.me/message/P4QSZGK7MV2PL1"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary font-medium hover:underline"
+                    className="text-primary font-semibold hover:underline"
                   >
                     Create one
                   </a>
@@ -428,21 +402,20 @@ function LoginPageInner() {
             {step === 'otp' && (
               <motion.form
                 key="otp"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
                 onSubmit={handleVerifyOTP}
                 noValidate
-                className="px-8 py-8 flex flex-col gap-6"
+                className="px-6 py-7 sm:px-8 sm:py-8 flex flex-col gap-5"
               >
                 <div className="flex flex-col gap-1 text-center">
-                  <h1 className="text-[22px] font-semibold tracking-tight text-foreground leading-snug">
-                    Enter verification code
-                  </h1>
+                  <h2 className="text-[19px] font-semibold tracking-tight text-foreground">
+                    Verify Code
+                  </h2>
                   <p className="text-[13px] text-muted-foreground leading-relaxed">
-                    Sent to{' '}
-                    <span className="text-foreground font-medium">{displayPhone}</span>
+                    Enter the 6-digit code sent to <span className="text-foreground font-semibold">{displayPhone}</span>
                   </p>
                 </div>
 
@@ -454,78 +427,79 @@ function LoginPageInner() {
                     onChange={(v) => { setOtp(onlyDigits(v, 6)); if (error) setError('') }}
                     disabled={loading || expired}
                     onBlur={() => setOtpTouched(true)}
+                    containerClassName="justify-center"
                     autoFocus
                   >
-                    <InputOTPGroup className="grid grid-cols-6 gap-1.5">
-                      {[0, 1, 2, 3, 4, 5].map((i) => (
-                        <InputOTPSlot
-                          key={i}
-                          index={i}
-                          className="h-11 w-full rounded-[10px] border-border/70 bg-background text-[16px]"
-                        />
-                      ))}
+                    <InputOTPGroup className="gap-2">
+                      <InputOTPSlot index={0} className="h-12 w-10 sm:h-13 sm:w-11 rounded-xl border border-border/80 bg-background text-lg font-semibold transition-all duration-200" />
+                      <InputOTPSlot index={1} className="h-12 w-10 sm:h-13 sm:w-11 rounded-xl border border-border/80 bg-background text-lg font-semibold transition-all duration-200" />
+                      <InputOTPSlot index={2} className="h-12 w-10 sm:h-13 sm:w-11 rounded-xl border border-border/80 bg-background text-lg font-semibold transition-all duration-200" />
+                    </InputOTPGroup>
+                    <InputOTPSeparator className="text-muted-foreground/35 mx-0.5 shrink-0" />
+                    <InputOTPGroup className="gap-2">
+                      <InputOTPSlot index={3} className="h-12 w-10 sm:h-13 sm:w-11 rounded-xl border border-border/80 bg-background text-lg font-semibold transition-all duration-200" />
+                      <InputOTPSlot index={4} className="h-12 w-10 sm:h-13 sm:w-11 rounded-xl border border-border/80 bg-background text-lg font-semibold transition-all duration-200" />
+                      <InputOTPSlot index={5} className="h-12 w-10 sm:h-13 sm:w-11 rounded-xl border border-border/80 bg-background text-lg font-semibold transition-all duration-200" />
                     </InputOTPGroup>
                   </InputOTP>
 
                   {/* Timer / expired / error */}
                   <div className="min-h-[16px] text-center">
                     {showOtpError ? (
-                      <p className="text-[12px] text-destructive">Enter the 6-digit code.</p>
+                      <p className="text-[12px] text-destructive font-medium">Enter the 6-digit code.</p>
                     ) : expired ? (
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-[12px] text-muted-foreground/90">
                         Code expired.{' '}
-                        <button type="button" onClick={handleBack} className="text-primary font-medium hover:underline">
-                          Request a new one
+                        <button type="button" onClick={handleBack} className="text-primary font-semibold hover:underline">
+                          Request new code
                         </button>
                       </p>
                     ) : (
-                      <p className="text-[12px] text-muted-foreground">
+                      <p className="text-[12px] text-muted-foreground/90">
                         Expires in{' '}
-                        <span className="font-mono text-foreground font-medium">{formatTime(countdown)}</span>
+                        <span className="font-mono text-foreground font-semibold">{formatTime(countdown)}</span>
                       </p>
                     )}
                   </div>
                 </div>
 
                 {error && (
-                  <Alert variant="destructive" className="rounded-xl py-2.5">
-                    <AlertDescription className="text-[13px]">{error}</AlertDescription>
+                  <Alert variant="destructive" className="rounded-xl py-2.5 border-destructive/20 bg-destructive/5">
+                    <AlertDescription className="text-[13px] font-medium">{error}</AlertDescription>
                   </Alert>
                 )}
 
                 <Button
                   type="submit"
                   disabled={loading || !otpValid || expired}
-                  className="h-11 w-full rounded-full font-semibold text-[15px]"
+                  className="h-11 w-full rounded-xl font-semibold text-[14px] shadow-sm cursor-pointer transition-all active:scale-[0.98]"
                 >
                   {loading ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</>
                   ) : 'Sign in'}
                 </Button>
 
-                {/* Secondary actions — Apple-style text links below button */}
-                <div className="flex items-center justify-between text-[13px]">
+                {/* Secondary actions */}
+                <div className="flex items-center justify-between text-[13px] px-1">
                   <button
                     type="button"
                     onClick={handleBack}
-                    className="text-primary font-medium hover:underline"
+                    className="text-primary font-semibold hover:underline cursor-pointer"
                   >
                     Change number
                   </button>
                   <button
                     type="button"
                     onClick={handleBack}
-                    className="text-primary font-medium hover:underline"
+                    className="text-primary font-semibold hover:underline cursor-pointer"
                   >
                     Resend code
                   </button>
                 </div>
               </motion.form>
             )}
-
           </AnimatePresence>
         </div>
-        {/* Apple always ends with a simple legal/help line — keeping it minimal */}
       </motion.div>
 
       {/* ── Not-registered overlay ── */}
@@ -542,7 +516,7 @@ function LoginPageInner() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 10 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-[320px] rounded-[20px] border border-border bg-card px-8 py-8 text-center"
+              className="w-full max-w-[340px] rounded-3xl border border-border bg-card px-8 py-8 text-center shadow-2xl"
             >
               <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                 <MessageCircle className="h-6 w-6 text-primary" />
@@ -556,7 +530,7 @@ function LoginPageInner() {
               <div className="mt-6 flex flex-col gap-2.5">
                 <Button
                   onClick={() => window.open('https://wa.me/message/P4QSZGK7MV2PL1', '_blank')}
-                  className="h-11 w-full rounded-full text-[14px] font-semibold"
+                  className="h-11 w-full rounded-xl text-[14px] font-semibold cursor-pointer"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
                   Open WhatsApp
@@ -564,7 +538,7 @@ function LoginPageInner() {
                 <Button
                   variant="ghost"
                   onClick={() => setShowSignupOverlay(false)}
-                  className="h-10 w-full rounded-full text-[14px] text-muted-foreground"
+                  className="h-10 w-full rounded-xl text-[14px] text-muted-foreground cursor-pointer"
                 >
                   Go back
                 </Button>
