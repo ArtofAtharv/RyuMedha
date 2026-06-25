@@ -20,8 +20,8 @@ export default function DashboardLoading() {
 
           {/* 4 Cards Grid Skeleton */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mt-6">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="overflow-hidden">
+            {['skel-c-1', 'skel-c-2', 'skel-c-3', 'skel-c-4'].map((key) => (
+              <Card key={key} className="overflow-hidden">
                 <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
                   <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 rounded-full bg-muted animate-pulse" />
@@ -40,8 +40,8 @@ export default function DashboardLoading() {
           <div className="mt-8 space-y-4">
             <div className="h-20 w-full bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl border border-none rounded-xl animate-pulse" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(3)].map((_, i) => (
-                <Card key={i} className="h-32 bg-muted/20 animate-pulse border-border/50" />
+              {['skel-g-1', 'skel-g-2', 'skel-g-3'].map((key) => (
+                <Card key={key} className="h-32 bg-muted/20 animate-pulse border-border/50" />
               ))}
             </div>
           </div>

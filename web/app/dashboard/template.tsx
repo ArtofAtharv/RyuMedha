@@ -2,7 +2,7 @@
 
 import { m } from "motion/react"
 
-export default function DashboardTemplate({ children }: { children: React.ReactNode }) {
+export default function DashboardTemplate({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <m.div
       initial={{ opacity: 0 }}
