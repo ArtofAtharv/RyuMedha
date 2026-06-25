@@ -30,6 +30,20 @@ const itemVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 } }
 }
 
+// Type alias to avoid repeated union literals
+type PomoMode = 'pomodoro' | 'shortBreak' | 'longBreak'
+
+// Pure helper: compute elapsed seconds for a running/paused stopwatch
+function calcElapsedForTimer(timer: StudyTimer, syncedNow: number): number {
+  const start = new Date(timer.started_at).getTime()
+  const totalPauseSecs = timer.total_pause_seconds || 0
+  if (timer.pause_started_at) {
+    const pauseStart = new Date(timer.pause_started_at).getTime()
+    return Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
+  }
+  return Math.max(0, Math.floor((syncedNow - start) / 1000) - totalPauseSecs)
+}
+
 export default function TimersPage() {
   const { profile } = useProfile()
   const [activeTimer, setActiveTimer] = useState<StudyTimer | null>(null)
@@ -44,7 +58,7 @@ export default function TimersPage() {
 
   // Pomodoro State
   const [activePomodoroDB, setActivePomodoroDB] = useState<StudyTimer | null>(null)
-  const [pomoMode, setPomoMode] = useState<'pomodoro'|'shortBreak'|'longBreak'>('pomodoro')
+  const [pomoMode, setPomoMode] = useState<PomoMode>('pomodoro')
   const [pomoTimeLeft, setPomoTimeLeft] = useState(25 * 60)
   const [pomoIsActive, setPomoIsActive] = useState(false)
   
@@ -106,18 +120,7 @@ export default function TimersPage() {
     const activePomo = activeList?.find((t: StudyTimer) => t.timer_type === 'pomodoro') || null
     setActivePomodoroDB(activePomo)
 
-    if (activeSw) {
-      const start = new Date(activeSw.started_at).getTime()
-      const totalPauseSecs = activeSw.total_pause_seconds || 0
-      if (activeSw.pause_started_at) {
-        const pauseStart = new Date(activeSw.pause_started_at).getTime()
-        setElapsed(Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs))
-      } else {
-        setElapsed(Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs))
-      }
-    } else {
-      setElapsed(0)
-    }
+    setElapsed(activeSw ? calcElapsedForTimer(activeSw, getSyncedTime()) : 0)
 
     // Recent    // History
     const { data: hist } = await supabase
@@ -136,22 +139,15 @@ export default function TimersPage() {
       .eq('is_active', true)
       .order('name')
 
-    const subs = (rawSubs as DashboardSubject[] | null)?.filter((s) => {
-      if (s.type === 'personal') return true
-      return getSourceCourse(s.source_course_id)?.semester_id === profile?.current_semester_id
-    }) || []
+    const subs = (rawSubs as DashboardSubject[] | null)?.filter((s) => 
+      s.type === 'personal' || getSourceCourse(s.source_course_id)?.semester_id === profile?.current_semester_id
+    ) || []
     setSubjects(subs)
 
     const validSubjectIds = new Set(subs.map((s) => s.id))
     setHistory(((hist as StudyTimer[] | null) ?? []).filter((h) => validSubjectIds.has(h.subject_id)))
 
-    // We no longer hide active timers from other semesters.
-    // This ensures they can be stopped regardless of the current view.
-    if (subs && subs.length > 0 && !selectedSubject) {
-      // Find the first subject that the user is actually allowed to see
-      // Cannot reliably use profile context on first render inside fetching logic unless passed in
-      setSelectedSubject(subs[0].id) 
-    }
+    if (!selectedSubject && subs?.[0]) setSelectedSubject(subs[0].id)
   }, [getSyncedTime, profile?.current_semester_id, selectedSubject])
 
   useEffect(() => {
@@ -190,17 +186,41 @@ export default function TimersPage() {
     init()
   }, [fetchData])
 
-  const handlePomoModeSwitch = useCallback((mode: 'pomodoro'|'shortBreak'|'longBreak', force = false) => {
+  // Helper: set pomo time left based on current mode
+  const applyPomoModeTime = useCallback((mode: PomoMode, opts: typeof pomoDurationOpts) => {
+    if (mode === 'pomodoro') setPomoTimeLeft(opts.pomodoro * 60)
+    else if (mode === 'shortBreak') setPomoTimeLeft(opts.shortBreak * 60)
+    else setPomoTimeLeft(opts.longBreak * 60)
+  }, [])
+
+  const handlePomoModeSwitch = useCallback((mode: PomoMode, force = false) => {
     if (!force && activePomodoroDB && mode !== 'pomodoro') {
        toast.error("You have an active Pomodoro session running!")
        return
     }
     setPomoIsActive(false)
     setPomoMode(mode)
-    if (mode === 'pomodoro') setPomoTimeLeft(pomoDurationOpts.pomodoro * 60)
-    if (mode === 'shortBreak') setPomoTimeLeft(pomoDurationOpts.shortBreak * 60)
-    if (mode === 'longBreak') setPomoTimeLeft(pomoDurationOpts.longBreak * 60)
-  }, [activePomodoroDB, pomoDurationOpts])
+    applyPomoModeTime(mode, pomoDurationOpts)
+  }, [activePomodoroDB, pomoDurationOpts, applyPomoModeTime])
+
+  const savePomoSession = useCallback(async (dbRecord: StudyTimer) => {
+    if (!supabaseClient || !profileId) return
+    const now = new Date(getSyncedTime()).toISOString()
+    try {
+      const target = dbRecord.duration_seconds || (pomoDurationOpts.pomodoro * 60)
+      await supabaseClient.from('study_timers').update({
+        ended_at: now,
+        duration_seconds: target,
+        events: [...(dbRecord.events || []), { type: 'complete', timestamp: now }]
+      }).eq('id', dbRecord.id)
+      toast.success("Focus Session Complete! Data saved.")
+      setActivePomodoroDB(null)
+      fetchData(supabaseClient, profileId)
+    } catch (e) {
+      console.error("Failed to save Pomodoro session", e)
+      toast.error("Failed to save Pomodoro session")
+    }
+  }, [supabaseClient, profileId, getSyncedTime, pomoDurationOpts.pomodoro, fetchData])
 
   const handlePomoComplete = useCallback(async (passedDbRecord?: StudyTimer) => {
     if (!supabaseClient || !profileId) return
@@ -208,26 +228,11 @@ export default function TimersPage() {
     if (alarmAudio) {
       alarmAudio.play().catch((e: unknown) => console.log('Audio play failed', e))
     }
-    
+
     if (pomoMode === 'pomodoro') {
       const dbRecord = passedDbRecord || activePomodoroDB
       if (dbRecord) {
-        const now = new Date(getSyncedTime()).toISOString()
-        try {
-          const target = dbRecord.duration_seconds || (pomoDurationOpts.pomodoro * 60)
-          await supabaseClient.from('study_timers').update({
-            ended_at: now,
-            duration_seconds: target, 
-            events: [...(dbRecord.events || []), { type: 'complete', timestamp: now }]
-          }).eq('id', dbRecord.id)
-          
-          toast.success("Focus Session Complete! Data saved.")
-          setActivePomodoroDB(null)
-          fetchData(supabaseClient, profileId)
-        } catch (e) {
-          console.error("Failed to save Pomodoro session", e)
-          toast.error("Failed to save Pomodoro session")
-        }
+        await savePomoSession(dbRecord)
       } else {
         toast.info("Completed early Pomodoro fallback.")
       }
@@ -236,81 +241,52 @@ export default function TimersPage() {
       toast.success("Break Over! Back to work.")
       handlePomoModeSwitch('pomodoro', true)
     }
-  }, [alarmAudio, pomoMode, activePomodoroDB, getSyncedTime, supabaseClient, pomoDurationOpts.pomodoro, fetchData, profileId, handlePomoModeSwitch])
+  }, [alarmAudio, pomoMode, activePomodoroDB, supabaseClient, profileId, savePomoSession, handlePomoModeSwitch])
 
   // Live counter for active timer
   useEffect(() => {
     if (!activeTimer) return
-    
-    // If paused, we don't need to increment elapsed live
     if (activeTimer.pause_started_at) {
-      const start = new Date(activeTimer.started_at).getTime()
-      const pauseStart = new Date(activeTimer.pause_started_at).getTime()
-      const totalPauseSecs = activeTimer.total_pause_seconds || 0
-      const elapsed = Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (elapsed >= 0) setElapsed(elapsed)
+      setElapsed(calcElapsedForTimer(activeTimer, 0))
       return
     }
-
     const interval = setInterval(() => {
-      const start = new Date(activeTimer.started_at).getTime()
-      const totalPauseSecs = activeTimer.total_pause_seconds || 0
-      setElapsed(Math.max(0, Math.floor((Date.now() + clockOffset - start) / 1000) - totalPauseSecs))
+      setElapsed(calcElapsedForTimer(activeTimer, Date.now() + clockOffset))
     }, 1000)
     return () => clearInterval(interval)
   }, [activeTimer, clockOffset])
 
   // Pomodoro DB -> Local UI Sync
   useEffect(() => {
-    if (activePomodoroDB) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (!activePomodoroDB.is_synced) setPomoMode('pomodoro') // Enforce pomodoro mode if DB says it's running
-      if (activePomodoroDB.subject_id && !selectedSubject) {
-         setSelectedSubject(activePomodoroDB.subject_id)
-      }
+    if (!activePomodoroDB) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!activePomodoroDB.is_synced) setPomoMode('pomodoro')
+    if (activePomodoroDB.subject_id && !selectedSubject) setSelectedSubject(activePomodoroDB.subject_id)
       
-      const start = new Date(activePomodoroDB.started_at).getTime()
-      const totalPauseSecs = activePomodoroDB.total_pause_seconds || 0
-      const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
-      
-      if (activePomodoroDB.pause_started_at) {
-        setPomoIsActive(false)
-        const pauseStart = new Date(activePomodoroDB.pause_started_at).getTime()
-        const elapsed = Math.max(0, Math.floor((pauseStart - start) / 1000) - totalPauseSecs)
-        setPomoTimeLeft(Math.max(0, target - elapsed))
-      } else {
-        setPomoIsActive(true)
-        const elapsed = Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs)
-        setPomoTimeLeft(Math.max(0, target - elapsed))
-      }
-    }
+    const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
+    const elapsed = calcElapsedForTimer(activePomodoroDB, getSyncedTime())
+    setPomoIsActive(!activePomodoroDB.pause_started_at)
+    setPomoTimeLeft(Math.max(0, target - elapsed))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePomodoroDB, pomoDurationOpts.pomodoro, clockOffset])
 
   // Local/DB Pomodoro Interval
   useEffect(() => {
     if (!pomoIsActive) return
-    
     const interval = setInterval(() => {
       if (pomoMode === 'pomodoro' && activePomodoroDB) {
-          // DB driven countdown
-          const start = new Date(activePomodoroDB.started_at).getTime()
-          const totalPauseSecs = activePomodoroDB.total_pause_seconds || 0
-          const elapsed = Math.max(0, Math.floor((getSyncedTime() - start) / 1000) - totalPauseSecs)
-          const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
-          const left = target - elapsed
-          
-          if (left <= 0) {
-            setPomoTimeLeft(0)
-            setPomoIsActive(false)
-            handlePomoComplete(activePomodoroDB)
-          } else {
-            setPomoTimeLeft(left)
-          }
+        const target = activePomodoroDB.duration_seconds || (pomoDurationOpts.pomodoro * 60)
+        const left = target - calcElapsedForTimer(activePomodoroDB, getSyncedTime())
+        if (left <= 0) {
+          setPomoTimeLeft(0)
+          setPomoIsActive(false)
+          handlePomoComplete(activePomodoroDB)
+        } else {
+          setPomoTimeLeft(left)
+        }
       } else {
-          // Local break countdown
-          setPomoTimeLeft((prev) => prev <= 1 ? 0 : prev - 1)
+        setPomoTimeLeft((prev) => prev <= 1 ? 0 : prev - 1)
       }
     }, 1000)
     return () => clearInterval(interval)
@@ -501,9 +477,7 @@ export default function TimersPage() {
     setPomoDurationOpts(tempOpts)
     setIsSettingsModalOpen(false)
     setPomoIsActive(false)
-    if (pomoMode === 'pomodoro') setPomoTimeLeft(tempOpts.pomodoro * 60)
-    if (pomoMode === 'shortBreak') setPomoTimeLeft(tempOpts.shortBreak * 60)
-    if (pomoMode === 'longBreak') setPomoTimeLeft(tempOpts.longBreak * 60)
+    applyPomoModeTime(pomoMode, tempOpts)
     toast.success("Timer settings updated")
   }
 
@@ -574,17 +548,14 @@ export default function TimersPage() {
   const handlePomoSkip = async () => {
     if (!supabaseClient || !profileId) return
     setPomoIsActive(false)
-    if (pomoMode === 'pomodoro' && activePomodoroDB) {
+    const isActivePomodoroMode = pomoMode === 'pomodoro' && activePomodoroDB
+    if (isActivePomodoroMode) {
        await supabaseClient.from('study_timers').delete().eq('id', activePomodoroDB.id)
        setActivePomodoroDB(null)
        toast.info("Pomodoro discarded and deleted.")
        fetchData(supabaseClient, profileId)
-       handlePomoModeSwitch('shortBreak', true)
-    } else if (pomoMode === 'pomodoro') {
-       handlePomoModeSwitch('shortBreak', true)
-    } else {
-       handlePomoModeSwitch('pomodoro', true)
     }
+    handlePomoModeSwitch(pomoMode === 'pomodoro' ? 'shortBreak' : 'pomodoro', true)
   }
 
   // -------------------------
@@ -814,7 +785,7 @@ export default function TimersPage() {
                               <div>
                                 <p className="font-semibold">{h.subjects?.name}</p>
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {h.ended_at ? new Date(h.ended_at).toLocaleDateString() : '—'} at {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}
+                                  {h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Active'} at {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Now'}
                                 </div>
                               </div>
                               <div className="flex items-center gap-3">
@@ -948,7 +919,7 @@ function HistoryList({ history, profile, formatTime, openEditModal, deleteTimer 
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                 <span>{new Date(h.started_at).toLocaleDateString()}</span>
                 <span>•</span>
-                <span>{new Date(h.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</span>
+                <span>{new Date(h.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Now'}</span>
               </div>
               {(h.total_pause_seconds ?? 0) > 0 && (
                 <p className="text-[10px] text-muted-foreground font-medium mt-0.5 border bg-muted/50 px-1.5 py-0.5 rounded-sm inline-block">

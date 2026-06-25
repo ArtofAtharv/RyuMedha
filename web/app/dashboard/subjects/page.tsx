@@ -9,9 +9,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Trash2, FolderOpen, BookOpen, Plus, Folder, Check, ChevronDown } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
 import { m, Variants } from "motion/react"
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
@@ -654,6 +653,7 @@ export default function SubjectsPage() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
           <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
             <DialogTitle>Add New Subject</DialogTitle>
+            <DialogDescription className="sr-only">Add a new academic or personal subject to your curriculum</DialogDescription>
           </DialogHeader>
           <div className="p-6 max-h-[75vh] overflow-y-auto">
             <form onSubmit={handleAddSubject} className="grid grid-cols-1 gap-4">
@@ -672,56 +672,56 @@ export default function SubjectsPage() {
                     <div className="space-y-2">
                       <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
                       
-                      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} >
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
-                            {selectedCourseIds.length > 0 
-                              ? `${selectedCourseIds.length} course(s) selected` 
-                              : "Select academic courses..."}
-                            <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="min-w-full p-0" align="start">
-                          <div className="p-2 border-b bg-muted/20">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
+                      <div className="space-y-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setIsPopoverOpen(!isPopoverOpen)} 
+                          className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3 cursor-pointer"
+                        >
+                          {selectedCourseIds.length > 0 
+                            ? `${selectedCourseIds.length} course(s) selected` 
+                            : "Select academic courses..."}
+                          <ChevronDown className={`w-4 h-4 ml-2 opacity-50 transition-transform duration-200 ${isPopoverOpen ? "rotate-180" : ""}`} />
+                        </Button>
+                        
+                        {isPopoverOpen && (
+                          <div className="border border-border/50 rounded-xl bg-card shadow-sm overflow-hidden animate-in fade-in-50 duration-200">
+                            <div className="p-2 border-b bg-muted/20 flex justify-between items-center">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
+                              <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] font-bold px-2 tracking-wider uppercase cursor-pointer" onClick={() => setIsPopoverOpen(false)}>
+                                Done
+                              </Button>
+                            </div>
+                            <div className="max-h-60 overflow-y-auto overscroll-contain touch-pan-y p-1.5">
+                              {availableCourses.length > 0 ? (
+                                sortedCourses.map(c => {
+                                  const isEnrolled = enrolledCourseIds.has(c.id)
+                                  const isSelected = selectedCourseIds.includes(c.id)
+                                  return (
+                                    <button 
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => toggleCourseSelection(c.id, isEnrolled)}
+                                      className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
+                                    >
+                                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
+                                        {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
+                                      </div>
+                                      <div className="flex flex-col truncate">
+                                        <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
+                                        {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
+                                      </div>
+                                    </button>
+                                  )
+                                })
+                              ) : (
+                                <p className="text-xs text-muted-foreground font-medium p-4 text-center">No shared courses found for your semester.</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="max-h-62.5 overflow-y-auto p-1">
-                            {availableCourses.length > 0 ? (
-                              sortedCourses.map(c => {
-                                const isEnrolled = enrolledCourseIds.has(c.id)
-                                const isSelected = selectedCourseIds.includes(c.id)
-                                return (
-                                  <button 
-                                    key={c.id}
-                                    type="button"
-                                    onClick={() => toggleCourseSelection(c.id, isEnrolled)}
-                                    className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
-                                  >
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
-                                      {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
-                                    </div>
-                                    <div className="flex flex-col">
-                                      <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
-                                      {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
-                                    </div>
-                                  </button>
-                                )
-                              })
-                            ) : (
-                              <p className="text-xs text-muted-foreground font-medium p-4 text-center">No shared courses found for your semester.</p>
-                            )}
-                          </div>
-                          <div className="p-2 border-t bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
-                            <Button variant="secondary" className="w-full text-[10px] font-bold uppercase tracking-wider h-10" onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setIsPopoverOpen(false);
-                            }}>
-                              Done
-                            </Button>
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                        )}
+                      </div>
                       {availableCourses.length === 0 && (
                         <p className="text-[10px] text-muted-foreground font-medium mb-2">
                           Be the first from this semester to add courses!
@@ -777,6 +777,7 @@ export default function SubjectsPage() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
           <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
             <DialogTitle>Edit Subject</DialogTitle>
+            <DialogDescription className="sr-only">Edit details of your curriculum subject</DialogDescription>
           </DialogHeader>
           {editingSubject && (
             <div className="space-y-4 px-6 pb-6 pt-4 max-h-[75vh] overflow-y-auto">
@@ -840,6 +841,7 @@ export default function SubjectsPage() {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <DialogTitle className="text-xl">Delete Subject?</DialogTitle>
+            <DialogDescription className="sr-only">Confirm deletion of this subject</DialogDescription>
           </DialogHeader>
           {subjectToDelete && (
             <div className="text-center space-y-4">
@@ -858,6 +860,7 @@ export default function SubjectsPage() {
         <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
           <DialogHeader className="pt-6 px-6 pb-2 border-b bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
             <DialogTitle>Manage Categories</DialogTitle>
+            <DialogDescription className="sr-only">Create and manage subject categories</DialogDescription>
           </DialogHeader>
           <div className="space-y-6 px-6 pb-6 pt-4">
             

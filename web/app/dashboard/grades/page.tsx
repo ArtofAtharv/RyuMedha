@@ -263,10 +263,10 @@ export default function GradesPage() {
     }
   })
 
-  const acadPct = acadMaxCurrent > 0 ? truncateDecimals((acadScoreCurrent / acadMaxCurrent) * 100) : "—"
-  const sgpaValue = sumCreditsCurrent > 0 ? truncateDecimals(sumCPCurrent / sumCreditsCurrent) : "—"
-  const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "—"
-  const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "—"
+  const acadPct = acadMaxCurrent > 0 ? truncateDecimals((acadScoreCurrent / acadMaxCurrent) * 100) : "0"
+  const sgpaValue = sumCreditsCurrent > 0 ? truncateDecimals(sumCPCurrent / sumCreditsCurrent) : "0"
+  const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "0"
+  const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "0"
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
@@ -326,7 +326,7 @@ export default function GradesPage() {
                     ) : (
                       <div className="flex items-center justify-between">
                         <p className="text-5xl font-bold">{sgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
-                        {sgpaValue !== "—" && (
+                        {Number(sgpaValue) > 0 && (
                           <div className="flex flex-col items-end pr-2">
                             <span className="text-xs uppercase tracking-wider font-bold text-white/80 mb-1">Grade</span>
                             <span className="text-4xl font-bold leading-none">{getLetterGradeFromGPA(Number(sgpaValue), maxGpa)}</span>

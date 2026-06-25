@@ -214,7 +214,7 @@ export function GradeSubjectCard({
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-0.5">Total Score</p>
             <p className="font-mono font-bold text-lg">
-              {totalObtained} <span className="text-muted-foreground text-sm">/ {totalMax || '-'}</span>
+              {totalObtained} <span className="text-muted-foreground text-sm">/ {totalMax || 0}</span>
             </p>
           </div>
           {totalMax > 0 && (

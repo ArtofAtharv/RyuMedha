@@ -66,6 +66,11 @@ function getSupabase(token: string) {
 
 export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, profileId, targetPct }: Readonly<{ initialData: AttendanceData[], subjectsInfo: SubjectInfo[], token: string, profileId: string, targetPct: number }>) {
   const [data, setData] = useState(initialData)
+  const [prevInitialData, setPrevInitialData] = useState(initialData)
+  if (initialData !== prevInitialData) {
+    setPrevInitialData(initialData)
+    setData(initialData)
+  }
   const [isUpdating, setIsUpdating] = useState(false)
   const router = useRouter()
   const { addXp, incrementCombo } = useGamification()
@@ -157,7 +162,7 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
         current_misses: currentMisses,
         remaining_lectures: remainingLectures
       }
-    }).sort((a, b) => a.attendance_percentage - b.attendance_percentage)
+    }).sort((a, b) => a.subject_name.localeCompare(b.subject_name))
   }, [data, subjectsInfo, calculateAdvice])
 
   const buildUpdatedRow = useCallback((item: AttendanceData, subjectId: string, isUndo: boolean, targetStatus: string) => {

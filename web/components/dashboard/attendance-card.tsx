@@ -1,6 +1,6 @@
 "use client"
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, XCircle, User, BookOpen, Fingerprint } from 'lucide-react'
+import { CheckCircle2, XCircle, User, BookOpen, Fingerprint, RotateCcw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { m } from "motion/react"
@@ -144,20 +144,22 @@ export function AttendanceCard({
 
         {/* Attendance Stats bar */}
         <div className="space-y-3 mt-auto">
-          <div className="flex justify-between text-sm font-medium text-muted-foreground">
-            <span className="flex items-center gap-1 text-green-600/80 dark:text-green-400/80">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              {present} Pres
-            </span>
-            <span className="flex items-center gap-1 text-destructive/80">
-              <XCircle className="h-3.5 w-3.5" />
-              {absent} Abs
-            </span>
-            <span className="flex items-center gap-1 text-blue-600/80 dark:text-blue-400/80">
-              <Fingerprint className="h-3.5 w-3.5" />
-              {deemed} Deem
-            </span>
-          </div>
+          {!onLog && (
+            <div className="flex justify-between text-sm font-medium text-muted-foreground">
+              <span className="flex items-center gap-1 text-green-600/80 dark:text-green-400/80">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                {present ?? 0} Pres
+              </span>
+              <span className="flex items-center gap-1 text-destructive/80">
+                <XCircle className="h-3.5 w-3.5" />
+                {absent ?? 0} Abs
+              </span>
+              <span className="flex items-center gap-1 text-blue-600/80 dark:text-blue-400/80">
+                <Fingerprint className="h-3.5 w-3.5" />
+                {deemed ?? 0} Deem
+              </span>
+            </div>
+          )}
 
           <div className="h-2 w-full rounded-full overflow-hidden bg-muted shadow-inner">
             <m.div
@@ -221,53 +223,58 @@ export function AttendanceCard({
 
           {/* Action Buttons */}
           {onLog && subjectId && (
-            <div className="flex gap-1.5 pt-3" onClick={(e) => e.stopPropagation()}>
-              <div className="flex flex-1 rounded-lg overflow-hidden border border-green-500/20">
+            <div className="grid grid-cols-3 gap-2 pt-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between pl-2.5 pr-1 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 shadow-sm transition-all hover:bg-emerald-500/20">
                 <button
                   onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'present'); }}
-                  className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-green-500/10 text-green-600 hover:bg-green-500/20 transition-colors"
-                  title="Mark Present"
+                  className="flex flex-col items-start flex-1 text-left select-none mr-1 focus:outline-none"
+                  title="Mark Present (+1)"
                 >
-                  Present
+                  <span className="text-[10px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 tracking-tight">Present</span>
+                  <span className="font-mono text-xs sm:text-sm font-bold text-emerald-800 dark:text-emerald-200">{present ?? 0}</span>
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_present'); }}
-                  className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/30 transition-colors border-l border-green-500/20"
-                  title="Undo Present"
+                  className="p-1.5 rounded-lg text-emerald-600/70 hover:text-emerald-800 dark:text-emerald-400/70 dark:hover:text-emerald-200 hover:bg-emerald-500/20 active:scale-95 transition-all focus:outline-none"
+                  title="Undo Present (-1)"
                 >
-                  -
+                  <RotateCcw className="h-3 w-3" />
                 </button>
               </div>
-              <div className="flex flex-1 rounded-lg overflow-hidden border border-red-500/20">
+
+              <div className="flex items-center justify-between pl-2.5 pr-1 py-1.5 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 shadow-sm transition-all hover:bg-rose-500/20">
                 <button
                   onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'absent'); }}
-                  className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors"
-                  title="Mark Absent"
+                  className="flex flex-col items-start flex-1 text-left select-none mr-1 focus:outline-none"
+                  title="Mark Absent (+1)"
                 >
-                  Absent
+                  <span className="text-[10px] sm:text-xs font-semibold text-rose-700 dark:text-rose-300 tracking-tight">Absent</span>
+                  <span className="font-mono text-xs sm:text-sm font-bold text-rose-800 dark:text-rose-200">{absent ?? 0}</span>
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_absent'); }}
-                  className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/30 transition-colors border-l border-red-500/20"
-                  title="Undo Absent"
+                  className="p-1.5 rounded-lg text-rose-600/70 hover:text-rose-800 dark:text-rose-400/70 dark:hover:text-rose-200 hover:bg-rose-500/20 active:scale-95 transition-all focus:outline-none"
+                  title="Undo Absent (-1)"
                 >
-                  -
+                  <RotateCcw className="h-3 w-3" />
                 </button>
               </div>
-              <div className="flex flex-1 rounded-lg overflow-hidden border border-blue-500/20">
+
+              <div className="flex items-center justify-between pl-2.5 pr-1 py-1.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 shadow-sm transition-all hover:bg-blue-500/20">
                 <button
                   onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'deemed'); }}
-                  className="flex-1 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs uppercase tracking-wider font-bold bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 transition-colors"
-                  title="Mark Deemed"
+                  className="flex flex-col items-start flex-1 text-left select-none mr-1 focus:outline-none"
+                  title="Mark Deemed (+1)"
                 >
-                  Deemed
+                  <span className="text-[10px] sm:text-xs font-semibold text-blue-700 dark:text-blue-300 tracking-tight">Deemed</span>
+                  <span className="font-mono text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-200">{deemed ?? 0}</span>
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_deemed'); }}
-                  className="px-2 sm:px-3 py-2 sm:py-2.5 lg:py-3 text-[10px] sm:text-xs font-bold bg-blue-500/20 text-blue-700 dark:text-blue-400 hover:bg-blue-500/30 transition-colors border-l border-blue-500/20"
-                  title="Undo Deemed"
+                  className="p-1.5 rounded-lg text-blue-600/70 hover:text-blue-800 dark:text-blue-400/70 dark:hover:text-blue-200 hover:bg-blue-500/20 active:scale-95 transition-all focus:outline-none"
+                  title="Undo Deemed (-1)"
                 >
-                  -
+                  <RotateCcw className="h-3 w-3" />
                 </button>
               </div>
             </div>

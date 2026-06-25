@@ -32,14 +32,14 @@ export function PersonalOverviewSection({
           <Card className="h-full bg-card/80 backdrop-blur-2xl hover:border-primary/50 transition-colors">
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
               <span className="flex items-center space-x-2">
-                <div className="p-1.5 rounded-md bg-accent/10 text-accent">
+                <div className="p-1.5 rounded-md bg-primary/10 text-primary">
                   <Target className="h-4 w-4" />
                 </div>
                 <CardTitle className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Score</CardTitle>
               </span>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-3xl font-bold mt-2">{data.personalScorePct === null ? '—' : `${data.personalScorePct}%`}</p>
+              <p className="text-3xl font-bold mt-2">{data.personalScorePct === null ? '0%' : `${data.personalScorePct}%`}</p>
               <p className="text-xs text-muted-foreground mt-1 font-medium">skill points</p>
             </CardContent>
           </Card>
@@ -73,7 +73,7 @@ export function PersonalOverviewSection({
               </span>
             </CardHeader>
             <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-3xl font-bold mt-2">{data.personalStudyTimeFormatted ? data.personalStudyTimeFormatted : '—'}</p>
+              <p className="text-3xl font-bold mt-2">{data.personalStudyTimeFormatted ? data.personalStudyTimeFormatted : '0m'}</p>
               <p className="text-xs text-muted-foreground mt-1 font-medium">invested time</p>
             </CardContent>
           </Card>
