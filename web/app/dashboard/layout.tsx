@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js"
 import { ProfileProvider, UserProfile } from "@/components/dashboard/profile-context"
 import { GamificationProvider } from "@/components/dashboard/gamification-context"
 
-export default async function DashboardLayout({ children }: { children: ReactNode }) {
+export default async function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
 
@@ -36,7 +36,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <DashboardNav />
 
           {/* Main Content Area */}
-          <div className="flex-1 pb-24 md:pb-0">
+          <div className="flex-1 pb-24">
             {children}
           </div>
         </div>

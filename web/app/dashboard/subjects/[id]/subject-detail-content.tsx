@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { getAppClient } from "@/lib/supabase-client"
 import { 
   format, 
   addMonths, 
@@ -35,7 +35,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import Link from "next/link"
-import { motion } from "motion/react"
+import { m } from "motion/react"
 import { haptic } from "@/lib/haptic"
 
 interface SubjectCourse {
@@ -61,15 +61,14 @@ interface ProfileData {
   target_attendance_pct: number
 }
 
-export function SubjectDetailContent({ subject, attendanceLogs, profile, token }: { subject: SubjectData, attendanceLogs: AttendanceLog[], profile: ProfileData, token: string }) {
+export function SubjectDetailContent({ subject, attendanceLogs, profile, token }: Readonly<{ subject: SubjectData, attendanceLogs: AttendanceLog[], profile: ProfileData, token: string }>) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
+  const supabase = useMemo(
+    () => getAppClient({ global: { headers: { Authorization: `Bearer ${token}` } } }),
+    [token]
   )
 
   const monthStart = startOfMonth(currentDate)
@@ -165,7 +164,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
             >
               <CalIcon className="w-5 h-5" />
             </div>
-            <h1 className="text-2xl font-black tracking-tight">{subject.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{subject.name}</h1>
           </div>
         </div>
 
@@ -175,21 +174,21 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
             <Card className="border-border/50 bg-card/40 backdrop-blur-xl rounded-[2.5rem] px-8 py-5 flex items-center justify-between">
               <div className="flex items-center gap-12">
                 <div className="flex items-center gap-3">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Goal</p>
-                  <p className="text-xl font-black text-primary">{profile.target_attendance_pct}%</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Goal</p>
+                  <p className="text-xl font-bold text-primary">{profile.target_attendance_pct}%</p>
                 </div>
                 
                 <div className="h-6 w-px bg-border/40" />
                 
                 <div className="flex items-center gap-3">
-                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Current</p>
-                  <p className={`text-xl font-black ${stats.pct >= profile.target_attendance_pct ? 'text-green-500' : 'text-destructive'}`}>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Current</p>
+                  <p className={`text-xl font-bold ${stats.pct >= profile.target_attendance_pct ? 'text-green-500' : 'text-destructive'}`}>
                     {stats.pct}%
                   </p>
                 </div>
               </div>
 
-              <Badge variant="outline" className={`font-black px-6 py-1.5 rounded-full whitespace-nowrap shadow-sm ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
+              <Badge variant="outline" className={`font-bold px-6 py-1.5 rounded-full whitespace-nowrap shadow-sm ${stats.pct >= profile.target_attendance_pct ? 'bg-green-500/10 text-green-600 border-green-500/20' : 'bg-destructive/10 text-destructive border-destructive/20'}`}>
                 {stats.pct >= profile.target_attendance_pct ? 'SAFE' : 'ACTION REQUIRED'}
               </Badge>
             </Card>
@@ -209,15 +208,15 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
             <CardContent className="space-y-6">
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-green-500/10 rounded-2xl p-3 text-center border border-green-500/20">
-                  <p className="text-2xl font-black text-green-600 dark:text-green-400">{stats.present}</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</p>
                   <p className="text-[10px] font-bold text-green-600/70 uppercase">Present</p>
                 </div>
                 <div className="bg-destructive/10 rounded-2xl p-3 text-center border border-destructive/20">
-                  <p className="text-2xl font-black text-destructive">{stats.absent}</p>
+                  <p className="text-2xl font-bold text-destructive">{stats.absent}</p>
                   <p className="text-[10px] font-bold text-destructive/70 uppercase">Absent</p>
                 </div>
                 <div className="bg-blue-500/10 rounded-2xl p-3 text-center border border-blue-500/20">
-                  <p className="text-2xl font-black text-blue-600 dark:text-blue-400">{stats.deemed}</p>
+                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.deemed}</p>
                   <p className="text-[10px] font-bold text-blue-600/70 uppercase">Deemed</p>
                 </div>
               </div>
@@ -228,14 +227,14 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   <span>{stats.pct}%</span>
                 </div>
                 <div className="h-3 w-full bg-muted rounded-full overflow-hidden shadow-inner p-0.5">
-                  <motion.div 
+                  <m.div 
                     className="h-full rounded-full bg-primary"
                     initial={{ width: 0 }}
                     animate={{ width: `${stats.pct}%` }}
-                    transition={{ type: "spring", stiffness: 100 }}
+                    transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
                   />
                 </div>
-                <p className="text-[10px] text-muted-foreground font-medium italic">
+                <p className="text-[10px] text-muted-foreground font-medium font-medium">
                   *Based on logged lectures only
                 </p>
               </div>
@@ -264,7 +263,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
           </Card>
 
           <Card className="border-primary/20 bg-primary/5 rounded-3xl overflow-hidden p-6">
-            <h3 className="text-sm font-black uppercase tracking-wider text-primary mb-2 flex items-center gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-primary mb-2 flex items-center gap-2">
               <Target className="w-4 h-4" /> Calendar Legend
             </h3>
             <div className="grid grid-cols-2 gap-3 mt-2">
@@ -289,7 +288,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
           <Card className="border-border/50 bg-card/40 backdrop-blur-xl rounded-[2.5rem] overflow-hidden">
             <CardHeader className="flex flex-row items-center justify-between p-6 sm:p-8 pb-4">
               <div>
-                <h2 className="text-xl sm:text-2xl font-black tracking-tight">{format(currentDate, 'MMMM yyyy')}</h2>
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{format(currentDate, 'MMMM yyyy')}</h2>
                 <p className="text-[10px] sm:text-xs text-muted-foreground font-bold tracking-widest uppercase">Attendance History</p>
               </div>
               <div className="flex gap-1 sm:gap-2">
@@ -306,7 +305,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
               <div className="hidden sm:block">
                 <div className="grid grid-cols-7 gap-6 mb-6">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/30">
+                    <div key={day} className="text-center text-[10px] font-bold uppercase tracking-[0.3em] text-muted-foreground/30">
                       {day}
                     </div>
                   ))}
@@ -344,19 +343,19 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     }
 
                     return (
-                      <motion.button
+                      <m.button
                         key={dateStr}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                       
+                       
                         onClick={() => { haptic(); setSelectedDay(day); }}
                         className={`
                           relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
-                          ${!isCurrentMonth ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+                          ${isCurrentMonth ? 'opacity-100' : 'opacity-0 pointer-events-none'}
                           ${cellClasses}
                           ${isTodayDate ? 'ring-2 ring-primary ring-offset-2 ring-offset-background z-20' : ''}
                         `}
                       >
-                        <p className={`text-2xl font-black ${textClasses}`}>
+                        <p className={`text-2xl font-bold ${textClasses}`}>
                           {format(day, 'd')}
                         </p>
                         {dayLogsForGrid.length > 0 && (
@@ -367,13 +366,13 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                         {isTodayDate && (
                           <div className="absolute top-2 right-3 flex items-center gap-1.5">
                             <span className="relative flex h-1.5 w-1.5">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                              <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-20"></span>
                               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
                             </span>
-                            <span className="text-[7px] font-black uppercase tracking-[0.2em] text-primary">TODAY</span>
+                            <span className="text-[7px] font-bold uppercase tracking-[0.2em] text-primary">TODAY</span>
                           </div>
                         )}
-                      </motion.button>
+                      </m.button>
                     )
                   })}
                 </div>
@@ -415,9 +414,9 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   }
 
                   return (
-                    <motion.button
+                    <m.button
                       key={dateStr}
-                      whileTap={{ scale: 0.95 }}
+                     
                       onClick={() => { haptic(); setSelectedDay(day); }}
                       className={`
                         relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
@@ -426,7 +425,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                       `}
                     >
                       <div className="flex flex-col items-center">
-                        <span className={`text-xl font-black ${textClasses}`}>
+                        <span className={`text-xl font-bold ${textClasses}`}>
                           {format(day, 'd')}
                         </span>
                         <span className="text-[8px] font-bold text-muted-foreground/50 uppercase tracking-widest -mt-1">
@@ -443,13 +442,13 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                       {isTodayDate && (
                         <div className="absolute top-1.5 right-2 flex items-center gap-1">
                           <span className="relative flex h-1 w-1">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-20"></span>
                             <span className="relative inline-flex rounded-full h-1 w-1 bg-primary"></span>
                           </span>
-                          <span className="text-[5px] font-black uppercase tracking-[0.2em] text-primary">TODAY</span>
+                          <span className="text-[5px] font-bold uppercase tracking-[0.2em] text-primary">TODAY</span>
                         </div>
                       )}
-                    </motion.button>
+                    </m.button>
                   )
                 })}
               </div>
@@ -468,7 +467,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   <CalendarDays className="w-6 h-6" />
                 </div>
                 <div>
-                  <DialogTitle className="text-xl font-black">{selectedDay ? format(selectedDay, 'EEEE, MMM do') : ''}</DialogTitle>
+                  <DialogTitle className="text-xl font-bold">{selectedDay ? format(selectedDay, 'EEEE, MMM do') : ''}</DialogTitle>
                   <DialogDescription className="font-medium">Manage lectures for this day</DialogDescription>
                 </div>
               </div>
@@ -477,7 +476,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
             <div className="space-y-4">
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
                 {dayLogs.length === 0 ? (
-                  <div className="text-center py-8 bg-muted/30 rounded-2xl border-2 border-dashed border-border/50">
+                  <div className="text-center py-8 bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl rounded-2xl border-none bg-card/60 backdrop-blur-2xl shadow-sm border-border/50">
                     <p className="text-sm font-bold text-muted-foreground">No lectures logged yet.</p>
                   </div>
                 ) : (
@@ -485,18 +484,20 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     {dayLogs.map((log, index) => (
                       <div key={log.id} className="flex items-center justify-between p-4 bg-background rounded-2xl border border-border/50 shadow-sm group">
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] font-black text-muted-foreground w-4">#{index + 1}</span>
-                          <Badge 
-                            variant="secondary" 
-                            className={`
-                              font-black uppercase text-[10px] tracking-widest px-2.5 py-1 rounded-lg
-                              ${log.status === 'present' ? 'bg-green-500/10 text-green-600' : 
-                                log.status === 'absent' ? 'bg-destructive/10 text-destructive' : 
-                                'bg-blue-500/10 text-blue-600'}
-                            `}
-                          >
-                            {log.status}
-                          </Badge>
+                          <span className="text-[10px] font-bold text-muted-foreground w-4">#{index + 1}</span>
+                          {(() => {
+                            let badgeClass = 'bg-blue-500/10 text-blue-600'
+                            if (log.status === 'present') badgeClass = 'bg-green-500/10 text-green-600'
+                            else if (log.status === 'absent') badgeClass = 'bg-destructive/10 text-destructive'
+                            return (
+                              <Badge
+                                variant="secondary"
+                                className={`font-bold uppercase text-[10px] tracking-widest px-2.5 py-1 rounded-lg ${badgeClass}`}
+                              >
+                                {log.status}
+                              </Badge>
+                            )
+                          })()}
                         </div>
                         <Button 
                           variant="ghost" 
@@ -513,7 +514,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
               </div>
 
               <div className="pt-4 border-t border-border/50">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3 text-center">Add New Lecture</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3 text-center">Add New Lecture</p>
                 <div className="grid grid-cols-3 gap-3">
                   <Button 
                     onClick={() => { haptic(); addAttendanceLog('present'); }}
@@ -521,7 +522,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     className="flex flex-col gap-1 h-16 rounded-2xl bg-green-500 hover:bg-green-600"
                   >
                     <CheckCircle2 className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase">Present</span>
+                    <span className="text-[10px] font-bold uppercase">Present</span>
                   </Button>
                   <Button 
                     onClick={() => { haptic(); addAttendanceLog('absent'); }}
@@ -529,7 +530,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     className="flex flex-col gap-1 h-16 rounded-2xl bg-destructive hover:bg-red-600 transition-colors"
                   >
                     <XCircle className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase">Absent</span>
+                    <span className="text-[10px] font-bold uppercase">Absent</span>
                   </Button>
                   <Button 
                     onClick={() => { haptic(); addAttendanceLog('deemed'); }}
@@ -537,13 +538,13 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     className="flex flex-col gap-1 h-16 rounded-2xl bg-blue-500 hover:bg-blue-600"
                   >
                     <Fingerprint className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase">Deemed</span>
+                    <span className="text-[10px] font-bold uppercase">Deemed</span>
                   </Button>
                 </div>
               </div>
             </div>
           </div>
-          <DialogFooter className="p-4 bg-muted/30 border-t border-border/50">
+          <DialogFooter className="p-4 bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl border-t border-border/50">
             <Button variant="ghost" onClick={() => { haptic(); setSelectedDay(null); }} className="w-full font-bold">Close</Button>
           </DialogFooter>
         </DialogContent>

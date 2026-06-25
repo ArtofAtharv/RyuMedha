@@ -18,15 +18,16 @@ import * as React from "react"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, m } from "motion/react"
 import { Check, ChevronRight, LogIn, LogOut, Moon, Phone, User, Palette, X } from "lucide-react"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/haptic"
+import Link from "next/link"
 
 /* ─── Color theme data & logic ─────────────────────────── */
 
-type ColorTheme = "neutral" | "violet" | "green" | "rose" | "orange"
+type ColorTheme = "neutral" | "violet" | "green" | "rose" | "orange" | "red"
 
 const STORAGE_KEY = "ryumedha-color-theme"
 
@@ -36,14 +37,16 @@ const THEMES: { value: ColorTheme; label: string; bg: string; ring: string }[] =
   { value: "green",   label: "Green",    bg: "bg-green-600",                   ring: "ring-green-500"  },
   { value: "rose",    label: "Rose",     bg: "bg-rose-600",                    ring: "ring-rose-500"   },
   { value: "orange",  label: "Orange",   bg: "bg-orange-500",                  ring: "ring-orange-400" },
+  { value: "red",     label: "Red",      bg: "bg-[#fa2d48]",                   ring: "ring-[#fa2d48]"  },   
+  
 ]
 
 function applyTheme(theme: ColorTheme) {
   const root = document.documentElement
   if (theme === "neutral") {
-    root.removeAttribute("data-theme")
+    delete root.dataset.theme
   } else {
-    root.setAttribute("data-theme", theme)
+    root.dataset.theme = theme
   }
   localStorage.setItem(STORAGE_KEY, theme)
 }
@@ -92,20 +95,20 @@ function ColorAccordion() {
           {/* Current swatch preview */}
           <span className={cn("h-3.5 w-3.5 rounded-full", currentTheme.bg)} />
           <span className="text-xs text-muted-foreground">{currentTheme.label}</span>
-          <motion.span
+          <m.span
             animate={{ rotate: open ? 90 : 0 }}
             transition={{ duration: 0.18, ease: "easeInOut" }}
             className="flex items-center"
           >
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-          </motion.span>
+          </m.span>
         </div>
       </button>
 
       {/* Expanded swatches */}
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
+          <m.div
             key="swatches"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -151,7 +154,7 @@ function ColorAccordion() {
                 ))}
               </div>
             </div>
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
     </div>
@@ -163,7 +166,7 @@ function ColorAccordion() {
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
-    const mq = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const mq = globalThis.matchMedia(`(max-width: ${breakpoint - 1}px)`)
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsMobile(mq.matches)
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
@@ -182,9 +185,9 @@ interface AccountSheetProps {
 
 /* ─── overlay backdrop ─────────────────────────────────── */
 
-function Backdrop({ onClick }: { onClick: () => void }) {
+function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
   return (
-    <motion.div
+    <m.div
       key="backdrop"
       className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-[2px]"
       initial={{ opacity: 0 }}
@@ -199,7 +202,7 @@ function Backdrop({ onClick }: { onClick: () => void }) {
 
 /* ─── shared sheet content ─────────────────────────────── */
 
-function SheetContent({ onClose }: { onClose: () => void }) {
+function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
   const { data: session, status } = useSession()
   const isAuthenticated = status === "authenticated"
   const user = session?.user
@@ -212,24 +215,35 @@ function SheetContent({ onClose }: { onClose: () => void }) {
     <div className="flex flex-col gap-0">
 
       {/* ── Identity card ─────────────────────────── */}
-      <div className="flex items-center gap-3 p-5 pb-4">
-        {/* Avatar */}
-        <div
-          className={cn(
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-semibold",
-            isAuthenticated
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
-          )}
-        >
-          {isAuthenticated && initials ? initials : <User className="h-5 w-5" />}
-        </div>
+      {isAuthenticated && user ? (
+        <>
+          {/* Section header row with close button on desktop */}
+          <div className="flex items-center justify-between px-5 pt-4 pb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Account
+            </p>
+            <button
+              onClick={onClose}
+              className="hidden sm:flex h-6 w-6 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label="Close"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
 
-        {/* Text */}
-        <div className="min-w-0 flex-1">
-          {isAuthenticated && user ? (
-            <>
-              <p className="truncate text-sm font-semibold text-foreground leading-tight">
+          <Link
+            href="/dashboard/profile"
+            onClick={() => { haptic(); onClose() }}
+            className="flex items-center gap-3 px-4 py-3 mx-2 mb-2 rounded-xl transition-colors hover:bg-muted/60 active:bg-muted group"
+          >
+            {/* Avatar */}
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-semibold">
+              {initials ?? <User className="h-5 w-5" />}
+            </div>
+
+            {/* Text */}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">
                 {user.name ?? "Student"}
               </p>
               {user.email && (
@@ -243,26 +257,37 @@ function SheetContent({ onClose }: { onClose: () => void }) {
                   <span className="truncate">{user.phone}</span>
                 </div>
               )}
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-semibold text-foreground">Welcome</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Sign in to start tracking your semester
-              </p>
-            </>
-          )}
-        </div>
+            </div>
 
-        {/* Close — desktop only (mobile has drag handle) */}
-        <button
-          onClick={onClose}
-          className="hidden sm:flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Close"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
+            {/* Chevron */}
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+          </Link>
+        </>
+      ) : (
+        <div className="flex items-center gap-3 p-5 pb-4">
+          {/* Avatar */}
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground text-base font-semibold">
+            <User className="h-5 w-5" />
+          </div>
+
+          {/* Text */}
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">Welcome</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Sign in to start tracking your semester
+            </p>
+          </div>
+
+          {/* Close — desktop only */}
+          <button
+            onClick={onClose}
+            className="hidden sm:flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label="Close"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
 
       <Divider />
 
@@ -319,7 +344,7 @@ function Divider() {
 
 const SNAP_THRESHOLD = 80 // px downward drag to dismiss
 
-function BottomSheet({ open, onClose }: AccountSheetProps) {
+function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
   const [dragY, setDragY] = useState(0)
   const startY = useRef(0)
   const isDragging = useRef(false)
@@ -356,7 +381,7 @@ function BottomSheet({ open, onClose }: AccountSheetProps) {
         <>
           <Backdrop onClick={onClose} />
 
-          <motion.div
+          <m.div
             key="bottom-sheet"
             className="fixed bottom-0 left-0 right-0 z-[61] overflow-hidden rounded-t-[20px] border-t border-border bg-background shadow-2xl"
             style={{ y: dragY, touchAction: "none" }}
@@ -383,7 +408,7 @@ function BottomSheet({ open, onClose }: AccountSheetProps) {
               <SheetContent onClose={onClose} />
               <div className="h-6" /> {/* extra breathing room */}
             </div>
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>
@@ -392,15 +417,15 @@ function BottomSheet({ open, onClose }: AccountSheetProps) {
 
 /* ─── Desktop — Centered Modal ─────────────────────────── */
 
-function Modal({ open, onClose }: AccountSheetProps) {
+function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
   // Close on Escape
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose()
     }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
+    globalThis.addEventListener("keydown", handler)
+    return () => globalThis.removeEventListener("keydown", handler)
   }, [open, onClose])
 
   return (
@@ -409,7 +434,7 @@ function Modal({ open, onClose }: AccountSheetProps) {
         <>
           <Backdrop onClick={onClose} />
 
-          <motion.div
+          <m.div
             key="modal"
             className="fixed left-1/2 top-1/2 z-[61] w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
             initial={{ opacity: 0, scale: 0.94, y: -8 }}
@@ -422,7 +447,7 @@ function Modal({ open, onClose }: AccountSheetProps) {
             aria-label="Your account"
           >
             <SheetContent onClose={onClose} />
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>
@@ -431,7 +456,7 @@ function Modal({ open, onClose }: AccountSheetProps) {
 
 /* ─── Public export — adaptive wrapper ─────────────────── */
 
-export function AccountSheet({ open, onClose }: AccountSheetProps) {
+export function AccountSheet({ open, onClose }: Readonly<AccountSheetProps>) {
   const isMobile = useIsMobile(640)
   const [mounted, setMounted] = useState(false)
 

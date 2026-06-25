@@ -14,11 +14,11 @@ export default function Navigation() {
   const isAuthenticated = status === "authenticated"
   const initials = session?.user?.name
     ? session.user.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase()
     : null
 
   return (

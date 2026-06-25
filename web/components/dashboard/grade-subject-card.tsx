@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { motion, AnimatePresence } from "motion/react"
+import { m, AnimatePresence } from "motion/react"
 import { Check, Loader2 } from "lucide-react"
 import { getAccentGradient } from "@/lib/gradient"
 
@@ -184,7 +184,7 @@ export function GradeSubjectCard({
         {/* Animated Save Button */}
         <AnimatePresence mode="popLayout">
           {hasChanges && !success && (
-            <motion.button
+            <m.button
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
@@ -193,17 +193,17 @@ export function GradeSubjectCard({
               className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm"
             >
               {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save Marks"}
-            </motion.button>
+            </m.button>
           )}
           {success && (
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               className="text-emerald-600 bg-emerald-100 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm"
             >
               <Check className="w-3 h-3" /> Saved
-            </motion.div>
+            </m.div>
           )}
         </AnimatePresence>
       </div>
@@ -221,7 +221,7 @@ export function GradeSubjectCard({
             <div className="text-right">
               <p className={`text-xs uppercase tracking-wider font-bold mb-0.5 ${gradeInfo.color}`}>Grade</p>
               <div className="flex items-center gap-2 justify-end">
-                <span className={`text-2xl font-black leading-none ${gradeInfo.color}`}>{gradeInfo.letter}</span>
+                <span className={`text-2xl font-bold leading-none ${gradeInfo.color}`}>{gradeInfo.letter}</span>
                 <span className="text-xs bg-background/50 backdrop-blur-sm px-1.5 py-0.5 rounded font-mono border">
                   {gradeInfo.points} pts
                 </span>

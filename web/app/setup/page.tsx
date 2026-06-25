@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
+import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import {
   Plus, Trash2, X, Check
 } from "lucide-react"
 import { toast } from "sonner"
-import { motion, AnimatePresence } from "motion/react"
+import { m, AnimatePresence } from "motion/react"
 
 interface SessionUser {
   supabaseToken?: string
@@ -79,10 +79,7 @@ export default function SetupPage() {
       }
       setSession(sess)
       
-      const supabase = createAppClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
+      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
       )
       setSupabaseClient(supabase)
       
@@ -409,12 +406,12 @@ export default function SetupPage() {
         <Card className="overflow-hidden border-border/60 bg-card">
           <AnimatePresence mode="wait">
           {step === 1 && (
-            <motion.div 
+            <m.div 
               key="step1"
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 12 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
             >
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
@@ -461,16 +458,16 @@ export default function SetupPage() {
                   Next <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </CardContent>
-            </motion.div>
+            </m.div>
           )}
 
           {step === 2 && (
-            <motion.div 
+            <m.div 
               key="step2"
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 12 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
             >
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
@@ -698,16 +695,16 @@ export default function SetupPage() {
                   </Button>
                 </div>
               </CardContent>
-            </motion.div>
+            </m.div>
           )}
 
           {step === 3 && (
-            <motion.div 
+            <m.div 
               key="step3"
               initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: 12 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
             >
               <CardHeader className="text-center pb-2">
                 <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
@@ -784,7 +781,7 @@ export default function SetupPage() {
                   </Button>
                 </div>
               </CardContent>
-            </motion.div>
+            </m.div>
           )}
           </AnimatePresence>
         </Card>
@@ -795,9 +792,9 @@ export default function SetupPage() {
 
 function TrackOption({ icon, label, selected, onClick }: { icon: React.ReactNode, label: string, selected: boolean, onClick: () => void }) {
   return (
-    <motion.div 
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+    <m.div 
+     
+     
       onClick={onClick}
       className={`flex cursor-pointer flex-col items-center gap-2 rounded-2xl border p-4 transition-colors group ${selected ? 'border-primary bg-primary/5' : 'border-border/60 bg-background hover:bg-muted/50'}`}
     >
@@ -805,6 +802,6 @@ function TrackOption({ icon, label, selected, onClick }: { icon: React.ReactNode
         {icon}
       </div>
       <span className={`text-xs font-bold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
-    </motion.div>
+    </m.div>
   )
 }

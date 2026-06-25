@@ -1,17 +1,18 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
+import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { PageHeader } from "@/components/dashboard/page-header"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Clock, Play, Square, Pause, History, Trash2, Timer, Pencil, Settings2 } from "lucide-react"
-import { useProfile } from '@/components/dashboard/profile-context'
+import { useProfile, type UserProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
-import { motion, AnimatePresence, Variants } from "motion/react"
+import { m, AnimatePresence, Variants } from "motion/react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { DashboardSubject, StudyTimer } from "@/lib/dashboard-types"
 import { getSourceCourse } from "@/lib/source-course"
@@ -26,7 +27,7 @@ const containerVariants: Variants = {
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  show: { opacity: 1, y: 0, transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 } }
 }
 
 export default function TimersPage() {
@@ -65,16 +66,18 @@ export default function TimersPage() {
 
   useEffect(() => {
     // Initialise alarm audio outside of setState to satisfy react-hooks/set-state-in-effect
-    const audio = new Audio('/alarm.mp3') // Expecting a simple ding sound
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAlarmAudio(audio)
-    const savedTab = localStorage.getItem("ryumedha_timers_tab")
-    if (savedTab) setActiveTab(savedTab)
+    if (typeof globalThis !== "undefined" && (globalThis as unknown as { window: Window }).window) {
+      const audio = new (globalThis as unknown as { window: { Audio: new (src: string) => HTMLAudioElement } }).window.Audio('/alarm.mp3') // Expecting a simple ding sound
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAlarmAudio(audio)
+      const savedTab = (globalThis as unknown as { window: { localStorage: Storage } }).window.localStorage.getItem("ryumedha_timers_tab")
+      if (savedTab) setActiveTab(savedTab)
+    }
   }, [])
   
   const handleTabChange = (val: string) => {
     setActiveTab(val)
-    localStorage.setItem("ryumedha_timers_tab", val)
+    if (typeof globalThis !== "undefined" && (globalThis as unknown as { window: Window }).window) (globalThis as unknown as { window: { localStorage: Storage } }).window.localStorage.setItem("ryumedha_timers_tab", val)
   }
 
   // Unified time getter
@@ -156,10 +159,7 @@ export default function TimersPage() {
       const session = await getSession()
       if (!session) return
       
-      const supabase = createAppClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
+      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
       )
       
       setSupabaseClient(supabase)
@@ -176,7 +176,7 @@ export default function TimersPage() {
       try {
         const startFetch = Date.now()
         const res = await fetch('/api/time')
-        const data = await res.json()
+        const data = await res.json() as { timestamp: number }
         const delay = (Date.now() - startFetch) / 2
         // clockOffset = how much we need to add to Date.now() to get true server time
         const offset = (data.timestamp - delay) - Date.now()
@@ -206,7 +206,7 @@ export default function TimersPage() {
     if (!supabaseClient || !profileId) return
     setPomoIsActive(false)
     if (alarmAudio) {
-      alarmAudio.play().catch(e => console.log('Audio play failed', e))
+      alarmAudio.play().catch((e: unknown) => console.log('Audio play failed', e))
     }
     
     if (pomoMode === 'pomodoro') {
@@ -224,7 +224,8 @@ export default function TimersPage() {
           toast.success("Focus Session Complete! Data saved.")
           setActivePomodoroDB(null)
           fetchData(supabaseClient, profileId)
-        } catch (_e) {
+        } catch (e) {
+          console.error("Failed to save Pomodoro session", e)
           toast.error("Failed to save Pomodoro session")
         }
       } else {
@@ -309,18 +310,18 @@ export default function TimersPage() {
           }
       } else {
           // Local break countdown
-          setPomoTimeLeft((prev) => {
-            const next = prev - 1
-            if (next <= 0) {
-               setTimeout(() => handlePomoComplete(), 0)
-               return 0
-            }
-            return next
-          })
+          setPomoTimeLeft((prev) => prev <= 1 ? 0 : prev - 1)
       }
     }, 1000)
     return () => clearInterval(interval)
   }, [pomoIsActive, pomoMode, activePomodoroDB, pomoDurationOpts.pomodoro, getSyncedTime, handlePomoComplete])
+
+  useEffect(() => {
+    if (pomoIsActive && pomoMode !== 'pomodoro' && pomoTimeLeft === 0) {
+      const t = setTimeout(() => handlePomoComplete(), 0)
+      return () => clearTimeout(t)
+    }
+  }, [pomoIsActive, pomoMode, pomoTimeLeft, handlePomoComplete])
 
   async function startTimer() {
     if (!supabaseClient || !profileId) return
@@ -377,14 +378,15 @@ export default function TimersPage() {
       }
       
       await fetchData(supabaseClient, profileId)
-    } catch (_e) {
+    } catch (e) {
+      console.error(e)
       toast.error("An error occurred while pausing")
     }
   }
 
   async function resumeTimer() {
     if (!supabaseClient || !profileId) return
-    if (!activeTimer || !activeTimer.pause_started_at) return
+    if (!activeTimer?.pause_started_at) return
     const pauseStart = new Date(activeTimer.pause_started_at).getTime()
     const pauseDuration = Math.floor((getSyncedTime() - pauseStart) / 1000)
     const newTotalPause = (activeTimer.total_pause_seconds || 0) + pauseDuration
@@ -405,7 +407,8 @@ export default function TimersPage() {
       }
       
       await fetchData(supabaseClient, profileId)
-    } catch (_e) {
+    } catch (e) {
+      console.error(e)
       toast.error("An error occurred while resuming")
     }
   }
@@ -442,7 +445,8 @@ export default function TimersPage() {
       setActiveTimer(null)
       setElapsed(0)
       await fetchData(supabaseClient, profileId)
-    } catch (_e) {
+    } catch (e) {
+      console.error(e)
       toast.error("An error occurred while stopping")
     }
   }
@@ -468,7 +472,8 @@ export default function TimersPage() {
       toast.success("Timer subject updated!")
       setIsEditModalOpen(false)
       fetchData(supabaseClient, profileId)
-    } catch(_e) {
+    } catch(e) {
+      console.error(e)
       toast.error("Failed to update timer")
     }
   }
@@ -502,6 +507,48 @@ export default function TimersPage() {
     toast.success("Timer settings updated")
   }
 
+  const handlePausePomo = async (now: string) => {
+    if (!activePomodoroDB || !supabaseClient || !profileId) return
+    const { error } = await supabaseClient.from('study_timers').update({
+      pause_started_at: now,
+      events: [...(activePomodoroDB.events || []), { type: 'pause', timestamp: now }]
+    }).eq('id', activePomodoroDB.id)
+    if (!error) fetchData(supabaseClient, profileId)
+  }
+
+  const handleStartPomo = async (now: string) => {
+    if (!supabaseClient || !profileId) return
+    const { data, error } = await supabaseClient.from('study_timers').insert([{
+      profile_id: profileId,
+      subject_id: selectedSubject,
+      started_at: now,
+      timer_type: 'pomodoro',
+      duration_seconds: pomoDurationOpts.pomodoro * 60,
+      events: [{ type: 'start', timestamp: now }]
+    }]).select().single()
+    
+    if (error) {
+      toast.error("Failed to start Pomodoro session on server")
+    } else {
+      setActivePomodoroDB(data)
+      setPomoIsActive(true)
+    }
+  }
+
+  const handleResumePomo = async (now: string) => {
+    if (!activePomodoroDB?.pause_started_at || !supabaseClient || !profileId) return
+    const pauseStart = new Date(activePomodoroDB.pause_started_at).getTime()
+    const pauseDuration = Math.floor((getSyncedTime() - pauseStart) / 1000)
+    const newTotalPause = (activePomodoroDB.total_pause_seconds || 0) + pauseDuration
+    const { error } = await supabaseClient.from('study_timers').update({
+      pause_started_at: null,
+      total_pause_seconds: newTotalPause,
+      events: [...(activePomodoroDB.events || []), { type: 'resume', timestamp: now }]
+    }).eq('id', activePomodoroDB.id)
+      
+    if (!error) fetchData(supabaseClient, profileId)
+  }
+
   const togglePomo = async () => {
     if (!supabaseClient || !profileId) return
     if (pomoMode === 'pomodoro') {
@@ -512,54 +559,14 @@ export default function TimersPage() {
 
       const now = new Date(getSyncedTime()).toISOString()
       
-      if (!pomoIsActive) {
-        // Start or Resume DB Pomodoro
-        if (!activePomodoroDB) {
-           const { data, error } = await supabaseClient.from('study_timers').insert([{
-             profile_id: profileId,
-             subject_id: selectedSubject,
-             started_at: now,
-             timer_type: 'pomodoro',
-             duration_seconds: pomoDurationOpts.pomodoro * 60,
-             events: [{ type: 'start', timestamp: now }]
-           }]).select().single()
-           
-           if (!error) {
-              setActivePomodoroDB(data)
-              setPomoIsActive(true)
-           } else {
-              toast.error("Failed to start Pomodoro session on server")
-           }
-        } else if (activePomodoroDB.pause_started_at) {
-           // Resume
-           const pauseStart = new Date(activePomodoroDB.pause_started_at).getTime()
-           const pauseDuration = Math.floor((getSyncedTime() - pauseStart) / 1000)
-           const newTotalPause = (activePomodoroDB.total_pause_seconds || 0) + pauseDuration
-           const { error } = await supabaseClient.from('study_timers').update({
-             pause_started_at: null,
-             total_pause_seconds: newTotalPause,
-             events: [...(activePomodoroDB.events || []), { type: 'resume', timestamp: now }]
-           }).eq('id', activePomodoroDB.id)
-           
-           if (!error) {
-              // Fetch to get exact DB state refreshed
-              fetchData(supabaseClient, profileId)
-           }
-        }
-      } else {
-        // Pause DB Pomodoro
-        if (activePomodoroDB) {
-           const { error } = await supabaseClient.from('study_timers').update({
-             pause_started_at: now,
-             events: [...(activePomodoroDB.events || []), { type: 'pause', timestamp: now }]
-           }).eq('id', activePomodoroDB.id)
-           if (!error) {
-              fetchData(supabaseClient, profileId)
-           }
-        }
+      if (pomoIsActive) {
+        await handlePausePomo(now)
+      } else if (!activePomodoroDB) {
+        await handleStartPomo(now)
+      } else if (activePomodoroDB.pause_started_at) {
+        await handleResumePomo(now)
       }
     } else {
-      // Free Break
       setPomoIsActive(!pomoIsActive)
     }
   }
@@ -573,9 +580,10 @@ export default function TimersPage() {
        toast.info("Pomodoro discarded and deleted.")
        fetchData(supabaseClient, profileId)
        handlePomoModeSwitch('shortBreak', true)
+    } else if (pomoMode === 'pomodoro') {
+       handlePomoModeSwitch('shortBreak', true)
     } else {
-       if (pomoMode === 'pomodoro') handlePomoModeSwitch('shortBreak', true)
-       else handlePomoModeSwitch('pomodoro', true)
+       handlePomoModeSwitch('pomodoro', true)
     }
   }
 
@@ -584,10 +592,10 @@ export default function TimersPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
-      <motion.div variants={itemVariants} initial="hidden" animate="show">
-        <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Study Timers</span></h1>
-        <p className="text-muted-foreground mt-1">Track your dedicated study sessions to build powerful reports.</p>
-      </motion.div>
+      <PageHeader 
+        title="Study Timers"
+        description="Track your dedicated study sessions to build powerful reports."
+      />
 
       {subjects.length === 0 ? (
         <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-500">
@@ -614,8 +622,8 @@ export default function TimersPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex justify-between items-center p-3 border rounded-lg bg-card animate-pulse">
+                {['h-skel-1', 'h-skel-2', 'h-skel-3', 'h-skel-4'].map((key) => (
+                  <div key={key} className="flex justify-between items-center p-3 border rounded-lg bg-card animate-pulse">
                     <div className="space-y-2">
                       <div className="h-5 w-24 bg-muted rounded-md" />
                       <div className="h-3 w-16 bg-muted/60 rounded-md" />
@@ -631,7 +639,7 @@ export default function TimersPage() {
           </Card>
         </div>
       ) : (
-        <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
+        <m.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
           
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
             <TabsList className="grid w-full max-w-md grid-cols-2 mx-auto mb-8 h-12 rounded-xl p-1 bg-muted/50 border border-border/50">
@@ -647,7 +655,7 @@ export default function TimersPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 
                 {/* Active Timer / Start Form */}
-                <motion.div variants={itemVariants} initial="hidden" animate="show">
+                <m.div variants={itemVariants} initial="hidden" animate="show">
           <Card className="border-2 border-primary/20 h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -658,10 +666,10 @@ export default function TimersPage() {
             {activeTimer ? (
               <div className="text-center py-6 space-y-4">
                 <p className="text-lg font-medium text-muted-foreground">{activeTimer.subjects?.name}</p>
-                <div className={`text-5xl font-mono font-black tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'text-primary'}`}>
+                <div className={`text-5xl font-mono font-bold tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'text-primary'}`}>
                   {formatTime(elapsed)}
                 </div>
-                {activeTimer.pause_started_at && <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest animate-pulse">Paused</p>}
+                {activeTimer.pause_started_at && <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Paused</p>}
                 
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
                   {activeTimer.pause_started_at ? (
@@ -701,10 +709,10 @@ export default function TimersPage() {
             )}
           </CardContent>
         </Card>
-        </motion.div>
+        </m.div>
 
         {/* History */}
-        <motion.div variants={itemVariants} initial="hidden" animate="show">
+        <m.div variants={itemVariants} initial="hidden" animate="show">
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-muted-foreground">
@@ -712,62 +720,10 @@ export default function TimersPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {history.length > 0 ? (
-              <motion.div layout className="space-y-3">
-                <AnimatePresence mode="popLayout">
-                {history
-                  .filter(h => !h.subjects || 
-                               (h.subjects.type === 'academic' && profile?.academics_enabled) || 
-                               (h.subjects.type === 'personal' && profile?.personal_enabled))
-                  .map(h => (
-                    <motion.div 
-                      key={h.id} 
-                      layout
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded-lg bg-card gap-3 hover:border-primary/50 transition-colors shadow-sm"
-                    >
-                      <div>
-                        <p className="font-semibold">{h.subjects?.name}</p>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                          <span>{new Date(h.started_at).toLocaleDateString()}</span>
-                          <span>•</span>
-                          <span>{new Date(h.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</span>
-                        </div>
-                        {(h.total_pause_seconds ?? 0) > 0 && (
-                          <p className="text-[10px] text-muted-foreground font-medium mt-0.5 border bg-muted/50 px-1.5 py-0.5 rounded-sm inline-block">
-                            Includes {Math.floor((h.total_pause_seconds ?? 0) / 60)}m paused time
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
-                        <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium border border-border/50">
-                          {(() => {
-                            const start = new Date(h.started_at).getTime()
-                            const end = h.ended_at ? new Date(h.ended_at).getTime() : new Date(h.started_at).getTime()
-                            const grossSecs = Math.floor((end - start) / 1000)
-                            const netSecs = Math.max(0, grossSecs - (h.total_pause_seconds || 0))
-                            return formatTime(netSecs)
-                          })()}
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={() => openEditModal(h.id, h.subject_id)} className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0 bg-muted/40 hover:bg-primary/10 rounded-md">
-                          <Pencil className="w-4 h-4"/>
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 bg-muted/40 hover:bg-destructive/10 rounded-md">
-                          <Trash2 className="w-4 h-4"/>
-                        </Button>
-                      </div>
-                    </motion.div>
-                  ))}
-                  </AnimatePresence>
-              </motion.div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No study sessions recorded yet.</p>
-            )}
+            <HistoryList history={history} profile={profile} formatTime={formatTime} openEditModal={openEditModal} deleteTimer={deleteTimer} />
           </CardContent>
         </Card>
-        </motion.div>
+        </m.div>
         
               </div>
             </TabsContent>
@@ -777,10 +733,8 @@ export default function TimersPage() {
                 
                 {/* Pomodoro Tracker */}
                 <div className="h-full">
-                  <Card className={`border-2 transition-colors duration-700 overflow-hidden h-full flex flex-col items-center justify-center p-6 min-h-[400px] relative ${
-                    pomoMode === 'pomodoro' ? 'bg-red-500/10 border-red-500/20' : 
-                    pomoMode === 'shortBreak' ? 'bg-teal-500/10 border-teal-500/20' : 
-                    'bg-blue-500/10 border-blue-500/20'
+                  <Card className={`border-2 transition-colors duration-700 overflow-hidden h-full flex flex-col items-center justify-center p-6 min-h-100 relative ${
+                    { pomodoro: 'bg-red-500/10 border-red-500/20', shortBreak: 'bg-teal-500/10 border-teal-500/20', longBreak: 'bg-blue-500/10 border-blue-500/20' }[pomoMode]
                   }`}>
                     
                     <div className="absolute top-4 right-4 z-10">
@@ -791,7 +745,7 @@ export default function TimersPage() {
 
                     {/* Subject Selector (Only show if in Pomodoro Mode, breaks don't need subjects) */}
                     <div className="w-full px-4 flex justify-center">
-                      <div className="w-full max-w-[200px]">
+                      <div className="w-full max-w-50">
                         {pomoMode === 'pomodoro' ? (
                           <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                             <SelectTrigger className="flex bg-background/50 border-0 rounded-full text-xs font-bold tracking-widest w-full justify-center gap-2" size="sm">
@@ -818,7 +772,7 @@ export default function TimersPage() {
                       <button onClick={() => handlePomoModeSwitch('longBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'longBreak' ? 'bg-blue-500 text-white' : 'text-muted-foreground hover:bg-muted'}`}>Long Break</button>
                     </div>
 
-                    <div className="text-[100px] leading-none font-mono font-black tracking-tighter tabular-nums">
+                    <div className="text-[100px] leading-none font-mono font-bold tracking-tighter tabular-nums">
                       {formatPomoTime(pomoTimeLeft)}
                     </div>
 
@@ -826,11 +780,10 @@ export default function TimersPage() {
                       <Button 
                         onClick={togglePomo} 
                         size="lg" 
-                        className={`text-xl font-black h-16 px-12 rounded-3xl transition-all hover:scale-105 ${
-                          pomoIsActive ? 'bg-background text-foreground border-2 border-border/50 hover:bg-muted' : 
-                          pomoMode === 'pomodoro' ? 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20' :
-                          pomoMode === 'shortBreak' ? 'bg-teal-500 text-white hover:bg-teal-600 shadow-teal-500/20' :
-                          'bg-blue-500 text-white hover:bg-blue-600'
+                        className={`text-xl font-bold h-16 px-12 rounded-3xl transition-all hover:scale-105 ${
+                          pomoIsActive 
+                            ? 'bg-background text-foreground border-2 border-border/50 hover:bg-muted' 
+                            : { pomodoro: 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20', shortBreak: 'bg-teal-500 text-white hover:bg-teal-600 shadow-teal-500/20', longBreak: 'bg-blue-500 text-white hover:bg-blue-600' }[pomoMode]
                         }`}
                       >
                         {pomoIsActive ? 'PAUSE' : 'START'}
@@ -854,7 +807,7 @@ export default function TimersPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {history.filter(h => h.timer_type === 'pomodoro').length > 0 ? (
+                      {history.some(h => h.timer_type === 'pomodoro') ? (
                         <div className="space-y-3">
                           {history.filter(h => h.timer_type === 'pomodoro').slice(0, 10).map(h => (
                             <div key={h.id} className="flex justify-between items-center p-3 border rounded-lg bg-card gap-3 hover:border-red-500/50 transition-colors">
@@ -877,7 +830,7 @@ export default function TimersPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground italic">No completed Pomodoros yet. Focus up!</p>
+                        <p className="text-sm text-muted-foreground font-medium">No completed Pomodoros yet. Focus up!</p>
                       )}
                     </CardContent>
                   </Card>
@@ -887,7 +840,7 @@ export default function TimersPage() {
             </TabsContent>
           </Tabs>
 
-      </motion.div>
+      </m.div>
       )}
 
       {/* Edit Timer Dialog */}
@@ -932,7 +885,7 @@ export default function TimersPage() {
                 type="number" 
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={tempOpts.pomodoro} 
-                onChange={e => setTempOpts({...tempOpts, pomodoro: parseInt(e.target.value) || 1})} 
+                onChange={(e) => setTempOpts({...tempOpts, pomodoro: Number.parseInt(e.target.value, 10) || 1})} 
                 min="1" max="120" 
               />
             </div>
@@ -942,7 +895,7 @@ export default function TimersPage() {
                 type="number" 
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={tempOpts.shortBreak} 
-                onChange={e => setTempOpts({...tempOpts, shortBreak: parseInt(e.target.value) || 1})} 
+                onChange={(e) => setTempOpts({...tempOpts, shortBreak: Number.parseInt(e.target.value, 10) || 1})} 
                 min="1" max="60" 
               />
             </div>
@@ -952,7 +905,7 @@ export default function TimersPage() {
                 type="number" 
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 value={tempOpts.longBreak} 
-                onChange={e => setTempOpts({...tempOpts, longBreak: parseInt(e.target.value) || 1})} 
+                onChange={(e) => setTempOpts({...tempOpts, longBreak: Number.parseInt(e.target.value, 10) || 1})} 
                 min="1" max="60" 
               />
             </div>
@@ -964,5 +917,65 @@ export default function TimersPage() {
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+function HistoryList({ history, profile, formatTime, openEditModal, deleteTimer }: Readonly<{
+  history: StudyTimer[]; profile: UserProfile | null; formatTime: (secs: number) => string;
+  openEditModal: (id: string, subId: string) => void; deleteTimer: (id: string) => void;
+}>) {
+  if (history.length === 0) {
+    return <p className="text-sm text-muted-foreground font-medium">No study sessions recorded yet.</p>
+  }
+  return (
+    <m.div layout className="space-y-3">
+      <AnimatePresence mode="popLayout">
+      {history
+        .filter(h => !h.subjects || 
+                     (h.subjects.type === 'academic' && profile?.academics_enabled) || 
+                     (h.subjects.type === 'personal' && profile?.personal_enabled))
+        .map(h => (
+          <m.div 
+            key={h.id} 
+            layout
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 border rounded-lg bg-card gap-3 hover:border-primary/50 transition-colors shadow-sm"
+          >
+            <div>
+              <p className="font-semibold">{h.subjects?.name}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                <span>{new Date(h.started_at).toLocaleDateString()}</span>
+                <span>•</span>
+                <span>{new Date(h.started_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '—'}</span>
+              </div>
+              {(h.total_pause_seconds ?? 0) > 0 && (
+                <p className="text-[10px] text-muted-foreground font-medium mt-0.5 border bg-muted/50 px-1.5 py-0.5 rounded-sm inline-block">
+                  Includes {Math.floor((h.total_pause_seconds ?? 0) / 60)}m paused time
+                </p>
+              )}
+            </div>
+            <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto">
+              <div className="font-mono bg-muted px-2 py-1 rounded text-sm font-medium border border-border/50">
+                {(() => {
+                  const start = new Date(h.started_at).getTime()
+                  const end = h.ended_at ? new Date(h.ended_at).getTime() : new Date(h.started_at).getTime()
+                  const grossSecs = Math.floor((end - start) / 1000)
+                  const netSecs = Math.max(0, grossSecs - (h.total_pause_seconds || 0))
+                  return formatTime(netSecs)
+                })()}
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => openEditModal(h.id, h.subject_id)} className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0 bg-muted/40 hover:bg-primary/10 rounded-md">
+                <Pencil className="w-4 h-4"/>
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0 bg-muted/40 hover:bg-destructive/10 rounded-md">
+                <Trash2 className="w-4 h-4"/>
+              </Button>
+            </div>
+          </m.div>
+        ))}
+        </AnimatePresence>
+    </m.div>
   )
 }

@@ -2,8 +2,9 @@
 
 import { SessionProvider } from 'next-auth/react'
 import { ThemeProvider } from '@/components/theme-provider'
+import { LazyMotion, domAnimation } from "motion/react"
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ThemeProvider
       attribute="class"
@@ -11,7 +12,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange
     >
-      <SessionProvider>{children}</SessionProvider>
+      <SessionProvider>
+        <LazyMotion features={domAnimation}>
+          {children}
+        </LazyMotion>
+      </SessionProvider>
     </ThemeProvider>
   )
 }

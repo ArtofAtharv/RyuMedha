@@ -51,7 +51,7 @@
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-blink-cursor: blink-cursor 1.2s step-end infinite;
 
-  
+
 
   @keyframes blink-cursor {
 
@@ -69,7 +69,7 @@
 
 /* ===================== BASE (neutral) — light ===================== */
 :root {
-  --radius: 0.65rem;
+  --radius: 1rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -248,7 +248,9 @@
   }
 
   /* Allow selection in inputs and textareas */
-  input, textarea, [contenteditable="true"] {
+  input,
+  textarea,
+  [contenteditable="true"] {
     user-select: text !important;
     -webkit-user-select: text !important;
     -moz-user-select: text !important;
@@ -257,7 +259,10 @@
   }
 
   /* Ensure interactive elements feel right */
-  button, a, [role="button"], .cursor-pointer {
+  button,
+  a,
+  [role="button"],
+  .cursor-pointer {
     cursor: pointer !important;
   }
 }
@@ -267,4 +272,3 @@
   animation: none;
   mix-blend-mode: normal;
 }
-

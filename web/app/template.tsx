@@ -1,10 +1,10 @@
 "use client"
 
-import { motion } from "motion/react"
+import { m } from "motion/react"
 
 export default function RootTemplate({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -12,6 +12,6 @@ export default function RootTemplate({ children }: { children: React.ReactNode }
       className="min-h-screen"
     >
       {children}
-    </motion.div>
+    </m.div>
   )
 }

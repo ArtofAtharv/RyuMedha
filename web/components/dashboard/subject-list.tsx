@@ -12,7 +12,7 @@ interface SubjectListProps {
   subjects: Subject[]
 }
 
-export function SubjectList({ subjects }: SubjectListProps) {
+export function SubjectList({ subjects }: Readonly<SubjectListProps>) {
   if (subjects.length === 0) {
     return (
       <Card>

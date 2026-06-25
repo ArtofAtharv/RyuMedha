@@ -5,7 +5,7 @@ import { BookOpen, FolderOpen, Pencil, Trash2, User, Target } from "lucide-react
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { motion } from "motion/react"
+import { m } from "motion/react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
@@ -64,7 +64,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
   }
 
   return (
-    <motion.div 
+    <m.div 
       whileHover={{ y: -4 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className="h-full"
@@ -121,7 +121,7 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
           )}
         </div>
 
-        <h3 className="text-xl font-black text-foreground mb-1 leading-tight tracking-tight">
+        <h3 className="text-xl font-bold text-foreground mb-1 leading-tight tracking-tight">
           {subject.name}
         </h3>
         
@@ -202,6 +202,6 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
           </div>
         </DialogContent>
       </Dialog>
-    </motion.div>
+    </m.div>
   )
 }

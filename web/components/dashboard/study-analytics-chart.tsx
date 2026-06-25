@@ -45,7 +45,7 @@ function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
             <span className="text-slate-900 dark:text-slate-100">{entry.value}h</span>
           </div>
         ))}
-        <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-black text-slate-900 dark:text-slate-100">
+        <div className="mt-2 pt-2 border-t border-border/50 flex justify-between text-sm font-bold text-slate-900 dark:text-slate-100">
           <span>Total:</span>
           <span>{Number(payload.reduce((sum, entry) => sum + entry.value, 0)).toFixed(1)}h</span>
         </div>

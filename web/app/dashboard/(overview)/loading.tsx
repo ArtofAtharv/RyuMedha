@@ -38,7 +38,7 @@ export default function DashboardLoading() {
 
           {/* Large Interactive Grid Skeleton Segment */}
           <div className="mt-8 space-y-4">
-            <div className="h-20 w-full bg-muted/30 border border-dashed rounded-xl animate-pulse" />
+            <div className="h-20 w-full bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl border border-none rounded-xl animate-pulse" />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[...Array(3)].map((_, i) => (
                 <Card key={i} className="h-32 bg-muted/20 animate-pulse border-border/50" />

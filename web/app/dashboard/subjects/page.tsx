@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
+import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -13,11 +13,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Trash2, FolderOpen, BookOpen, Plus, Folder, Check, ChevronDown } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { toast } from "sonner"
-import { AnimatePresence, motion, Variants } from "motion/react"
+import { m, Variants } from "motion/react"
 import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
 import { hexToGradient } from "@/lib/gradient"
-import { getSourceCourse } from "@/lib/source-course"
+
 import type { DashboardSubject } from "@/lib/dashboard-types"
+import { getSourceCourse } from "@/lib/source-course"
+import { SegmentedControl } from '@/components/dashboard/segmented-control'
+import { PageHeader } from '@/components/dashboard/page-header'
 import { useProfile } from '@/components/dashboard/profile-context'
 
 const containerVariants: Variants = {
@@ -30,7 +33,7 @@ const containerVariants: Variants = {
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  show: { opacity: 1, y: 0, transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 } }
 }
 
 type SubjectRecord = DashboardSubject
@@ -44,6 +47,13 @@ interface CategoryRecord {
 interface CourseRecord {
   id: string
   course_name: string
+}
+
+function formatOutputDate(d: Date) {
+  // Return YYYY-MM-DD for database
+  // we need to offset timezone issues
+  const offsetDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
+  return offsetDate.toISOString().split('T')[0]
 }
 
 export default function SubjectsPage() {
@@ -67,6 +77,7 @@ export default function SubjectsPage() {
   const [editingSubject, setEditingSubject] = useState<SubjectRecord | null>(null)
   const [subjectToDelete, setSubjectToDelete] = useState<SubjectRecord | null>(null)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
+  const [isAddSubjectModalOpen, setIsAddSubjectModalOpen] = useState(false)
 
   const [availableCourses, setAvailableCourses] = useState<CourseRecord[]>([])
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
@@ -81,10 +92,7 @@ export default function SubjectsPage() {
       const sess = await getSession()
       if (!sess) return
       
-      const supabase = createAppClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
+      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
       )
       
       setSupabaseClient(supabase)
@@ -131,13 +139,13 @@ export default function SubjectsPage() {
     setLoading(false)
   }
 
-  const enrolledCourseIds = subjects
+  const enrolledCourseIds = useMemo(() => new Set(subjects
     .filter(s => s.source_course_id)
     .map(s => {
       if (typeof s.source_course_id === 'string') return s.source_course_id
       return getSourceCourse(s.source_course_id)?.id
     })
-    .filter((id): id is string => Boolean(id))
+    .filter((id): id is string => Boolean(id))), [subjects])
 
   async function fetchCategories(supabase: AppSupabaseClient, pid: string) {
     if (!pid) return
@@ -153,103 +161,90 @@ export default function SubjectsPage() {
   /*                             SUBJECT MANAGEMENT                             */
   /* -------------------------------------------------------------------------- */
 
-  async function handleAddSubject(e: React.FormEvent) {
-    e.preventDefault()
-    if (!supabaseClient || !profileId) return
+  async function processBulkCourses() {
+    if (selectedCourseIds.length === 0 || !supabaseClient || !profileId) return;
+
+    const existingIds = new Set(subjects
+      .map(s => typeof s.source_course_id === 'string' ? s.source_course_id : getSourceCourse(s.source_course_id)?.id)
+      .filter((id): id is string => Boolean(id)))
+    const deduplicatedIds = selectedCourseIds.filter(cid => !existingIds.has(cid))
+    const skippedCount = selectedCourseIds.length - deduplicatedIds.length
+
+    if (deduplicatedIds.length > 0) {
+      const toInsert = deduplicatedIds.map(cid => {
+        const course = availableCourses.find(c => c.id === cid)
+        return {
+          profile_id: profileId,
+          name: course?.course_name || "Unknown",
+          type: 'academic',
+          source_course_id: cid,
+          color_hex: '#3b82f6',
+          is_active: true
+        }
+      })
+      const { error } = await supabaseClient.from('subjects').insert(toInsert)
+      if (error) throw error
+      toast.success(`Succesfully added ${deduplicatedIds.length} course(s)!`)
+    }
+
+    if (skippedCount > 0) {
+      toast.info(`${skippedCount} course(s) were already enrolled and were skipped.`)
+    }
+  }
+
+  async function processNewCourse() {
+    if (!newCourseName.trim() || !supabaseClient || !profileId || !profile?.current_semester_id) return;
+
+    const { data: newCourse, error: courseErr } = await supabaseClient
+      .from('academic_courses')
+      .insert([{
+        semester_id: profile.current_semester_id,
+        course_name: newCourseName.trim()
+      }])
+      .select()
+      .single()
     
-    // Fixed validation: personal needs name, academic needs selected courses or a new name
-    if (type === 'personal' && !name.trim()) return
-    if (type === 'academic' && selectedCourseIds.length === 0 && !newCourseName.trim()) return
+    if (courseErr) throw courseErr
 
-    setErrorMsg("")
+    if (newCourse) {
+      const { error: subErr } = await supabaseClient.from('subjects').insert([{
+        profile_id: profileId,
+        name: newCourse.course_name,
+        type: 'academic',
+        source_course_id: newCourse.id,
+        color_hex: '#3b82f6',
+        is_active: true
+      }])
+      if (subErr) throw subErr
+      toast.success(`Created and added "${newCourse.course_name}"`)
+    }
+  }
 
-    const duplicate = subjects.find(s => s.name.toLowerCase() === name.trim().toLowerCase())
-    if (duplicate) {
-      setErrorMsg(`A subject named "${duplicate.name}" already exists (${duplicate.type}). Please choose a different name.`)
+  async function handleAddAcademicSubject() {
+    if (!supabaseClient || !profileId) return
+    if (!profile?.current_semester_id) {
+      setErrorMsg("Please complete your academic setup in your Profile first. Tap the account icon to access it.")
       return
     }
 
-    if (type === 'academic') {
-      if (!profile?.current_semester_id) {
-        setErrorMsg("Please complete your academic setup in the Profile tab first.")
-        return
-      }
+    try {
+      await processBulkCourses()
+      await processNewCourse()
 
-      try {
-        // Bulk Add Selected Courses
-        if (selectedCourseIds.length > 0) {
-          const existingIds = subjects
-            .map(s => typeof s.source_course_id === 'string' ? s.source_course_id : getSourceCourse(s.source_course_id)?.id)
-            .filter((id): id is string => Boolean(id))
-          const deduplicatedIds = selectedCourseIds.filter(cid => !existingIds.includes(cid))
-          const skippedCount = selectedCourseIds.length - deduplicatedIds.length
-
-          if (deduplicatedIds.length > 0) {
-            const toInsert = deduplicatedIds.map(cid => {
-              const course = availableCourses.find(c => c.id === cid)
-              return {
-                profile_id: profileId,
-                name: course?.course_name || "Unknown",
-                type: 'academic',
-                source_course_id: cid,
-                color_hex: '#3b82f6',
-                is_active: true
-              }
-            })
-            const { error } = await supabaseClient.from('subjects').insert(toInsert)
-            if (error) throw error
-            toast.success(`Succesfully added ${deduplicatedIds.length} course(s)!`)
-          }
-
-          if (skippedCount > 0) {
-            toast.info(`${skippedCount} course(s) were already enrolled and were skipped.`)
-          }
-        }
-
-        // Add New Course if typed
-        if (newCourseName.trim()) {
-          const { data: newCourse, error: courseErr } = await supabaseClient
-            .from('academic_courses')
-            .insert([{
-              semester_id: profile.current_semester_id,
-              course_name: newCourseName.trim()
-            }])
-            .select()
-            .single()
-          
-          if (courseErr) throw courseErr
-
-          if (newCourse) {
-            const { error: subErr } = await supabaseClient.from('subjects').insert([{
-              profile_id: profileId,
-              name: newCourse.course_name,
-              type: 'academic',
-              source_course_id: newCourse.id,
-              color_hex: '#3b82f6',
-              is_active: true
-            }])
-            if (subErr) throw subErr
-            toast.success(`Created and added "${newCourse.course_name}"`)
-          }
-        }
-
-        setSelectedCourseIds([])
-        setNewCourseName("")
-        fetchSubjects(supabaseClient)
-      } catch (err: unknown) {
-        const error = err as Error
-        toast.error(`Failed to add subjects: ${error.message}`)
-        setErrorMsg(error.message)
-      }
-      return
+      setSelectedCourseIds([])
+      setNewCourseName("")
+      setIsAddSubjectModalOpen(false)
+      fetchSubjects(supabaseClient)
+    } catch (err: unknown) {
+      const error = err as Error
+      toast.error(`Failed to add subjects: ${error.message}`)
+      setErrorMsg(error.message)
     }
+  }
 
-    // Personal Subject Flow
-
-    const colorHex = type === 'personal'
-      ? (categoryId !== 'none' ? categories.find(c => c.id === categoryId)?.color_hex : '#8b5cf6')
-      : null
-
+  async function handleAddPersonalSubject() {
+    if (!supabaseClient || !profileId) return
+    const colorHex = categoryId === 'none' ? '#8b5cf6' : categories.find(c => c.id === categoryId)?.color_hex
     const { error } = await supabaseClient
       .from('subjects')
       .insert([{
@@ -266,7 +261,31 @@ export default function SubjectsPage() {
     } else {
       setName("")
       setCategoryId("none")
+      setIsAddSubjectModalOpen(false)
       fetchSubjects(supabaseClient)
+    }
+  }
+
+  async function handleAddSubject(e: React.SyntheticEvent) {
+    e.preventDefault()
+    if (!supabaseClient || !profileId) return
+    
+    // Fixed validation: personal needs name, academic needs selected courses or a new name
+    if (type === 'personal' && !name.trim()) return
+    if (type === 'academic' && selectedCourseIds.length === 0 && !newCourseName.trim()) return
+
+    setErrorMsg("")
+
+    const duplicate = subjects.find(s => s.name.toLowerCase() === name.trim().toLowerCase())
+    if (duplicate) {
+      setErrorMsg(`A subject named "${duplicate.name}" already exists (${duplicate.type}). Please choose a different name.`)
+      return
+    }
+
+    if (type === 'academic') {
+      await handleAddAcademicSubject()
+    } else {
+      await handleAddPersonalSubject()
     }
   }
 
@@ -278,7 +297,7 @@ export default function SubjectsPage() {
   }
 
   async function saveEdit() {
-    if (!editingSubject || !editingSubject.name.trim() || !supabaseClient) return
+    if (!editingSubject?.name.trim() || !supabaseClient) return
     const supabase = supabaseClient
 
     // Handle shared data if academic
@@ -323,16 +342,22 @@ export default function SubjectsPage() {
     if (profile.academics_enabled && profile.personal_enabled) return
 
     if (profile.academics_enabled) {
-      setTab('academics')
-      setType('academic')
+      queueMicrotask(() => {
+        setTab('academics')
+        setType('academic')
+      })
     } else if (profile.personal_enabled) {
-      setTab('personal')
-      setType('personal')
+      queueMicrotask(() => {
+        setTab('personal')
+        setType('personal')
+      })
     }
-  }, [profile?.academics_enabled, profile?.personal_enabled])
+  }, [profile?.academics_enabled, profile?.personal_enabled, profile])
 
   useEffect(() => {
-    setType(tab === 'academics' ? 'academic' : 'personal')
+    queueMicrotask(() => {
+      setType(tab === 'academics' ? 'academic' : 'personal')
+    })
   }, [tab])
 
   /* -------------------------------------------------------------------------- */
@@ -349,7 +374,7 @@ export default function SubjectsPage() {
       .eq('id', subject_id)
       .single()
 
-    if (subjectData && subjectData.type === 'academic' && subjectData.source_course_id) {
+    if (subjectData?.type === 'academic' && subjectData.source_course_id) {
       const courseId = typeof subjectData.source_course_id === 'object' ? (subjectData.source_course_id as {id?: string})?.id : (subjectData.source_course_id as string);
       const existingDates: Record<string, string> = typeof subjectData.source_course_id === 'object' && !Array.isArray(subjectData.source_course_id) ? ((subjectData.source_course_id as {exam_dates?: Record<string, string>})?.exam_dates || {}) : {};
        
@@ -390,13 +415,6 @@ export default function SubjectsPage() {
         description: `"${label}" has been added. It is visible on the subject card and in your Tasks tab.` 
       })
     }
-  }
-
-  function formatOutputDate(d: Date) {
-    // Return YYYY-MM-DD for database
-    // we need to offset timezone issues
-    const offsetDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
-    return offsetDate.toISOString().split('T')[0]
   }
 
   /* -------------------------------------------------------------------------- */
@@ -451,6 +469,24 @@ export default function SubjectsPage() {
   const academicSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'academic'), [filteredSubjects])
   const personalSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'personal'), [filteredSubjects])
 
+  const sortedCourses = useMemo(() => {
+    return [...availableCourses].sort((a, b) => {
+      const aEnrolled = enrolledCourseIds.has(a.id)
+      const bEnrolled = enrolledCourseIds.has(b.id)
+      if (aEnrolled === bEnrolled) return 0
+      return aEnrolled ? 1 : -1
+    })
+  }, [availableCourses, enrolledCourseIds])
+
+  function toggleCourseSelection(courseId: string, isEnrolled: boolean) {
+    if (isEnrolled) return;
+    setSelectedCourseIds(prev => 
+      prev.includes(courseId) 
+        ? prev.filter(id => id !== courseId) 
+        : [...prev, courseId]
+    );
+  }
+
   if (loading && subjects.length === 0) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8 space-y-10 animate-in fade-in duration-500">
@@ -463,7 +499,7 @@ export default function SubjectsPage() {
         </div>
 
         {/* Add Form Skeleton */}
-        <Card className="bg-muted/10 border-dashed border-2">
+        <Card className="bg-card/60 backdrop-blur-2xl border-none shadow-sm rounded-3xl">
           <CardContent className="p-4">
             <div className="h-4 w-32 bg-muted animate-pulse rounded-md mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
@@ -485,9 +521,10 @@ export default function SubjectsPage() {
         {/* Categories Skeleton */}
         <div className="space-y-4">
           <div className="h-6 w-40 bg-muted animate-pulse rounded-md" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i} className="h-36 bg-muted/20 animate-pulse border-border/50" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((val) => (
+              // NOSONAR
+              <div key={`skeleton-category-${val}`} className="rounded-3xl border bg-card text-card-foreground shadow-sm h-64 overflow-hidden relative isolate p-6" />
             ))}
           </div>
         </div>
@@ -496,60 +533,33 @@ export default function SubjectsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-10">
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
       
       {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Subjects</span></h1>
-          <p className="text-muted-foreground mt-1">Manage your active academic courses and personal learning tracks.</p>
-        </div>
-        {profile?.academics_enabled && profile?.personal_enabled && (
-        <div className="relative flex gap-2 bg-accent/50 rounded-full p-1">
-          {/* Animated indicator moves between active Button using shared layoutId */}
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setTab("academics")
-                setType("academic")
-              }}
-              className="relative gap-2 px-3 py-1 rounded-full"
-            >
-              {tab === "academics" && (
-                <motion.span
-                  layoutId="subjects-tab-indicator"
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-2">
-                <BookOpen className={`w-4 h-4 ${tab === "academics" ? 'text-foreground' : 'text-muted-foreground'}`} />
-                <span className={`${tab === "academics" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Academics</span>
-              </span>
+      <PageHeader 
+        title="Subjects" 
+        description="Manage your active academic courses and personal learning tracks." 
+        action={
+          <div className="flex items-center gap-2">
+            {profile?.academics_enabled && profile?.personal_enabled && (
+              <SegmentedControl 
+                segments={[
+                  { id: 'academics', label: 'Academics', icon: BookOpen },
+                  { id: 'personal', label: 'Personal', icon: FolderOpen }
+                ]}
+                activeSegment={tab}
+                onChange={(id) => {
+                  setTab(id as 'academics' | 'personal')
+                  setType(id as 'academic' | 'personal')
+                }}
+              />
+            )}
+            <Button onClick={() => setIsAddSubjectModalOpen(true)} className="gap-2 rounded-full font-bold shadow-sm h-9">
+              <Plus className="w-4 h-4" /> Add
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setTab("personal")
-                setType("personal")
-              }}
-              className="relative gap-2 px-3 py-1 rounded-full"
-            >
-              {tab === "personal" && (
-                <motion.span
-                  layoutId="subjects-tab-indicator"
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
-                  className="absolute inset-0 m-0.1 rounded-full bg-white dark:bg-black/50 z-0"
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-2">
-                <FolderOpen className={`w-4 h-4 ${tab === "personal" ? 'text-foreground' : 'text-muted-foreground'}`} />
-                <span className={`${tab === "personal" ? 'text-foreground font-bold' : 'text-muted-foreground'}`}>Personal</span>
-              </span>
-            </Button>
-        </div>
-        )}
-      </div>
+          </div>
+        }
+      />
 
       {/* --- ACADEMIC SUBJECTS --- */}
       {profile?.academics_enabled && tab === "academics" && (
@@ -558,13 +568,13 @@ export default function SubjectsPage() {
             <BookOpen className="w-5 h-5 text-primary" /> Academic Track
           </h2>
           {academicSubjects.length === 0 ? (
-            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
+            <div className="p-8 text-center border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-2xl bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
               <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
             </div>
           ) : (
-            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <m.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {academicSubjects.map(sub => (
-                <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
+                <m.div key={sub.id} variants={itemVariants}>
                   <SubjectGridCard 
                     subject={sub} 
                     onEdit={() => {
@@ -578,9 +588,9 @@ export default function SubjectsPage() {
                     onDelete={() => setSubjectToDelete(sub)}
                     onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
                   />
-                </motion.div>
+                </m.div>
               ))}
-            </motion.div>
+            </m.div>
           )}
         </section>
       )}
@@ -612,17 +622,17 @@ export default function SubjectsPage() {
           </div>
 
           {personalSubjects.length === 0 ? (
-            <div className="p-8 text-center border-2 border-dashed rounded-2xl bg-muted/30">
+            <div className="p-8 text-center border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-2xl bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
               <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
             </div>
           ) : (
-            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <m.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredSubjects
                 .filter(s => s.type === 'personal')
                 .map(sub => {
                   const subCategory = categories.find(c => c.id === sub.category_id)
                   return (
-                    <motion.div key={sub.id} variants={itemVariants} whileHover={{ scale: 1.02, y: -2 }}>
+                    <m.div key={sub.id} variants={itemVariants}>
                       <SubjectGridCard 
                         subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
                         category={subCategory}
@@ -630,158 +640,137 @@ export default function SubjectsPage() {
                         onDelete={() => setSubjectToDelete(sub)}
                         onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
                       />
-                    </motion.div>
+                    </m.div>
                   )
               })}
-            </motion.div>
+            </m.div>
           )}
 
         </section>
       )}
 
-      {/* --- ADD SUBJECT FORM --- */}
-      <Card className="bg-muted/30 border-dashed border-2">
-        <CardContent className="p-4 w-full">
-          <form onSubmit={handleAddSubject} className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
-            <div className="sm:col-span-12 mb-2">
-              <h2 className="text-sm font-bold flex items-center gap-2 text-foreground">
-                <Plus className="w-4 h-4" /> Add New Subject
-              </h2>
-            </div>
-            {errorMsg && (
-              <div className="sm:col-span-12">
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{errorMsg}</AlertDescription>
-                </Alert>
-              </div>
-            )}
-            
-            <motion.div 
-              layout 
-              className={`space-y-2 sm:col-span-12 ${tab === 'personal' ? 'lg:col-span-4' : 'lg:col-span-10'}`}
-            >
-              {tab === "academics" ? (
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
-                  
-                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} >
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
-                        {selectedCourseIds.length > 0 
-                          ? `${selectedCourseIds.length} course(s) selected` 
-                          : "Select academic courses..."}
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="min-w-full p-0" align="start">
-                      <div className="p-2 border-b bg-muted/20">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
-                      </div>
-                      <div className="max-h-62.5 overflow-y-auto p-1">
-                        {availableCourses.length > 0 ? (
-                          [...availableCourses]
-                            .sort((a, b) => {
-                              const aEnrolled = enrolledCourseIds.includes(a.id)
-                              const bEnrolled = enrolledCourseIds.includes(b.id)
-                              if (aEnrolled === bEnrolled) return 0
-                              return aEnrolled ? 1 : -1
-                            })
-                            .map(c => {
-                              const isEnrolled = enrolledCourseIds.includes(c.id)
-                              const isSelected = selectedCourseIds.includes(c.id)
-                              return (
-                                <div 
-                                  key={c.id}
-                                  onClick={() => {
-                                    if (isEnrolled) return 
-                                    if (isSelected) setSelectedCourseIds(prev => prev.filter(id => id !== c.id))
-                                    else setSelectedCourseIds(prev => [...prev, c.id])
-                                  }}
-                                  className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
-                                >
-                                  <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
-                                    {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
-                                  </div>
-                                  <div className="flex flex-col">
-                                    <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
-                                    {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
-                                  </div>
-                                </div>
-                              )
-                            })
-                        ) : (
-                          <p className="text-xs text-muted-foreground italic p-4 text-center">No shared courses found for your semester.</p>
-                        )}
-                      </div>
-                      <div className="p-2 border-t bg-muted/10">
-                        <Button variant="secondary" className="w-full text-[10px] font-black uppercase tracking-wider h-10" onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setIsPopoverOpen(false);
-                        }}>
-                          Done
-                        </Button>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  {availableCourses.length === 0 && (
-                    <p className="text-[10px] text-muted-foreground italic mb-2">
-                      Be the first from this semester to add courses!
-                    </p>
-                  )}
-                  
-                  <Input 
-                    value={newCourseName} 
-                    onChange={(e) => setNewCourseName(e.target.value)} 
-                    placeholder="Or type new course name..." 
-                    className="h-10 bg-background shadow-sm border-muted-foreground/20"
-                  />
+      {/* --- ADD SUBJECT MODAL --- */}
+      <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
+          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
+            <DialogTitle>Add New Subject</DialogTitle>
+          </DialogHeader>
+          <div className="p-6 max-h-[75vh] overflow-y-auto">
+            <form onSubmit={handleAddSubject} className="grid grid-cols-1 gap-4">
+              {errorMsg && (
+                <div className="col-span-1">
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{errorMsg}</AlertDescription>
+                  </Alert>
                 </div>
-              ) : (
-                <>
-                  <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
-                  <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tab === 'personal' ? 'e.g. Personal Development' : 'e.g. Contract Law'} className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
-                </>
               )}
-            </motion.div>
-
-            <AnimatePresence mode="popLayout">
-              {tab === 'personal' && (
-                <motion.div 
-                  layout
-                  initial={{ opacity: 0, scale: 0.95, x: 20 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, x: 20 }}
-                  className="space-y-2 sm:col-span-6 lg:col-span-3"
-                >
-                  <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
-                  <div className="w-full">
-                    <Select value={categoryId} onValueChange={setCategoryId}>
-                      <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
-                        <SelectValue placeholder="No Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Uncategorized</SelectItem>
-                        {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+              
+              <m.div layout className="space-y-4">
+                {tab === "academics" ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
+                      
+                      <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen} >
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3">
+                            {selectedCourseIds.length > 0 
+                              ? `${selectedCourseIds.length} course(s) selected` 
+                              : "Select academic courses..."}
+                            <ChevronDown className="w-4 h-4 ml-2 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="min-w-full p-0" align="start">
+                          <div className="p-2 border-b bg-muted/20">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
+                          </div>
+                          <div className="max-h-62.5 overflow-y-auto p-1">
+                            {availableCourses.length > 0 ? (
+                              sortedCourses.map(c => {
+                                const isEnrolled = enrolledCourseIds.has(c.id)
+                                const isSelected = selectedCourseIds.includes(c.id)
+                                return (
+                                  <button 
+                                    key={c.id}
+                                    type="button"
+                                    onClick={() => toggleCourseSelection(c.id, isEnrolled)}
+                                    className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
+                                  >
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
+                                      {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
+                                      {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
+                                    </div>
+                                  </button>
+                                )
+                              })
+                            ) : (
+                              <p className="text-xs text-muted-foreground font-medium p-4 text-center">No shared courses found for your semester.</p>
+                            )}
+                          </div>
+                          <div className="p-2 border-t bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
+                            <Button variant="secondary" className="w-full text-[10px] font-bold uppercase tracking-wider h-10" onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setIsPopoverOpen(false);
+                            }}>
+                              Done
+                            </Button>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                      {availableCourses.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground font-medium mb-2">
+                          Be the first from this semester to add courses!
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold text-muted-foreground">Or Create Custom</Label>
+                      <Input 
+                        value={newCourseName} 
+                        onChange={(e) => setNewCourseName(e.target.value)} 
+                        placeholder="Type new course name..." 
+                        className="h-10 bg-background shadow-sm border-muted-foreground/20"
+                      />
+                    </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
+                      <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Personal Development" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
+                      <Select value={categoryId} onValueChange={setCategoryId}>
+                        <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
+                          <SelectValue placeholder="No Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Uncategorized</SelectItem>
+                          {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </m.div>
 
-            <motion.div 
-              layout 
-              className={`space-y-2 sm:col-span-12 ${tab === 'personal' ? 'lg:col-span-2' : 'lg:col-span-12'}`}
-            >
-              <Button type="submit" className="w-full h-10 font-bold tracking-tight shadow-sm">
-                Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
-              </Button>
-            </motion.div>
-          </form>
-        </CardContent>
-      </Card>
+              <div className="pt-4 flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsAddSubjectModalOpen(false)} className="flex-1">Cancel</Button>
+                <Button type="submit" className="flex-1 font-bold tracking-tight shadow-sm">
+                  Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* --- EDIT SUBJECT MODAL --- */}
       <Dialog open={!!editingSubject} onOpenChange={(open: boolean) => !open && setEditingSubject(null)}>
@@ -794,7 +783,7 @@ export default function SubjectsPage() {
               
               <div className="space-y-1.5">
                 <Label>Subject Name</Label>
-                <Input value={editingSubject.name} onChange={e => setEditingSubject({...editingSubject, name: e.target.value})} className="bg-muted/30" />
+                <Input value={editingSubject.name} onChange={e => setEditingSubject({...editingSubject, name: e.target.value})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
               </div>
 
               {editingSubject.type === 'academic' && (
@@ -804,9 +793,9 @@ export default function SubjectsPage() {
                     value={editingSubject.instructor_name || ""} 
                     onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} 
                     placeholder="Shared with everyone in your semester" 
-                    className="bg-muted/30"
+                    className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl"
                   />
-                  <p className="text-[10px] text-muted-foreground italic">Updating this changes it for all students in this semester.</p>
+                  <p className="text-[10px] text-muted-foreground font-medium">Updating this changes it for all students in this semester.</p>
                 </div>
               )}
 
@@ -814,7 +803,7 @@ export default function SubjectsPage() {
                 <>
                   <div className="space-y-1.5">
                     <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
-                    <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: Number(e.target.value) || 0})} className="bg-muted/30" />
+                    <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: Number(e.target.value) || 0})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Color Identity</Label>
@@ -867,7 +856,7 @@ export default function SubjectsPage() {
       {/* --- MANAGE CATEGORIES MODAL --- */}
       <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
-          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/30">
+          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
             <DialogTitle>Manage Categories</DialogTitle>
           </DialogHeader>
           <div className="space-y-6 px-6 pb-6 pt-4">
@@ -876,7 +865,7 @@ export default function SubjectsPage() {
             <div className="flex gap-2 items-end bg-card">
               <div className="space-y-1.5 flex-1">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">New Category</Label>
-                <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-muted/30" />
+                <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
               </div>
               <div className="space-y-1.5 w-12.5">
                 <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Color</Label>
@@ -889,7 +878,7 @@ export default function SubjectsPage() {
             <div className="space-y-3 pt-2">
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-1">Existing Categories</h3>
               {categories.length === 0 ? (
-                <p className="text-sm text-muted-foreground italic text-center py-4">No categories created yet.</p>
+                <p className="text-sm text-muted-foreground font-medium text-center py-4">No categories created yet.</p>
               ) : (
                 <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
                   {categories.map(cat => (
@@ -914,7 +903,7 @@ export default function SubjectsPage() {
   )
 }
 
-function AlertTriangle({className}: {className?: string}) {
+function AlertTriangle({className}: Readonly<{className?: string}>) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
   )

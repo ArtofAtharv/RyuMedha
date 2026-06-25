@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { CheckCircle2, XCircle, User, BookOpen, Fingerprint } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from "motion/react"
+import { m } from "motion/react"
 
 interface AttendanceCardProps {
   subjectId?: string
@@ -92,7 +92,7 @@ export function AttendanceCard({
   }
 
   return (
-    <motion.div 
+    <m.div 
       whileHover={{ y: -4 }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className="h-full"
@@ -122,10 +122,10 @@ export function AttendanceCard({
         </div>
 
         <div className="flex items-start justify-between gap-2 w-full mb-1">
-          <h3 className="text-xl font-black text-foreground leading-tight tracking-tight line-clamp-2">
+          <h3 className="text-xl font-bold text-foreground leading-tight tracking-tight line-clamp-2">
             {subjectName}
           </h3>
-          <span className={`text-2xl font-black shrink-0 ${healthClass}`}>
+          <span className={`text-2xl font-bold shrink-0 ${healthClass}`}>
             {Math.round(pct)}%
           </span>
         </div>
@@ -160,7 +160,7 @@ export function AttendanceCard({
           </div>
 
           <div className="h-2 w-full rounded-full overflow-hidden bg-muted shadow-inner">
-            <motion.div
+            <m.div
               className="h-full rounded-full"
               initial={{ width: 0 }}
               animate={{ width: `${progress}%` }}
@@ -275,6 +275,6 @@ export function AttendanceCard({
         </div>
       </CardContent>
     </Card>
-    </motion.div>
+    </m.div>
   )
 }
