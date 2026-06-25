@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,6 +44,19 @@ function calcElapsedForTimer(timer: StudyTimer, syncedNow: number): number {
   return Math.max(0, Math.floor((syncedNow - start) / 1000) - totalPauseSecs)
 }
 
+function formatTime(secs: number): string {
+  const h = Math.floor(secs / 3600)
+  const m = Math.floor((secs % 3600) / 60)
+  const s = secs % 60
+  return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
+}
+
+function formatPomoTime(secs: number): string {
+  const m = Math.floor(secs / 60)
+  const s = secs % 60
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
+}
+
 export default function TimersPage() {
   const { profile } = useProfile()
   const [activeTimer, setActiveTimer] = useState<StudyTimer | null>(null)
@@ -77,6 +90,13 @@ export default function TimersPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingTimerId, setEditingTimerId] = useState<string | null>(null)
   const [editSubjectId, setEditSubjectId] = useState("")
+
+  const availableSubjects = useMemo(() => {
+    return subjects.filter(s => 
+      (s.type === 'academic' && profile?.academics_enabled) || 
+      (s.type === 'personal' && profile?.personal_enabled)
+    )
+  }, [subjects, profile?.academics_enabled, profile?.personal_enabled])
 
   useEffect(() => {
     // Initialise alarm audio outside of setState to satisfy react-hooks/set-state-in-effect
@@ -454,19 +474,6 @@ export default function TimersPage() {
     }
   }
 
-  const formatTime = (secs: number) => {
-    const h = Math.floor(secs / 3600)
-    const m = Math.floor((secs % 3600) / 60)
-    const s = secs % 60
-    return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
-  }
-
-  const formatPomoTime = (secs: number) => {
-    const m = Math.floor(secs / 60)
-    const s = secs % 60
-    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
-  }
-
   // --- Pomodoro Handlers ---
   const openPomoSettings = () => {
     setTempOpts(pomoDurationOpts)
@@ -569,46 +576,7 @@ export default function TimersPage() {
       />
 
       {subjects.length === 0 ? (
-        <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-500">
-          {/* Active Timer Skeleton */}
-          <Card className="border-2 border-primary/10">
-            <CardHeader>
-              <div className="h-6 w-32 bg-muted animate-pulse rounded-md" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="h-4 w-24 bg-muted animate-pulse rounded-md" />
-                  <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
-                </div>
-                <div className="h-12 w-full bg-primary/20 animate-pulse rounded-md mt-4" />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* History Skeleton */}
-          <Card>
-            <CardHeader>
-              <div className="h-6 w-40 bg-muted animate-pulse rounded-md" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {['h-skel-1', 'h-skel-2', 'h-skel-3', 'h-skel-4'].map((key) => (
-                  <div key={key} className="flex justify-between items-center p-3 border rounded-lg bg-card animate-pulse">
-                    <div className="space-y-2">
-                      <div className="h-5 w-24 bg-muted rounded-md" />
-                      <div className="h-3 w-16 bg-muted/60 rounded-md" />
-                    </div>
-                    <div className="flex gap-2">
-                      <div className="h-6 w-12 bg-muted rounded-md" />
-                      <div className="h-8 w-8 bg-muted rounded-md" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <TimersSkeleton />
       ) : (
         <m.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
           
@@ -624,189 +592,51 @@ export default function TimersPage() {
 
             <TabsContent value="stopwatch" className="mt-0">
               <div className="grid md:grid-cols-2 gap-6">
-                
-                {/* Active Timer / Start Form */}
+                <StopwatchCard 
+                  activeTimer={activeTimer}
+                  elapsed={elapsed}
+                  selectedSubject={selectedSubject}
+                  setSelectedSubject={setSelectedSubject}
+                  availableSubjects={availableSubjects}
+                  startTimer={startTimer}
+                  pauseTimer={pauseTimer}
+                  resumeTimer={resumeTimer}
+                  stopTimer={stopTimer}
+                />
                 <m.div variants={itemVariants} initial="hidden" animate="show">
-          <Card className="border-2 border-primary/20 h-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary"/> Active Session
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activeTimer ? (
-              <div className="text-center py-6 space-y-4">
-                <p className="text-lg font-medium text-muted-foreground">{activeTimer.subjects?.name}</p>
-                <div className={`text-5xl font-mono font-bold tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'text-primary'}`}>
-                  {formatTime(elapsed)}
-                </div>
-                {activeTimer.pause_started_at && <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Paused</p>}
-                
-                <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
-                  {activeTimer.pause_started_at ? (
-                    <Button onClick={resumeTimer} size="lg" className="w-full sm:w-auto gap-2 bg-primary text-primary-foreground border-0 hover:bg-primary/90 transition-colors">
-                      <Play className="fill-current w-4 h-4"/> Resume
-                    </Button>
-                  ) : (
-                    <Button onClick={pauseTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 hover:bg-muted">
-                      <Pause className="fill-current w-4 h-4"/> Pause
-                    </Button>
-                  )}
-                  <Button onClick={stopTimer} variant="destructive" size="lg" className="w-full sm:w-auto gap-2">
-                    <Square className="fill-current w-4 h-4"/> Stop Timer
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Select Subject</Label>
-                  <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                    <SelectTrigger className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                      <SelectValue placeholder="Select a Subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {subjects
-                        .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
-                        .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
-                      }
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={startTimer} disabled={!selectedSubject} size="lg" className="w-full gap-2 bg-primary text-primary-foreground border-0 hover:bg-primary/90 transition-colors">
-                  <Play className="fill-current w-4 h-4"/> Start Focusing
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        </m.div>
-
-        {/* History */}
-        <m.div variants={itemVariants} initial="hidden" animate="show">
-        <Card className="h-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-muted-foreground">
-              <History className="w-5 h-5"/> Recent Sessions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HistoryList history={history} profile={profile} formatTime={formatTime} openEditModal={openEditModal} deleteTimer={deleteTimer} />
-          </CardContent>
-        </Card>
-        </m.div>
-        
+                  <Card className="h-full">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-muted-foreground">
+                        <History className="w-5 h-5"/> Recent Sessions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <HistoryList history={history} profile={profile} formatTime={formatTime} openEditModal={openEditModal} deleteTimer={deleteTimer} />
+                    </CardContent>
+                  </Card>
+                </m.div>
               </div>
             </TabsContent>
 
             <TabsContent value="pomodoro" className="mt-0 outline-none">
               <div className="grid md:grid-cols-2 gap-6">
-                
-                {/* Pomodoro Tracker */}
-                <div className="h-full">
-                  <Card className={`border-2 transition-colors duration-700 overflow-hidden h-full flex flex-col items-center justify-center p-6 min-h-100 relative ${
-                    { pomodoro: 'bg-red-500/10 border-red-500/20', shortBreak: 'bg-teal-500/10 border-teal-500/20', longBreak: 'bg-blue-500/10 border-blue-500/20' }[pomoMode]
-                  }`}>
-                    
-                    <div className="absolute top-4 right-4 z-10">
-                      <Button variant="ghost" size="icon" onClick={openPomoSettings} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                        <Settings2 className="w-5 h-5"/>
-                      </Button>
-                    </div>
-
-                    {/* Subject Selector (Only show if in Pomodoro Mode, breaks don't need subjects) */}
-                    <div className="w-full px-4 flex justify-center">
-                      <div className="w-full max-w-50">
-                        {pomoMode === 'pomodoro' ? (
-                          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-                            <SelectTrigger className="flex bg-background/50 border-0 rounded-full text-xs font-bold tracking-widest w-full justify-center gap-2" size="sm">
-                              <SelectValue placeholder="Select Subject" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {subjects
-                                .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
-                                .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
-                              }
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div className="h-8 flex items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest bg-background/30 rounded-full px-4 w-fit mx-auto">
-                            Break Time
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 p-1.5 bg-background/50 backdrop-blur-md rounded-full mb-4">
-                      <button onClick={() => handlePomoModeSwitch('pomodoro')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'pomodoro' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Pomodoro</button>
-                      <button onClick={() => handlePomoModeSwitch('shortBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'shortBreak' ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Short Break</button>
-                      <button onClick={() => handlePomoModeSwitch('longBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'longBreak' ? 'bg-blue-500 text-white' : 'text-muted-foreground hover:bg-muted'}`}>Long Break</button>
-                    </div>
-
-                    <div className="text-[100px] leading-none font-mono font-bold tracking-tighter tabular-nums">
-                      {formatPomoTime(pomoTimeLeft)}
-                    </div>
-
-                    <div className="flex items-center gap-4 mt-6">
-                      <Button 
-                        onClick={togglePomo} 
-                        size="lg" 
-                        className={`text-xl font-bold h-16 px-12 rounded-3xl transition-all hover:scale-105 ${
-                          pomoIsActive 
-                            ? 'bg-background text-foreground border-2 border-border/50 hover:bg-muted' 
-                            : { pomodoro: 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20', shortBreak: 'bg-teal-500 text-white hover:bg-teal-600 shadow-teal-500/20', longBreak: 'bg-blue-500 text-white hover:bg-blue-600' }[pomoMode]
-                        }`}
-                      >
-                        {pomoIsActive ? 'PAUSE' : 'START'}
-                      </Button>
-                      
-                      {pomoIsActive && (
-                        <Button onClick={handlePomoSkip} variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-background/50 hover:bg-background/80 shadow-md">
-                          <Square className="w-5 h-5 fill-current opacity-70" />
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                </div>
-
-                {/* Shared History View */}
-                <div className="h-full">
-                  <Card className="h-full">
-                    <CardHeader>
-                      <CardTitle className="text-muted-foreground flex items-center gap-2">
-                        <History className="w-5 h-5"/> Pomodoro History
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {history.some(h => h.timer_type === 'pomodoro') ? (
-                        <div className="space-y-3">
-                          {history.filter(h => h.timer_type === 'pomodoro').slice(0, 10).map(h => (
-                            <div key={h.id} className="flex justify-between items-center p-3 border rounded-lg bg-card gap-3 hover:border-red-500/50 transition-colors">
-                              <div>
-                                <p className="font-semibold">{h.subjects?.name}</p>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Active'} at {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Now'}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md text-sm">{Math.floor((h.duration_seconds ?? 0) / 60)}m</span>
-                                <Button variant="ghost" size="icon" onClick={() => openEditModal(h.id, h.subject_id)} className="h-8 w-8 text-muted-foreground hover:text-primary">
-                                  <Pencil className="w-4 h-4"/>
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="w-4 h-4"/>
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-sm text-muted-foreground font-medium">No completed Pomodoros yet. Focus up!</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
+                <PomodoroTrackerCard
+                  pomoMode={pomoMode}
+                  pomoTimeLeft={pomoTimeLeft}
+                  pomoIsActive={pomoIsActive}
+                  selectedSubject={selectedSubject}
+                  setSelectedSubject={setSelectedSubject}
+                  availableSubjects={availableSubjects}
+                  openPomoSettings={openPomoSettings}
+                  handlePomoModeSwitch={handlePomoModeSwitch}
+                  togglePomo={togglePomo}
+                  handlePomoSkip={handlePomoSkip}
+                />
+                <PomodoroHistoryCard
+                  history={history}
+                  openEditModal={openEditModal}
+                  deleteTimer={deleteTimer}
+                />
               </div>
             </TabsContent>
           </Tabs>
@@ -828,10 +658,7 @@ export default function TimersPage() {
                   <SelectValue placeholder="Select a Subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects
-                    .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
-                    .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
-                  }
+                  {availableSubjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -887,6 +714,236 @@ export default function TimersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  )
+}
+
+function TimersSkeleton() {
+  return (
+    <div className="grid md:grid-cols-2 gap-6 animate-in fade-in duration-500">
+      {/* Active Timer Skeleton */}
+      <Card className="border-2 border-primary/10">
+        <CardHeader>
+          <div className="h-6 w-32 bg-muted animate-pulse rounded-md" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="h-4 w-24 bg-muted animate-pulse rounded-md" />
+              <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+            </div>
+            <div className="h-12 w-full bg-primary/20 animate-pulse rounded-md mt-4" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* History Skeleton */}
+      <Card>
+        <CardHeader>
+          <div className="h-6 w-40 bg-muted animate-pulse rounded-md" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {['h-skel-1', 'h-skel-2', 'h-skel-3', 'h-skel-4'].map((key) => (
+              <div key={key} className="flex justify-between items-center p-3 border rounded-lg bg-card animate-pulse">
+                <div className="space-y-2">
+                  <div className="h-5 w-24 bg-muted rounded-md" />
+                  <div className="h-3 w-16 bg-muted/60 rounded-md" />
+                </div>
+                <div className="flex gap-2">
+                  <div className="h-6 w-12 bg-muted rounded-md" />
+                  <div className="h-8 w-8 bg-muted rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+function StopwatchCard({
+  activeTimer, elapsed, selectedSubject, setSelectedSubject, availableSubjects,
+  startTimer, pauseTimer, resumeTimer, stopTimer
+}: Readonly<{
+  activeTimer: StudyTimer | null; elapsed: number; selectedSubject: string;
+  setSelectedSubject: (id: string) => void; availableSubjects: DashboardSubject[];
+  startTimer: () => void; pauseTimer: () => void; resumeTimer: () => void;
+  stopTimer: () => void;
+}>) {
+  return (
+    <m.div variants={itemVariants} initial="hidden" animate="show">
+      <Card className="border-2 border-primary/20 h-full">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="w-5 h-5 text-primary"/> Active Session
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {activeTimer ? (
+            <div className="text-center py-6 space-y-4">
+              <p className="text-lg font-medium text-muted-foreground">{activeTimer.subjects?.name}</p>
+              <div className={`text-5xl font-mono font-bold tracking-tighter transition-all duration-500 ${activeTimer.pause_started_at ? 'text-muted-foreground opacity-70' : 'text-primary'}`}>
+                {formatTime(elapsed)}
+              </div>
+              {activeTimer.pause_started_at && <p className="text-sm text-muted-foreground font-bold uppercase tracking-widest">Paused</p>}
+              
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 justify-center">
+                {activeTimer.pause_started_at ? (
+                  <Button onClick={resumeTimer} size="lg" className="w-full sm:w-auto gap-2 bg-primary text-primary-foreground border-0 hover:bg-primary/90 transition-colors">
+                    <Play className="fill-current w-4 h-4"/> Resume
+                  </Button>
+                ) : (
+                  <Button onClick={pauseTimer} variant="outline" size="lg" className="w-full sm:w-auto gap-2 hover:bg-muted">
+                    <Pause className="fill-current w-4 h-4"/> Pause
+                  </Button>
+                )}
+                <Button onClick={stopTimer} variant="destructive" size="lg" className="w-full sm:w-auto gap-2">
+                  <Square className="fill-current w-4 h-4"/> Stop Timer
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Select Subject</Label>
+                <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                  <SelectTrigger className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <SelectValue placeholder="Select a Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSubjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={startTimer} disabled={!selectedSubject} size="lg" className="w-full gap-2 bg-primary text-primary-foreground border-0 hover:bg-primary/90 transition-colors">
+                <Play className="fill-current w-4 h-4"/> Start Focusing
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </m.div>
+  )
+}
+
+function PomodoroTrackerCard({
+  pomoMode, pomoTimeLeft, pomoIsActive, selectedSubject, setSelectedSubject,
+  availableSubjects, openPomoSettings, handlePomoModeSwitch, togglePomo, handlePomoSkip
+}: Readonly<{
+  pomoMode: PomoMode; pomoTimeLeft: number; pomoIsActive: boolean; selectedSubject: string;
+  setSelectedSubject: (id: string) => void; availableSubjects: DashboardSubject[];
+  openPomoSettings: () => void; handlePomoModeSwitch: (mode: PomoMode) => void;
+  togglePomo: () => void; handlePomoSkip: () => void;
+}>) {
+  return (
+    <div className="h-full">
+      <Card className={`border-2 transition-colors duration-700 overflow-hidden h-full flex flex-col items-center justify-center p-6 min-h-100 relative ${
+        { pomodoro: 'bg-red-500/10 border-red-500/20', shortBreak: 'bg-teal-500/10 border-teal-500/20', longBreak: 'bg-blue-500/10 border-blue-500/20' }[pomoMode]
+      }`}>
+        <div className="absolute top-4 right-4 z-10">
+          <Button variant="ghost" size="icon" onClick={openPomoSettings} className="h-8 w-8 text-muted-foreground hover:text-foreground">
+            <Settings2 className="w-5 h-5"/>
+          </Button>
+        </div>
+
+        {/* Subject Selector */}
+        <div className="w-full px-4 flex justify-center">
+          <div className="w-full max-w-50">
+            {pomoMode === 'pomodoro' ? (
+              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+                <SelectTrigger className="flex bg-background/50 border-0 rounded-full text-xs font-bold tracking-widest w-full justify-center gap-2" size="sm">
+                  <SelectValue placeholder="Select Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSubjects.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="h-8 flex items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest bg-background/30 rounded-full px-4 w-fit mx-auto">
+                Break Time
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-2 p-1.5 bg-background/50 backdrop-blur-md rounded-full mb-4">
+          <button onClick={() => handlePomoModeSwitch('pomodoro')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'pomodoro' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Pomodoro</button>
+          <button onClick={() => handlePomoModeSwitch('shortBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'shortBreak' ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'text-muted-foreground hover:bg-muted'}`}>Short Break</button>
+          <button onClick={() => handlePomoModeSwitch('longBreak')} className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${pomoMode === 'longBreak' ? 'bg-blue-500 text-white' : 'text-muted-foreground hover:bg-muted'}`}>Long Break</button>
+        </div>
+
+        <div className="text-[100px] leading-none font-mono font-bold tracking-tighter tabular-nums">
+          {formatPomoTime(pomoTimeLeft)}
+        </div>
+
+        <div className="flex items-center gap-4 mt-6">
+          <Button 
+            onClick={togglePomo} 
+            size="lg" 
+            className={`text-xl font-bold h-16 px-12 rounded-3xl transition-all hover:scale-105 ${
+              pomoIsActive 
+                ? 'bg-background text-foreground border-2 border-border/50 hover:bg-muted' 
+                : { pomodoro: 'bg-red-500 text-white hover:bg-red-600 shadow-red-500/20', shortBreak: 'bg-teal-500 text-white hover:bg-teal-600 shadow-teal-500/20', longBreak: 'bg-blue-500 text-white hover:bg-blue-600' }[pomoMode]
+            }`}
+          >
+            {pomoIsActive ? 'PAUSE' : 'START'}
+          </Button>
+          
+          {pomoIsActive && (
+            <Button onClick={handlePomoSkip} variant="ghost" size="icon" className="h-14 w-14 rounded-full bg-background/50 hover:bg-background/80 shadow-md">
+              <Square className="w-5 h-5 fill-current opacity-70" />
+            </Button>
+          )}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function PomodoroHistoryCard({
+  history, openEditModal, deleteTimer
+}: Readonly<{
+  history: StudyTimer[]; openEditModal: (id: string, subId: string) => void; deleteTimer: (id: string) => void;
+}>) {
+  const pomoHistory = history.filter(h => h.timer_type === 'pomodoro')
+  return (
+    <div className="h-full">
+      <Card className="h-full">
+        <CardHeader>
+          <CardTitle className="text-muted-foreground flex items-center gap-2">
+            <History className="w-5 h-5"/> Pomodoro History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {pomoHistory.length > 0 ? (
+            <div className="space-y-3">
+              {pomoHistory.slice(0, 10).map(h => (
+                <div key={h.id} className="flex justify-between items-center p-3 border rounded-lg bg-card gap-3 hover:border-red-500/50 transition-colors">
+                  <div>
+                    <p className="font-semibold">{h.subjects?.name}</p>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {h.ended_at ? new Date(h.ended_at).toLocaleDateString() : 'Active'} at {h.ended_at ? new Date(h.ended_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Now'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-red-500 bg-red-500/10 px-2 py-1 rounded-md text-sm">{Math.floor((h.duration_seconds ?? 0) / 60)}m</span>
+                    <Button variant="ghost" size="icon" onClick={() => openEditModal(h.id, h.subject_id)} className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <Pencil className="w-4 h-4"/>
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => deleteTimer(h.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-4 h-4"/>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground font-medium">No completed Pomodoros yet. Focus up!</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

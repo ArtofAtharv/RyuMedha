@@ -36,7 +36,7 @@ export function GamificationProvider({ children }: Readonly<{ children: ReactNod
   const [combo, setCombo] = useState(0);
 
   useEffect(() => {
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
       const savedXp = localStorage.getItem(`rpg_xp_${profile?.whatsapp_number || 'guest'}`);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (savedXp) setXp(Number.parseInt(savedXp, 10));
@@ -49,7 +49,7 @@ export function GamificationProvider({ children }: Readonly<{ children: ReactNod
   const addXp = useCallback((amount: number) => {
     setXp((prev) => {
       const newXp = prev + amount;
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window !== undefined) {
         localStorage.setItem(`rpg_xp_${profile?.whatsapp_number || 'guest'}`, newXp.toString());
       }
       return newXp;
@@ -59,7 +59,7 @@ export function GamificationProvider({ children }: Readonly<{ children: ReactNod
   const incrementCombo = useCallback(() => {
     setCombo((prev) => {
       const newCombo = prev + 1;
-      if (typeof globalThis.window !== "undefined") {
+      if (globalThis.window !== undefined) {
         localStorage.setItem(`rpg_combo_${profile?.whatsapp_number || 'guest'}`, newCombo.toString());
       }
       return newCombo;
@@ -68,7 +68,7 @@ export function GamificationProvider({ children }: Readonly<{ children: ReactNod
 
   const resetCombo = useCallback(() => {
     setCombo(0);
-    if (typeof globalThis.window !== "undefined") {
+    if (globalThis.window !== undefined) {
       localStorage.setItem(`rpg_combo_${profile?.whatsapp_number || 'guest'}`, '0');
     }
   }, [profile?.whatsapp_number]);

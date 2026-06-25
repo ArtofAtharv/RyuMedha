@@ -166,19 +166,10 @@ export function InteractiveAttendanceGrid({ initialData, subjectsInfo, token, pr
   }, [data, subjectsInfo, calculateAdvice])
 
   const buildUpdatedRow = useCallback((item: AttendanceData, subjectId: string, isUndo: boolean, targetStatus: string) => {
-    let newPresent = item.total_present
-    let newAbsent = item.total_absent
-    let newDeemed = item.total_deemed ?? 0
-
-    if (isUndo) {
-      if (targetStatus === 'present' && newPresent > 0) newPresent -= 1
-      if (targetStatus === 'absent' && newAbsent > 0) newAbsent -= 1
-      if (targetStatus === 'deemed' && newDeemed > 0) newDeemed -= 1
-    } else {
-      if (targetStatus === 'present') newPresent += 1
-      if (targetStatus === 'absent') newAbsent += 1
-      if (targetStatus === 'deemed') newDeemed += 1
-    }
+    const delta = isUndo ? -1 : 1
+    const newPresent = targetStatus === 'present' ? Math.max(0, item.total_present + delta) : item.total_present
+    const newAbsent = targetStatus === 'absent' ? Math.max(0, item.total_absent + delta) : item.total_absent
+    const newDeemed = targetStatus === 'deemed' ? Math.max(0, (item.total_deemed ?? 0) + delta) : (item.total_deemed ?? 0)
 
     const subInfo = subjectsInfo.find(s => s.id === subjectId)
     const expectedTotal = subInfo?.expected_total_lectures || getSourceCourse(subInfo?.source_course_id)?.expected_total_lectures || 0

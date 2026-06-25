@@ -15,9 +15,9 @@ const item: Variants = {
 
 export function PersonalOverviewSection({
   data
-}: {
+}: Readonly<{
   data: PersonalOverviewData
-}) {
+}>) {
   return (
     <m.section
       key="personal"
