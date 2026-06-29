@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playball } from "next/font/google";
+import { Inter, Geist_Mono, Playball } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Navigation from "@/components/navigation";
@@ -9,8 +9,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
 
@@ -76,7 +76,7 @@ export default function RootLayout({
     // the html element before React hydrates — this suppresses the mismatch warning
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${playball.variable} antialiased pb-[80px] md:pb-0`}
+        className={`${inter.className} ${inter.variable} ${geistMono.variable} ${playball.variable} font-sans antialiased pb-[80px] md:pb-0`}
         suppressHydrationWarning
       >
         {/* Restore color theme from localStorage before first paint — no flash */}

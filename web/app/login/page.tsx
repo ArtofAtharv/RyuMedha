@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, m } from 'motion/react'
 import { ArrowRight, Check, ChevronDown, Loader2, MessageCircle } from 'lucide-react'
 
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -30,11 +30,11 @@ type CountryOption = {
 }
 
 const COUNTRIES: CountryOption[] = [
-  { code: '91', flag: '🇮🇳', name: 'India',          label: 'India', groups: [5, 5],    placeholder: '98765 43210'  },
-  { code: '1',  flag: '🇺🇸', name: 'United States',  label: 'USA',   groups: [3, 3, 4], placeholder: '202 555 0198' },
-  { code: '44', flag: '🇬🇧', name: 'United Kingdom', label: 'UK',    groups: [4, 3, 4], placeholder: '7400 123 456' },
-  { code: '81', flag: '🇯🇵', name: 'Japan',          label: 'Japan', groups: [2, 4, 4], placeholder: '90 1234 5678' },
-  { code: '82', flag: '🇰🇷', name: 'South Korea',    label: 'Korea', groups: [2, 4, 4], placeholder: '10 1234 5678' },
+  { code: '91', flag: '🇮🇳', name: 'India', label: 'India', groups: [5, 5], placeholder: '98765 43210' },
+  { code: '1', flag: '🇺🇸', name: 'United States', label: 'USA', groups: [3, 3, 4], placeholder: '202 555 0198' },
+  { code: '44', flag: '🇬🇧', name: 'United Kingdom', label: 'UK', groups: [4, 3, 4], placeholder: '7400 123 456' },
+  { code: '81', flag: '🇯🇵', name: 'Japan', label: 'Japan', groups: [2, 4, 4], placeholder: '90 1234 5678' },
+  { code: '82', flag: '🇰🇷', name: 'South Korea', label: 'Korea', groups: [2, 4, 4], placeholder: '10 1234 5678' },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -67,11 +67,11 @@ function getPhoneValidation(country: CountryOption, digits: string) {
   const expected = maxDigits(country)
   const compact = `+${country.code}${digits}`
   const total = country.code.length + digits.length
-  if (!digits)                          return { compact, valid: false, message: 'Enter your WhatsApp number.' }
-  if (digits.length < 6)               return { compact, valid: false, message: 'Enter the full number.' }
-  if (digits.length !== expected)      return { compact, valid: false, message: `${expected} digits required for ${country.name}.` }
-  if (total < 8 || total > 15)         return { compact, valid: false, message: 'Use a valid international phone number.' }
-  if (/^(\d)\1+$/.test(digits))        return { compact, valid: false, message: 'Use a real WhatsApp number.' }
+  if (!digits) return { compact, valid: false, message: 'Enter your WhatsApp number.' }
+  if (digits.length < 6) return { compact, valid: false, message: 'Enter the full number.' }
+  if (digits.length !== expected) return { compact, valid: false, message: `${expected} digits required for ${country.name}.` }
+  if (total < 8 || total > 15) return { compact, valid: false, message: 'Use a valid international phone number.' }
+  if (/^(\d)\1+$/.test(digits)) return { compact, valid: false, message: 'Use a real WhatsApp number.' }
   return { compact, valid: true, message: '' }
 }
 
@@ -103,15 +103,15 @@ function PhoneInput({
   onBlur,
   disabled,
   hasError,
-}: {
+}: Readonly<{
   digits: string
   country: CountryOption
   onChange: (d: string) => void
   onBlur: () => void
   disabled: boolean
   hasError: boolean
-}) {
-  const inputRef  = useRef<HTMLInputElement>(null)
+}>) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const cursorRef = useRef<number | null>(null)
   const displayed = groupDigits(digits, country.groups)
 
@@ -124,14 +124,14 @@ function PhoneInput({
   })
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw       = e.target.value
+    const raw = e.target.value
     const cursorPos = e.target.selectionStart ?? raw.length
     const newDigits = onlyDigits(raw, maxDigits(country))
-    const newFmt    = groupDigits(newDigits, country.groups)
+    const newFmt = groupDigits(newDigits, country.groups)
 
     const rawBefore = raw.slice(0, cursorPos).replace(/\D/g, '').length
-    let digitsSeen  = 0
-    let newCursor   = newFmt.length
+    let digitsSeen = 0
+    let newCursor = newFmt.length
     for (let i = 0; i < newFmt.length; i++) {
       if (newFmt[i] !== ' ') digitsSeen++
       if (digitsSeen === rawBefore) { newCursor = i + 1; break }
@@ -164,29 +164,29 @@ function PhoneInput({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 function LoginPageInner() {
-  const router       = useRouter()
+  const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl  = searchParams.get('callbackUrl') ?? '/dashboard'
+  const callbackUrl = searchParams.get('callbackUrl') ?? '/dashboard'
 
-  const [step,              setStep]              = useState<'phone' | 'otp'>('phone')
-  const [countryCode,       setCountryCode]       = useState('91')
-  const [digits,            setDigits]            = useState('')
-  const [otp,               setOtp]               = useState('')
-  const [loading,           setLoading]           = useState(false)
-  const [error,             setError]             = useState('')
-  const [expiresIn,         setExpiresIn]         = useState(300)
+  const [step, setStep] = useState<'phone' | 'otp'>('phone')
+  const [countryCode, setCountryCode] = useState('91')
+  const [digits, setDigits] = useState('')
+  const [otp, setOtp] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [expiresIn, setExpiresIn] = useState(300)
   const [showSignupOverlay, setShowSignupOverlay] = useState(false)
-  const [phoneTouched,      setPhoneTouched]      = useState(false)
-  const [otpTouched,        setOtpTouched]        = useState(false)
+  const [phoneTouched, setPhoneTouched] = useState(false)
+  const [otpTouched, setOtpTouched] = useState(false)
 
-  const country        = useMemo(() => getCountry(countryCode), [countryCode])
+  const country = useMemo(() => getCountry(countryCode), [countryCode])
   const phoneValidation = getPhoneValidation(country, digits)
-  const displayPhone   = `+${country.code} ${groupDigits(digits, country.groups)}`.trim()
-  const countdown      = useCountdown(expiresIn, step === 'otp')
-  const expired        = countdown === 0 && step === 'otp'
-  const otpValid       = /^\d{6}$/.test(otp)
+  const displayPhone = `+${country.code} ${groupDigits(digits, country.groups)}`.trim()
+  const countdown = useCountdown(expiresIn, step === 'otp')
+  const expired = countdown === 0 && step === 'otp'
+  const otpValid = /^\d{6}$/.test(otp)
   const showPhoneError = phoneTouched && !phoneValidation.valid
-  const showOtpError   = otpTouched && otp.length > 0 && !otpValid
+  const showOtpError = otpTouched && otp.length > 0 && !otpValid
 
   function handleCountryChange(code: string) {
     const next = getCountry(code)
@@ -196,24 +196,24 @@ function LoginPageInner() {
     setError('')
   }
 
-  async function handleRequestOTP(e: React.FormEvent) {
+  async function handleRequestOTP(e: React.SyntheticEvent) {
     e.preventDefault()
     setError('')
     setPhoneTouched(true)
     if (!phoneValidation.valid) return
     setLoading(true)
     try {
-      const res  = await fetch('/api/auth/request-otp', {
-        method:  'POST',
+      const res = await fetch('/api/auth/request-otp', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ phone_number: phoneValidation.compact }),
+        body: JSON.stringify({ phone_number: phoneValidation.compact }),
       })
       const data = await res.json()
       const isNotRegistered =
         data.not_registered === true ||
         (res.status === 404 && (data.status === 'not_registered' || data.error?.toLowerCase().includes('not registered')))
       if (isNotRegistered) { setShowSignupOverlay(true); return }
-      if (!res.ok)         { setError(data.error ?? 'Failed to send code.'); return }
+      if (!res.ok) { setError(data.error ?? 'Failed to send code.'); return }
       setExpiresIn(data.expiresIn ?? 300)
       setStep('otp')
     } catch {
@@ -223,7 +223,7 @@ function LoginPageInner() {
     }
   }
 
-  async function handleVerifyOTP(e: React.FormEvent) {
+  async function handleVerifyOTP(e: React.SyntheticEvent) {
     e.preventDefault()
     setOtpTouched(true)
     if (!otpValid) return
@@ -232,7 +232,7 @@ function LoginPageInner() {
     try {
       const result = await signIn('whatsapp-otp', { phone_number: phoneValidation.compact, otp, redirect: false })
       if (result?.error) { setError(result.error); setOtp(''); setOtpTouched(false); return }
-      if (result?.ok)    { router.push(callbackUrl); router.refresh() }
+      if (result?.ok) { router.push(callbackUrl); router.refresh() }
     } catch {
       setError('Something went wrong. Please try again.')
     } finally {
@@ -249,11 +249,11 @@ function LoginPageInner() {
 
   return (
     <main className="flex items-center justify-center px-4 py-16 bg-background text-foreground min-h-[85vh]">
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-[380px] flex flex-col items-center gap-6"
+        className="w-full max-w-95 flex flex-col items-center gap-6"
       >
         {/* Brand block — Sleek, modern logo + name stacked */}
         <div className="flex flex-col items-center gap-2 text-center select-none">
@@ -278,7 +278,7 @@ function LoginPageInner() {
           <AnimatePresence mode="wait" initial={false}>
             {/* ── Phone step ── */}
             {step === 'phone' && (
-              <motion.form
+              <m.form
                 key="phone"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -353,14 +353,15 @@ function LoginPageInner() {
                   </div>
 
                   {/* Inline hint / error */}
-                  <div className="min-h-[16px] pl-0.5">
-                    {showPhoneError ? (
+                  <div className="min-h-4 pl-0.5">
+                    {showPhoneError && (
                       <p className="text-[12px] text-destructive font-medium">{phoneValidation.message}</p>
-                    ) : digits ? (
+                    )}
+                    {!showPhoneError && digits && (
                       <p className="text-[12px] text-muted-foreground/90">
                         Code will be sent to {displayPhone}
                       </p>
-                    ) : null}
+                    )}
                   </div>
                 </div>
 
@@ -385,7 +386,7 @@ function LoginPageInner() {
 
                 {/* Create account link */}
                 <p className="text-center text-[13px] text-muted-foreground/90">
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <a
                     href="https://wa.me/message/P4QSZGK7MV2PL1"
                     target="_blank"
@@ -395,12 +396,12 @@ function LoginPageInner() {
                     Create one
                   </a>
                 </p>
-              </motion.form>
+              </m.form>
             )}
 
             {/* ── OTP step ── */}
             {step === 'otp' && (
-              <motion.form
+              <m.form
                 key="otp"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -444,17 +445,19 @@ function LoginPageInner() {
                   </InputOTP>
 
                   {/* Timer / expired / error */}
-                  <div className="min-h-[16px] text-center">
-                    {showOtpError ? (
+                  <div className="min-h-4 text-center">
+                    {showOtpError && (
                       <p className="text-[12px] text-destructive font-medium">Enter the 6-digit code.</p>
-                    ) : expired ? (
+                    )}
+                    {!showOtpError && expired && (
                       <p className="text-[12px] text-muted-foreground/90">
                         Code expired.{' '}
                         <button type="button" onClick={handleBack} className="text-primary font-semibold hover:underline">
                           Request new code
                         </button>
                       </p>
-                    ) : (
+                    )}
+                    {!showOtpError && !expired && (
                       <p className="text-[12px] text-muted-foreground/90">
                         Expires in{' '}
                         <span className="font-mono text-foreground font-semibold">{formatTime(countdown)}</span>
@@ -496,27 +499,27 @@ function LoginPageInner() {
                     Resend code
                   </button>
                 </div>
-              </motion.form>
+              </m.form>
             )}
           </AnimatePresence>
         </div>
-      </motion.div>
+      </m.div>
 
       {/* ── Not-registered overlay ── */}
       <AnimatePresence>
         {showSignupOverlay && (
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-background/75 backdrop-blur-xl p-5"
           >
-            <motion.div
+            <m.div
               initial={{ opacity: 0, scale: 0.97, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.97, y: 10 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-              className="w-full max-w-[340px] rounded-3xl border border-border bg-card px-8 py-8 text-center shadow-2xl"
+              className="w-full max-w-85 rounded-3xl border border-border bg-card px-8 py-8 text-center shadow-2xl"
             >
               <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
                 <MessageCircle className="h-6 w-6 text-primary" />
@@ -525,11 +528,11 @@ function LoginPageInner() {
                 Not registered
               </h2>
               <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-                This number isn't in our system. Open WhatsApp to create your account.
+                This number isn&apos;t in our system. Open WhatsApp to create your account.
               </p>
               <div className="mt-6 flex flex-col gap-2.5">
                 <Button
-                  onClick={() => window.open('https://wa.me/message/P4QSZGK7MV2PL1', '_blank')}
+                  onClick={() => window.open('https://wa.me/message/P4QSZGK7MV2PL1', '_blank', 'noopener,noreferrer')}
                   className="h-11 w-full rounded-xl text-[14px] font-semibold cursor-pointer"
                 >
                   <MessageCircle className="mr-2 h-4 w-4" />
@@ -543,8 +546,8 @@ function LoginPageInner() {
                   Go back
                 </Button>
               </div>
-            </motion.div>
-          </motion.div>
+            </m.div>
+          </m.div>
         )}
       </AnimatePresence>
     </main>

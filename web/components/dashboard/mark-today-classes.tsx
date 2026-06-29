@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { createClient } from "@supabase/supabase-js"
+import { getAppClient } from "@/lib/supabase-client"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -10,15 +10,11 @@ interface SubjectInfo {
   id: string
 }
 
-export function MarkTodayClasses({ subjectsInfo, token, profileId }: { subjectsInfo: SubjectInfo[], token: string, profileId: string }) {
+export function MarkTodayClasses({ subjectsInfo, token, profileId }: Readonly<{ subjectsInfo: SubjectInfo[], token: string, profileId: string }>) {
   const [isMarking, setIsMarking] = useState(false)
   const router = useRouter()
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${token}` } } }
-  )
+  const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${token}` } } })
 
   async function handleMarkAll() {
     if (!subjectsInfo || subjectsInfo.length === 0) return

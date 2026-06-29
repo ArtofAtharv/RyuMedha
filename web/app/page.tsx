@@ -6,7 +6,7 @@ import {
   BookOpen, Clock, CheckSquare, GraduationCap,
   MessageCircle, BarChart, Timer
 } from "lucide-react";
-import { motion, Variants } from "motion/react"
+import { m, Variants } from "motion/react"
 import type { ReactNode } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -24,14 +24,14 @@ const itemVariants: Variants = {
   hidden: { y: 20, opacity: 0 },
   visible: {
     y: 0, opacity: 1,
-    transition: { type: "spring", stiffness: 240, damping: 26 }
+    transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }
   }
 }
 const fadeUp: Variants = {
   hidden: { y: 32, opacity: 0 },
   visible: {
     y: 0, opacity: 1,
-    transition: { type: "spring", stiffness: 200, damping: 28 }
+    transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }
   }
 }
 
@@ -61,7 +61,7 @@ export default function LandingPage() {
         className="flex items-center"
         style={{ minHeight: "calc(100vh - 56px)" }}
       >
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -69,24 +69,24 @@ export default function LandingPage() {
         >
           {/* Left */}
           <div className="max-w-2xl">
-            <motion.h1
+            <m.h1
               variants={itemVariants}
               className="text-5xl font-semibold tracking-[-0.055em] text-balance leading-[1.06] md:text-6xl lg:text-7xl xl:text-8xl"
             >
               Own your<br />semester,<br />
               <span className="text-primary">every single day.</span>
-            </motion.h1>
+            </m.h1>
 
-            <motion.p
+            <m.p
               variants={itemVariants}
               className="mt-6 max-w-xl text-base leading-7 text-muted-foreground md:text-lg md:leading-8"
             >
               Ryu Medha keeps attendance, grades, tasks, and study sessions
               in one calm workspace. The fastest way in is a WhatsApp message
               you already know how to send.
-            </motion.p>
+            </m.p>
 
-            <motion.div
+            <m.div
               variants={itemVariants}
               className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
             >
@@ -102,11 +102,11 @@ export default function LandingPage() {
               >
                 See how it works
               </a>
-            </motion.div>
+            </m.div>
           </div>
 
           {/* Right -- preview card */}
-          <motion.div
+          <m.div
             variants={itemVariants}
             className="w-full rounded-3xl border border-border bg-card/60 backdrop-blur-md shadow-sm overflow-hidden"
           >
@@ -117,7 +117,7 @@ export default function LandingPage() {
               </div>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/20 px-3 py-1 text-xs font-semibold text-green-600 dark:text-green-400">
                 <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                On track
+                {" "}On track
               </span>
             </div>
 
@@ -141,14 +141,14 @@ export default function LandingPage() {
                 and your dashboard updates in seconds. No app switching needed.
               </p>
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           FEATURE STRIP
           ══════════════════════════════════════════ */}
-      <motion.section
+      <m.section
         id="features"
         variants={containerVariants}
         initial="hidden"
@@ -156,12 +156,12 @@ export default function LandingPage() {
         viewport={{ once: true, margin: "-80px" }}
         className="border-y border-border min-h-screen flex flex-col justify-center px-5 sm:px-8 lg:px-14 xl:px-20 py-20"
       >
-        <motion.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Why Ryu Medha
-        </motion.p>
-        <motion.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl mb-12">
+        </m.p>
+        <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl mb-12">
           Three principles. One tool that respects your time.
-        </motion.h2>
+        </m.h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FeatureCard
@@ -195,37 +195,37 @@ export default function LandingPage() {
             ]}
           />
         </div>
-      </motion.section>
+      </m.section>
 
       {/* ══════════════════════════════════════════
           WHAT IS RYU MEDHA — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="max-w-3xl py-16"
         >
-          <motion.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             What it is
-          </motion.p>
-          <motion.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl lg:text-5xl text-balance">
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl lg:text-5xl text-balance">
             One place for your entire academic life.
-          </motion.h2>
-          <motion.p variants={fadeUp} className="mt-6 text-base leading-7 text-muted-foreground md:text-lg">
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-6 text-base leading-7 text-muted-foreground md:text-lg">
             Most students juggle five different apps: one for attendance,
             another for tasks, a spreadsheet for grades, a timer app, and
             a notes folder. Ryu Medha collapses all of that into a single,
             quietly intelligent workspace that stays out of your way.
-          </motion.p>
-          <motion.p variants={fadeUp} className="mt-4 text-base leading-7 text-muted-foreground md:text-lg">
+          </m.p>
+          <m.p variants={fadeUp} className="mt-4 text-base leading-7 text-muted-foreground md:text-lg">
             And because the best interface is one you already have open,
             the WhatsApp bot lets you log attendance, check your stats, and
             manage tasks without ever opening a browser.
-          </motion.p>
-          <motion.div variants={fadeUp} className="mt-10 flex flex-wrap gap-4">
+          </m.p>
+          <m.div variants={fadeUp} className="mt-10 flex flex-wrap gap-4">
             {[
               { icon: <BookOpen className="h-4 w-4" />, text: "Attendance per subject" },
               { icon: <GraduationCap className="h-4 w-4" />, text: "Cumulative grade tracking" },
@@ -239,27 +239,27 @@ export default function LandingPage() {
                 {item.text}
               </span>
             ))}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           FEATURES DEEP DIVE — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16"
         >
-          <motion.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Every feature, intentional
-          </motion.p>
-          <motion.h2 variants={fadeUp} className="mb-10 text-3xl font-semibold tracking-tight md:text-4xl text-balance">
+          </m.p>
+          <m.h2 variants={fadeUp} className="mb-10 text-3xl font-semibold tracking-tight md:text-4xl text-balance">
             Built around how you actually study.
-          </motion.h2>
+          </m.h2>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DeepFeatureCard icon={<BookOpen className="h-5 w-5" />} color="blue" title="Attendance Tracker" description="Mark present, absent, or deemed for each subject. Get warned the moment your percentage drops below your target. Never get surprised by a shortage." />
@@ -269,14 +269,14 @@ export default function LandingPage() {
             <DeepFeatureCard icon={<BarChart2 className="h-5 w-5" />} color="green" title="Study Analytics" description="Visual charts of your focus sessions over time. Spot your most productive days, your slowest weeks, and plan accordingly." />
             <DeepFeatureCard icon={<MessageCircle className="h-5 w-5" />} color="emerald" title="WhatsApp Bot" description="The fastest interface is a message you already know how to type. Mark attendance, check stats, and manage tasks in under 10 seconds." />
           </div>
-        </motion.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           DUAL MODE — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -284,26 +284,26 @@ export default function LandingPage() {
           className="w-full py-16 grid gap-12 lg:grid-cols-2 lg:items-center"
         >
           <div>
-            <motion.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Two modes, one dashboard
-            </motion.p>
-            <motion.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance">
+            </m.p>
+            <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance">
               College subjects and personal goals, side by side.
-            </motion.h2>
-            <motion.p variants={fadeUp} className="mt-5 text-base leading-7 text-muted-foreground">
+            </m.h2>
+            <m.p variants={fadeUp} className="mt-5 text-base leading-7 text-muted-foreground">
               Your life is not just lectures and exams. Ryu Medha has an
               Academic mode for your college subjects and a Personal mode for
               everything else: learning guitar, building a startup, preparing
               for competitive exams.
-            </motion.p>
-            <motion.p variants={fadeUp} className="mt-4 text-base leading-7 text-muted-foreground">
+            </m.p>
+            <m.p variants={fadeUp} className="mt-4 text-base leading-7 text-muted-foreground">
               Both modes share the same task manager, timer, and analytics,
               so you get a complete picture of how you spend your time, not
               just your exam-ready hours.
-            </motion.p>
+            </m.p>
           </div>
 
-          <motion.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2">
+          <m.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2">
             <DualModeCard
               label="Academic"
               items={["Attendance per subject", "Deemed and shortage warnings", "Semester-scoped grades", "Assignment deadlines"]}
@@ -314,30 +314,30 @@ export default function LandingPage() {
               items={["Custom learning tracks", "Skill score board", "Goal-linked tasks", "Deep work analytics"]}
               accent="violet"
             />
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           BY THE NUMBERS
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16"
         >
-          <motion.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             By the numbers
-          </motion.p>
-          <motion.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
             Built to be fast, free, and frictionless.
-          </motion.h2>
-          <motion.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
             No setup fees, no paywalls, no complexity. Ryu Medha is designed to get out of your way and let you focus on what matters.
-          </motion.p>
+          </m.p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCell
@@ -361,29 +361,29 @@ export default function LandingPage() {
               description="Attendance, grades, tasks, focus timers, and analytics. Everything you need, in one focused workspace."
             />
           </div>
-        </motion.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           HOW IT WORKS
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16"
         >
-          <motion.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Getting started
-          </motion.p>
-          <motion.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
             Up and running in under two minutes.
-          </motion.h2>
-          <motion.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
             No signup form, no onboarding slides, no waiting. Just open WhatsApp and you are already in.
-          </motion.p>
+          </m.p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             {[
@@ -406,43 +406,43 @@ export default function LandingPage() {
                 detail: "Your data, always in sync"
               }
             ].map((s) => (
-              <motion.div
+              <m.div
                 key={s.step}
                 variants={fadeUp}
                 className="group flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
               >
-                <span className="mb-5 text-4xl font-black tracking-tight text-primary/20 leading-none">{s.step}</span>
+                <span className="mb-5 text-4xl font-bold tracking-tight text-primary/20 leading-none">{s.step}</span>
                 <h3 className="text-base font-semibold tracking-tight">{s.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground flex-1">{s.body}</p>
                 <div className="mt-5 inline-flex items-center gap-2 border-t border-border pt-4">
                   <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                   <span className="text-xs text-muted-foreground">{s.detail}</span>
                 </div>
-              </motion.div>
+              </m.div>
             ))}
           </div>
-        </motion.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           CTA — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center px-5 sm:px-8 lg:px-14 xl:px-20">
-        <motion.div
+        <m.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16 flex flex-col items-center text-center gap-6"
         >
-          <motion.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-5xl text-balance max-w-2xl">
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-5xl text-balance max-w-2xl">
             Your semester is already happening. Start tracking it.
-          </motion.h2>
-          <motion.p variants={fadeUp} className="text-base text-muted-foreground max-w-lg">
+          </m.h2>
+          <m.p variants={fadeUp} className="text-base text-muted-foreground max-w-lg">
             Free, fast, and built for the way you already live.
             Sign up in under 60 seconds with just your WhatsApp number.
-          </motion.p>
-          <motion.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row">
+          </m.p>
+          <m.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/login"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:opacity-75"
@@ -458,8 +458,8 @@ export default function LandingPage() {
               <MessageCircle className="h-4 w-4 text-green-500" />
               Open WhatsApp bot
             </a>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       </section>
 
     </div>
@@ -470,9 +470,9 @@ export default function LandingPage() {
 
 function PreviewMetric({
   icon, label, value, detail, color, bg
-}: {
+}: Readonly<{
   icon: ReactNode; label: string; value: string; detail: string; color: string; bg: string;
-}) {
+}>) {
   return (
     <div className="flex items-center gap-4 px-5 py-3.5">
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${bg} ${color}`}>
@@ -489,11 +489,11 @@ function PreviewMetric({
 
 function FeatureCard({
   icon, title, description, bullets
-}: {
+}: Readonly<{
   icon: ReactNode; title: string; description: string; bullets: string[];
-}) {
+}>) {
   return (
-    <motion.div
+    <m.div
       variants={itemVariants}
       className="group flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
     >
@@ -514,7 +514,7 @@ function FeatureCard({
           </li>
         ))}
       </ul>
-    </motion.div>
+    </m.div>
   );
 }
 
@@ -529,12 +529,12 @@ const colorMap: Record<string, { icon: string; bg: string; border: string }> = {
 
 function DeepFeatureCard({
   icon, color, title, description
-}: {
+}: Readonly<{
   icon: ReactNode; color: string; title: string; description: string;
-}) {
+}>) {
   const c = colorMap[color] ?? colorMap.blue
   return (
-    <motion.div
+    <m.div
       variants={fadeUp}
       className="group flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
     >
@@ -543,15 +543,15 @@ function DeepFeatureCard({
       </div>
       <h3 className="mb-2 text-base font-semibold tracking-tight">{title}</h3>
       <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-    </motion.div>
+    </m.div>
   )
 }
 
 function DualModeCard({
   label, items, accent
-}: {
+}: Readonly<{
   label: string; items: string[]; accent: "blue" | "violet";
-}) {
+}>) {
   const accentCls = accent === "blue"
     ? { dot: "bg-blue-500", badge: "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20" }
     : { dot: "bg-violet-500", badge: "text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/20" }
@@ -574,9 +574,9 @@ function DualModeCard({
   )
 }
 
-function StatCell({ value, label, description }: { value: string; label: string; description: string }) {
+function StatCell({ value, label, description }: Readonly<{ value: string; label: string; description: string }>) {
   return (
-    <motion.div
+    <m.div
       variants={fadeUp}
       className="group flex flex-col rounded-2xl border border-border bg-card/50 p-8 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
     >
@@ -588,6 +588,6 @@ function StatCell({ value, label, description }: { value: string; label: string;
         <p className="text-sm font-semibold text-foreground">{label}</p>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
-    </motion.div>
+    </m.div>
   )
 }

@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
+import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
+import { PageHeader } from '@/components/dashboard/page-header'
 import { BookOpen, FolderOpen, Pencil, Check, Target } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
-import { motion, Variants } from "motion/react"
+import { m, Variants } from "motion/react"
 
 const container: Variants = {
   hidden: { opacity: 0 },
@@ -19,7 +20,7 @@ const container: Variants = {
 
 const item: Variants = {
   hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+  show: { opacity: 1, y: 0, transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 } }
 }
 
 interface GradeRecord {
@@ -39,6 +40,43 @@ interface SubjectRecord {
   label?: string
   is_active?: boolean
   source_course_id?: { semester_id?: string; credits?: number } | Array<{ semester_id?: string; credits?: number }>
+}
+
+// Function to calculate Grade Point based on college system
+function getGradePoint(marks: number, max: number, scale: number) {
+  if (max === 0) return 0
+  const pct = (marks / max) * 100
+  
+  if (pct >= 91) return scale
+  if (pct >= 80) return scale - 1
+  if (pct >= 71) return scale - 2
+  if (pct >= 61) return scale - 3
+  if (pct >= 51) return scale - 4
+  if (pct >= 45) return scale - 5
+  return 0
+}
+
+function getLetterGradeFromGPA(gpa: number, scale: number) {
+  if (gpa >= scale) return "O"
+  if (gpa >= scale - 1) return "A+"
+  if (gpa >= scale - 2) return "A"
+  if (gpa >= scale - 3) return "B+"
+  if (gpa >= scale - 4) return "B"
+  if (gpa >= scale - 5) return "C"
+  return "F"
+}
+
+// Truncate to 2 decimal places instead of rounding up
+const truncateDecimals = (num: number) => {
+  return (Math.floor(num * 100) / 100).toFixed(2)
+}
+
+function getCredits(sub?: SubjectRecord): number {
+  if (!sub?.source_course_id) return 1
+  if (Array.isArray(sub.source_course_id)) {
+    return sub.source_course_id[0]?.credits ? Number(sub.source_course_id[0].credits) : 1
+  }
+  return sub.source_course_id.credits ? Number(sub.source_course_id.credits) : 1
 }
 
 export default function GradesPage() {
@@ -61,7 +99,7 @@ export default function GradesPage() {
 
   async function saveGpaScale() {
     const val = Number(editGpaValue)
-    if (!isNaN(val) && val > 0) {
+    if (!Number.isNaN(val) && val > 0) {
       setMaxGpa(val)
       if (profileId && supabaseClient) {
         await supabaseClient.from('profiles').update({ max_gpa: val }).eq('id', profileId)
@@ -107,10 +145,7 @@ export default function GradesPage() {
       const session = await getSession()
       if (!session) return
       
-      const supabase = createAppClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
+      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
       )
       
       setSupabaseClient(supabase)
@@ -140,11 +175,11 @@ export default function GradesPage() {
 
     // Prepare upserts for all grade types
     const upserts = Object.keys(scores).map(type => {
-      const m = parseFloat(scores[type].marks)
-      const mx = parseFloat(scores[type].max_marks)
+      const m = Number.parseFloat(scores[type].marks)
+      const mx = Number.parseFloat(scores[type].max_marks)
 
       // Only upsert if valid numbers exist
-      if (!isNaN(m) && !isNaN(mx)) {
+      if (!Number.isNaN(m) && !Number.isNaN(mx)) {
         return {
           profile_id: profileId,
           subject_id: subjectId,
@@ -202,29 +237,13 @@ export default function GradesPage() {
     subjectTotals[g.subject_id].max += (Number(g.max_marks) || 0)
   })
 
-  // Function to calculate Grade Point based on college system
-  function getGradePoint(marks: number, max: number, scale: number) {
-    if (max === 0) return 0
-    const pct = (marks / max) * 100
-    
-    if (pct >= 91) return scale
-    if (pct >= 80) return scale - 1
-    if (pct >= 71) return scale - 2
-    if (pct >= 61) return scale - 3
-    if (pct >= 51) return scale - 4
-    if (pct >= 45) return scale - 5
-    return 0
-  }
-
   Object.entries(subjectTotals).forEach(([subjectId, totals]) => {
     if (totals.max > 0) {
       const subjectGP = getGradePoint(totals.marks, totals.max, maxGpa)
       
       if (allAcademicSubjectIds.has(subjectId)) {
         const sub = allAcademicSubjects.find(s => s.id === subjectId)
-        const creds = Array.isArray(sub?.source_course_id) 
-          ? (sub.source_course_id[0]?.credits ? Number(sub.source_course_id[0].credits) : 1)
-          : (sub?.source_course_id?.credits ? Number(sub.source_course_id.credits) : 1)
+        const creds = getCredits(sub)
 
         acadScoreAll += totals.marks
         acadMaxAll += totals.max
@@ -244,33 +263,18 @@ export default function GradesPage() {
     }
   })
 
-  // Truncate to 2 decimal places instead of rounding up
-  const truncateDecimals = (num: number) => {
-    return (Math.floor(num * 100) / 100).toFixed(2);
-  }
-
-  const acadPct = acadMaxCurrent > 0 ? truncateDecimals((acadScoreCurrent / acadMaxCurrent) * 100) : "—"
-  const sgpaValue = sumCreditsCurrent > 0 ? truncateDecimals(sumCPCurrent / sumCreditsCurrent) : "—"
-  const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "—"
-  const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "—"
-
-  function getLetterGradeFromGPA(gpa: number, scale: number) {
-    if (gpa >= scale) return "O"
-    if (gpa >= scale - 1) return "A+"
-    if (gpa >= scale - 2) return "A"
-    if (gpa >= scale - 3) return "B+"
-    if (gpa >= scale - 4) return "B"
-    if (gpa >= scale - 5) return "C"
-    return "F"
-  }
+  const acadPct = acadMaxCurrent > 0 ? truncateDecimals((acadScoreCurrent / acadMaxCurrent) * 100) : "0"
+  const sgpaValue = sumCreditsCurrent > 0 ? truncateDecimals(sumCPCurrent / sumCreditsCurrent) : "0"
+  const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "0"
+  const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "0"
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
       
-      <motion.div variants={item} initial="hidden" animate="show">
-        <h1 className="text-3xl font-black tracking-tight"><span className="text-primary">Grades & Scores</span></h1>
-        <p className="text-muted-foreground mt-1">Track your scores and calculate overall percentages.</p>
-      </motion.div>
+      <PageHeader 
+        title="Grades & Scores"
+        description="Track your scores and calculate overall percentages."
+      />
 
       {subjects.length === 0 ? (
         <div className="space-y-10 animate-in fade-in duration-500">
@@ -278,8 +282,8 @@ export default function GradesPage() {
             <div className="h-6 w-48 bg-muted animate-pulse rounded-md" />
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
               <Card className="bg-primary/10 border-0 h-32 sm:col-span-2 lg:col-span-1 animate-pulse" />
-              {[...Array(2)].map((_, i) => (
-                <Card key={i} className="h-48 border-2 border-dashed bg-muted/20 animate-pulse" />
+              {['acad-skel-1', 'acad-skel-2'].map((key) => (
+                <Card key={key} className="h-48 border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl animate-pulse" />
               ))}
             </div>
           </section>
@@ -288,22 +292,22 @@ export default function GradesPage() {
             <div className="h-6 w-48 bg-muted animate-pulse rounded-md" />
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
               <Card className="bg-primary/5 border-0 h-32 sm:col-span-2 lg:col-span-1 animate-pulse" />
-              {[...Array(2)].map((_, i) => (
-                <Card key={i} className="h-48 border-2 border-dashed bg-muted/10 animate-pulse" />
+              {['pers-skel-1', 'pers-skel-2'].map((key) => (
+                <Card key={key} className="h-48 border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl animate-pulse" />
               ))}
             </div>
           </section>
         </div>
       ) : (
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
+        <m.div variants={container} initial="hidden" animate="show" className="space-y-6">
           {/* Academic Section */}
           {profile?.academics_enabled && (
-            <motion.section variants={item} className="space-y-4">
+            <m.section variants={item} className="space-y-4">
               <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
           
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
                 {/* SGPA Summary Card */}
-                <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+                <m.div variants={item}>
                   <Card className="bg-primary text-primary-foreground border-0 h-full relative">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center justify-between gap-2">
@@ -321,11 +325,11 @@ export default function GradesPage() {
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
-                        <p className="text-5xl font-black">{sgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
-                        {sgpaValue !== "—" && (
+                        <p className="text-5xl font-bold">{sgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
+                        {Number(sgpaValue) > 0 && (
                           <div className="flex flex-col items-end pr-2">
                             <span className="text-xs uppercase tracking-wider font-bold text-white/80 mb-1">Grade</span>
-                            <span className="text-4xl font-black leading-none">{getLetterGradeFromGPA(Number(sgpaValue), maxGpa)}</span>
+                            <span className="text-4xl font-bold leading-none">{getLetterGradeFromGPA(Number(sgpaValue), maxGpa)}</span>
                           </div>
                         )}
                       </div>
@@ -336,10 +340,10 @@ export default function GradesPage() {
                     </div>
                   </CardContent>
                 </Card>
-                </motion.div>
+                </m.div>
 
                 {/* CGPA Summary Card */}
-                <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+                <m.div variants={item}>
                   <Card className="bg-primary text-primary-foreground border-0 h-full relative">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2"><Target className="w-5 h-5"/> CGPA</CardTitle>
@@ -347,7 +351,7 @@ export default function GradesPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between">
-                      <p className="text-5xl font-black">{cgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
+                      <p className="text-5xl font-bold">{cgpaValue} <span className="text-2xl text-white/60 font-bold">/ {maxGpa}</span></p>
                     </div>
                     <div className="mt-3 pt-3 border-t border-white/20">
                       <p className="text-xs font-bold opacity-90">All Academic Marks</p>
@@ -355,75 +359,75 @@ export default function GradesPage() {
                     </div>
                   </CardContent>
                 </Card>
-                </motion.div>
+                </m.div>
 
                 {/* Academic Percentage Card */}
-                <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+                <m.div variants={item}>
                   <Card className="bg-muted/80 border-0 shadow-sm h-full">
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Percentage</CardTitle>
                     <CardDescription>Semester academic grade</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-5xl font-black text-primary">{acadPct}<span className="text-2xl text-muted-foreground font-bold">%</span></p>
+                    <p className="text-5xl font-bold text-primary">{acadPct}<span className="text-2xl text-muted-foreground font-bold">%</span></p>
                     <div className="mt-3 pt-3 border-t border-border/50">
                       <p className="text-xs font-bold opacity-90">Total Marks</p>
                       <p className="font-mono text-base text-muted-foreground">{(Math.round(acadScoreCurrent * 100) / 100)} <span className="opacity-70 text-sm">/ {acadMaxCurrent}</span></p>
                     </div>
                   </CardContent>
                 </Card>
-                </motion.div>
+                </m.div>
 
                 {subjects.filter(s => s.type === 'academic').map(sub => {
                   const subjectGrades = grades.filter(g => g.subject_id === sub.id)
                   return (
-                    <motion.div key={sub.id} variants={item} whileHover={{ scale: 1.02, y: -2 }}>
+                    <m.div key={sub.id} variants={item}>
                       <GradeSubjectCard 
                         subject={sub}
                         existingGrades={subjectGrades}
                         onSave={handleSaveGrades}
                         maxGpa={maxGpa}
                       />
-                    </motion.div>
+                    </m.div>
                   )
                 })}
                 
                 {subjects.filter(s => s.type === 'academic').length === 0 && (
-                  <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+                  <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-none rounded-xl">
                     No academic subjects found. Add one in the Subjects tab first.
                   </div>
                 )}
               </div>
-            </motion.section>
+            </m.section>
           )}
 
       {/* Personal Section */}
       {profile?.personal_enabled && (
-        <motion.section variants={item} className="space-y-4">
+        <m.section variants={item} className="space-y-4">
           <h2 className="text-xl font-bold flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal Track Scores</h2>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
             {/* Personal Summary Card — first item in the grid */}
-            <motion.div variants={item} whileHover={{ scale: 1.02 }}>
+            <m.div variants={item}>
               <Card className="bg-primary text-primary-foreground border-0 h-full">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2"><FolderOpen className="w-5 h-5"/> Personal</CardTitle>
                 <CardDescription className="text-white/80">Cumulative personal score</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-5xl font-black">{persPct}%</p>
+                <p className="text-5xl font-bold">{persPct}%</p>
                 <div className="mt-3 pt-3 border-t border-white/20">
                   <p className="text-xs font-bold opacity-90">Total Marks</p>
                   <p className="font-mono text-base">{(Math.round(persScore * 100) / 100)} <span className="opacity-70 text-sm">/ {persMax}</span></p>
                 </div>
               </CardContent>
             </Card>
-            </motion.div>
+            </m.div>
 
             {subjects.filter(s => s.type === 'personal').map(sub => {
               const subjectGrades = grades.filter(g => g.subject_id === sub.id)
               return (
-                <motion.div key={sub.id} variants={item} whileHover={{ scale: 1.02, y: -2 }}>
+                <m.div key={sub.id} variants={item}>
                   <GradeSubjectCard 
                     subject={{...sub, name: sub.label || sub.name}} 
                     existingGrades={subjectGrades}
@@ -431,25 +435,25 @@ export default function GradesPage() {
                     isPersonal
                     maxGpa={maxGpa}
                   />
-                </motion.div>
+                </m.div>
               )
             })}
             
             {subjects.filter(s => s.type === 'personal').length === 0 && (
-              <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-dashed rounded-xl">
+              <div className="col-span-1 sm:col-span-2 py-8 text-center text-sm text-muted-foreground border border-none rounded-xl">
                 No personal subjects found.
               </div>
             )}
           </div>
-        </motion.section>
+        </m.section>
       )}
 
       {isSyncing && (
-        <div className="text-center text-sm text-muted-foreground animate-pulse">
+        <div className="text-center text-sm text-muted-foreground font-medium">
           Syncing to database...
         </div>
       )}
-      </motion.div>
+      </m.div>
       )}
     </div>
   )

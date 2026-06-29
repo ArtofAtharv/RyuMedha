@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
+import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2, BellRing } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
+import { PageHeader } from '@/components/dashboard/page-header'
 
 // Types for admin page data
 interface WindowStatusRow {
@@ -27,6 +28,25 @@ interface MessageLog {
   created_at: string
   wa_message_id: string
   profiles?: { display_name: string; whatsapp_number: string }
+}
+
+function getBadgeVariant(status: string): "default" | "secondary" | "outline" {
+  if (status === 'open') return 'default'
+  if (status === 'closing_soon') return 'secondary'
+  return 'outline'
+}
+
+function getBadgeClassName(status: string) {
+  if (status === 'open') return 'bg-green-500 hover:bg-green-600 border-0'
+  if (status === 'closing_soon') return 'bg-orange-500 text-white border-0'
+  return ''
+}
+
+function getStatusColor(status: string) {
+  if (status === 'read') return 'text-blue-500'
+  if (status === 'delivered') return 'text-green-500'
+  if (status === 'failed') return 'text-destructive'
+  return 'text-orange-500'
 }
 
 export default function WhatsAppAdminPage() {
@@ -50,10 +70,7 @@ export default function WhatsAppAdminPage() {
       const session = await getSession()
       if (!session) return
       
-      const supabase = createAppClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
+      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
       )
       setSupabaseClient(supabase)
       
@@ -179,7 +196,7 @@ export default function WhatsAppAdminPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <ShieldAlert className="w-16 h-16 text-destructive animate-bounce" />
-        <h1 className="text-2xl font-black text-destructive">Access Denied</h1>
+        <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
         <p className="text-muted-foreground text-center max-w-xs">
           This page is restricted to administrators. Your current status is: 
           <Badge variant="outline" className="ml-2">Regular User</Badge>
@@ -189,54 +206,58 @@ export default function WhatsAppAdminPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-bold px-2 py-0">ADMIN</Badge>
-            <span className="text-sm font-medium text-muted-foreground">Welcome back, {profile?.display_name || "Admin"}</span>
+    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <PageHeader 
+        title={
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2 mb-1 text-base font-normal">
+              <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-bold px-2 py-0">ADMIN</Badge>
+              <span className="text-sm font-medium text-muted-foreground">Welcome back, {profile?.display_name || "Admin"}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <MessageSquare className="w-8 h-8 text-primary" />
+              <span className="text-primary">WhatsApp Console</span>
+            </div>
           </div>
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3">
-            <MessageSquare className="w-8 h-8 text-primary" />
-            <span className="text-primary">WhatsApp Console</span>
-          </h1>
-          <p className="text-muted-foreground mt-1">Monitor 24-hour windows and message delivery logs.</p>
-        </div>
-        <div className="flex overflow-x-auto md:flex-wrap items-center gap-2 mt-4 md:mt-0 w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
-          <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
-            <CheckCircle2 className="w-4 h-4 text-primary" /> Send Due Reminders
-          </Button>
-          <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
-            <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
-          </Button>
-          <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10">
-            <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
-          </Button>
-          <Button onClick={() => { if (supabaseClient) fetchData(supabaseClient) }} variant="outline" size="sm" className="shrink-0 gap-2">
-            <Zap className="w-4 h-4" /> Refresh
-          </Button>
-          <Button 
-            onClick={async () => {
-              if (!supabaseClient) return
-              if (confirm("Are you sure you want to clear all message logs?")) {
-                const { error } = await supabaseClient.rpc('clear_whatsapp_logs')
-                if (error) {
-                  console.error("Clear Logs Error:", error)
-                  toast.error(`Failed: ${error.message}`)
-                } else {
-                  toast.success("Logs cleared")
-                  fetchData(supabaseClient)
+        }
+        description="Monitor 24-hour windows and message delivery logs."
+        action={
+          <div className="flex overflow-x-auto md:flex-wrap items-center gap-2 mt-4 md:mt-0 w-full md:w-auto pb-2 md:pb-0 scrollbar-hide">
+            <Button onClick={triggerTasksReminder} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10 shadow-sm h-9">
+              <CheckCircle2 className="w-4 h-4 text-primary" /> Send Due Reminders
+            </Button>
+            <Button onClick={triggerPendingTasksBlast} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10 shadow-sm h-9">
+              <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
+            </Button>
+            <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10 shadow-sm h-9">
+              <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
+            </Button>
+            <Button onClick={() => { if (supabaseClient) fetchData(supabaseClient) }} variant="outline" size="sm" className="shrink-0 gap-2 shadow-sm h-9">
+              <Zap className="w-4 h-4" /> Refresh
+            </Button>
+            <Button 
+              onClick={async () => {
+                if (!supabaseClient) return
+                if (confirm("Are you sure you want to clear all message logs?")) {
+                  const { error } = await supabaseClient.rpc('clear_whatsapp_logs')
+                  if (error) {
+                    console.error("Clear Logs Error:", error)
+                    toast.error(`Failed: ${error.message}`)
+                  } else {
+                    toast.success("Logs cleared")
+                    fetchData(supabaseClient)
+                  }
                 }
-              }
-            }} 
-            variant="destructive" 
-            size="sm" 
-            className="shrink-0 gap-2"
-          >
-            Clear Logs
-          </Button>
-        </div>
-      </div>
+              }} 
+              variant="destructive" 
+              size="sm" 
+              className="shrink-0 gap-2 shadow-sm h-9"
+            >
+              Clear Logs
+            </Button>
+          </div>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="md:col-span-2 overflow-hidden">
@@ -259,7 +280,7 @@ export default function WhatsAppAdminPage() {
                 </thead>
                 <tbody className="divide-y">
                   {windowStatus.map((s) => (
-                    <tr key={s.profile_id} className="hover:bg-muted/30 transition-colors">
+                    <tr key={s.profile_id} className="hover:bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl transition-colors">
                       <td className="py-3 px-2">
                         <div className="font-bold">{s.display_name}</div>
                         <div className="text-xs text-muted-foreground">
@@ -267,13 +288,7 @@ export default function WhatsAppAdminPage() {
                         </div>
                       </td>
                       <td className="py-3 px-2">
-                        <Badge variant={
-                          s.window_status === 'open' ? 'default' : 
-                          s.window_status === 'closing_soon' ? 'secondary' : 'outline'
-                        } className={
-                          s.window_status === 'open' ? 'bg-green-500 hover:bg-green-600 border-0' : 
-                          s.window_status === 'closing_soon' ? 'bg-orange-500 text-white border-0' : ''
-                        }>
+                        <Badge variant={getBadgeVariant(s.window_status)} className={getBadgeClassName(s.window_status)}>
                           {s.window_status.replace('_', ' ')}
                         </Badge>
                       </td>
@@ -295,7 +310,7 @@ export default function WhatsAppAdminPage() {
                     </tr>
                   ))}
                   {windowStatus.length === 0 && !loading && (
-                    <tr><td colSpan={4} className="py-8 text-center italic text-muted-foreground">No users found.</td></tr>
+                    <tr><td colSpan={4} className="py-8 text-center font-medium text-muted-foreground">No users found.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -313,15 +328,15 @@ export default function WhatsAppAdminPage() {
           <CardContent className="space-y-4">
             <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20">
               <p className="text-sm font-bold text-green-600">Delivered/Read</p>
-              <p className="text-3xl font-black">{messageLogs.filter(l => l.status === 'delivered' || l.status === 'read').length}</p>
+              <p className="text-3xl font-bold">{messageLogs.filter(l => l.status === 'delivered' || l.status === 'read').length}</p>
             </div>
             <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
               <p className="text-sm font-bold text-blue-600">Sent (Pending)</p>
-              <p className="text-3xl font-black">{messageLogs.filter(l => l.status === 'sent').length}</p>
+              <p className="text-3xl font-bold">{messageLogs.filter(l => l.status === 'sent').length}</p>
             </div>
             <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
               <p className="text-sm font-bold text-destructive">Failed</p>
-              <p className="text-3xl font-black">{messageLogs.filter(l => l.status === 'failed').length}</p>
+              <p className="text-3xl font-bold">{messageLogs.filter(l => l.status === 'failed').length}</p>
             </div>
           </CardContent>
         </Card>
@@ -338,7 +353,7 @@ export default function WhatsAppAdminPage() {
               <div key={log.id} className="p-4 border rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-primary/50 transition-all bg-card">
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-black">{log.profiles?.display_name || 'System'}</span>
+                    <span className="font-bold">{log.profiles?.display_name || 'System'}</span>
                     <Badge variant="outline" className="text-[10px] uppercase font-bold">{log.message_type}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-1">{log.body}</p>
@@ -349,23 +364,19 @@ export default function WhatsAppAdminPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right hidden md:block">
-                    <div className={`text-[10px] font-black uppercase tracking-widest ${
-                      log.status === 'read' ? 'text-blue-500' :
-                      log.status === 'delivered' ? 'text-green-500' :
-                      log.status === 'failed' ? 'text-destructive' : 'text-orange-500'
-                    }`}>
+                    <div className={`text-[10px] font-bold uppercase tracking-widest ${getStatusColor(log.status)}`}>
                       {log.status}
                     </div>
                   </div>
                   {log.status === 'read' && <CheckCircle2 className="w-5 h-5 text-blue-500" />}
                   {log.status === 'delivered' && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-                  {log.status === 'sent' && <Clock className="w-5 h-5 text-orange-500 animate-pulse" />}
+                  {log.status === 'sent' && <Clock className="w-5 h-5 text-orange-500" />}
                   {log.status === 'failed' && <AlertCircle className="w-5 h-5 text-destructive" />}
                 </div>
               </div>
             ))}
             {messageLogs.length === 0 && !loading && (
-              <div className="py-12 text-center text-muted-foreground italic border-2 border-dashed rounded-3xl">No logs available yet.</div>
+              <div className="py-12 text-center text-muted-foreground font-medium border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">No logs available yet.</div>
             )}
           </div>
         </CardContent>

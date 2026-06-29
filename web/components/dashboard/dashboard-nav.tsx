@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { motion } from "motion/react"
+import { m } from "motion/react"
 
-import { LayoutDashboard, User, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare } from "lucide-react"
+import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare } from "lucide-react"
 import { useProfile } from './profile-context'
 import { haptic } from "@/lib/haptic"
 
@@ -15,7 +15,6 @@ export function DashboardNav() {
 
   const tabs = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
-    { label: "Profile", href: "/dashboard/profile", icon: User },
     { label: "Subjects", href: "/dashboard/subjects", icon: BookOpen },
     { label: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
     { label: "Timers", href: "/dashboard/timers", icon: Clock },
@@ -34,44 +33,38 @@ export function DashboardNav() {
   )?.href
 
   return (
-    <div className="fixed bottom-0 left-0 w-full md:sticky md:top-[36px] z-40 md:pt-6 md:pb-2 md:px-4 flex justify-center pointer-events-none md:pointer-events-auto">
-      <nav className="pointer-events-auto w-full sm:max-w-md md:max-w-full md:w-auto bg-card/80 dark:bg-card/60 backdrop-blur-xl border border-border/50 md:shadow-sm rounded-t-4xl md:rounded-full p-2 md:p-1.5 flex items-center justify-around md:justify-center overflow-x-auto gap-1 scrollbar-none">
+    <div className="fixed bottom-4 sm:bottom-6 left-0 w-full z-50 flex justify-center pointer-events-none px-4">
+      <nav className="pointer-events-auto w-full sm:max-w-lg bg-card/80 backdrop-blur-2xl border border-border/50 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-full p-2 flex items-center justify-around overflow-x-auto gap-2 scrollbar-none">
         {tabs.map((tab) => {
           const isActive = activeHref === tab.href
           return (
-            <motion.div
+            <div
               key={tab.href}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex-shrink-0 md:flex-none"
+              className="flex-shrink-0 flex-1 px-0.5"
             >
-            <Link
-              href={tab.href}
-              onClick={() => haptic()}
-              className={`relative flex items-center justify-center md:px-4 w-12 h-12 md:w-auto md:h-auto md:py-2 rounded-full text-sm font-medium transition-all md:whitespace-nowrap ${
-                isActive
-                  ? "text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-              }`}
-            >
-              {isActive && (
-                <motion.span
-                  layoutId="dashboard-tab-bubble"
-                  className="absolute inset-0 z-0 bg-primary rounded-full"
-                  transition={{
-                    type: "spring",
-                    bounce: 0.25,
-                    duration: 0.5,
-                  }}
-                />
-              )}
-              {/* Mobile Icon */}
-              <tab.icon className={`relative z-10 w-6 h-6 md:hidden ${isActive ? "text-primary-foreground" : "text-muted-foreground"}`} />
-              
-              {/* Desktop Text */}
-              <span className="relative z-10 hidden md:block">{tab.label}</span>
-            </Link>
-            </motion.div>
+              <Link
+                href={tab.href}
+                onClick={() => haptic()}
+                className={`relative flex flex-col items-center justify-center w-full py-1.5 rounded-2xl transition-all ${isActive
+                    ? "text-primary"
+                    : "text-muted-foreground hover:bg-muted/30 hover:text-foreground active:opacity-70"
+                  }`}
+              >
+                {isActive && (
+                  <m.span
+                    layoutId="dashboard-tab-bubble"
+                    className="absolute inset-0 z-0 bg-primary/10 rounded-2xl"
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 30,
+                    }}
+                  />
+                )}
+                <tab.icon className={`relative z-10 w-5 h-5 mb-0.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
+                <span className={`relative z-10 text-[10px] leading-tight ${isActive ? "font-bold" : "font-medium"}`}>{tab.label}</span>
+              </Link>
+            </div>
           )
         })}
       </nav>

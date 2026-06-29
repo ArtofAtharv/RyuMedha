@@ -4,7 +4,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@supabase/supabase-js"
 import { SubjectDetailContent } from "./subject-detail-content"
 
-export default async function SubjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SubjectDetailPage({ params }: Readonly<{ params: Promise<{ id: string }> }>) {
   const session = await getServerSession(authOptions)
   if (!session) redirect("/login")
 

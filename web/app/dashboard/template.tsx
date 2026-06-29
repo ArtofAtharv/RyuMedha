@@ -1,16 +1,16 @@
 "use client"
 
-import { motion } from "motion/react"
+import { m } from "motion/react"
 
-export default function DashboardTemplate({ children }: { children: React.ReactNode }) {
+export default function DashboardTemplate({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <motion.div
+    <m.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
       {children}
-    </motion.div>
+    </m.div>
   )
 }

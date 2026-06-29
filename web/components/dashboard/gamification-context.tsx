@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import React, { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from "react";
 import { useProfile } from "./profile-context";
 
 // A simple XP curve logic: Level = floor(sqrt(XP) / n) or something similar
@@ -27,7 +27,7 @@ const GamificationContext = createContext<GamificationState>({
   resetCombo: () => {},
 });
 
-export function GamificationProvider({ children }: { children: ReactNode }) {
+export function GamificationProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { profile } = useProfile();
   
   // In a real app, this would be fetched from/saved to the database.
@@ -36,49 +36,54 @@ export function GamificationProvider({ children }: { children: ReactNode }) {
   const [combo, setCombo] = useState(0);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (globalThis.window !== undefined) {
       const savedXp = localStorage.getItem(`rpg_xp_${profile?.whatsapp_number || 'guest'}`);
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (savedXp) setXp(parseInt(savedXp, 10));
+      if (savedXp) setXp(Number.parseInt(savedXp, 10));
       
       const savedCombo = localStorage.getItem(`rpg_combo_${profile?.whatsapp_number || 'guest'}`);
-      if (savedCombo) setCombo(parseInt(savedCombo, 10));
+      if (savedCombo) setCombo(Number.parseInt(savedCombo, 10));
     }
   }, [profile]);
 
-  const addXp = (amount: number) => {
+  const addXp = useCallback((amount: number) => {
     setXp((prev) => {
       const newXp = prev + amount;
-      if (typeof window !== "undefined") {
+      if (globalThis.window !== undefined) {
         localStorage.setItem(`rpg_xp_${profile?.whatsapp_number || 'guest'}`, newXp.toString());
       }
       return newXp;
     });
-  };
+  }, [profile?.whatsapp_number]);
 
-  const incrementCombo = () => {
+  const incrementCombo = useCallback(() => {
     setCombo((prev) => {
       const newCombo = prev + 1;
-      if (typeof window !== "undefined") {
+      if (globalThis.window !== undefined) {
         localStorage.setItem(`rpg_combo_${profile?.whatsapp_number || 'guest'}`, newCombo.toString());
       }
       return newCombo;
     });
-  };
+  }, [profile?.whatsapp_number]);
 
-  const resetCombo = () => {
+  const resetCombo = useCallback(() => {
     setCombo(0);
-    if (typeof window !== "undefined") {
+    if (globalThis.window !== undefined) {
       localStorage.setItem(`rpg_combo_${profile?.whatsapp_number || 'guest'}`, '0');
     }
-  };
+  }, [profile?.whatsapp_number]);
 
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
   const xpInCurrentLevel = xp % XP_PER_LEVEL;
   const progress = (xpInCurrentLevel / XP_PER_LEVEL) * 100;
 
+  const contextValue = useMemo<GamificationState>(
+    () => ({ xp, level, progress, addXp, combo, incrementCombo, resetCombo }),
+    [xp, level, progress, addXp, combo, incrementCombo, resetCombo]
+  );
+
   return (
-    <GamificationContext.Provider value={{ xp, level, progress, addXp, combo, incrementCombo, resetCombo }}>
+    <GamificationContext.Provider value={contextValue}>
       {children}
     </GamificationContext.Provider>
   );

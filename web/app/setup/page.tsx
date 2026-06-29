@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
+import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,11 +11,11 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   BookOpen, FolderOpen, User, ArrowRight, CheckCircle2, 
-  School, GraduationCap, Target, Loader2, ChevronLeft,
+  School, GraduationCap, Calendar, Loader2, ChevronLeft,
   Plus, Trash2, X, Check
 } from "lucide-react"
 import { toast } from "sonner"
-import { motion, AnimatePresence } from "motion/react"
+import { m, AnimatePresence } from "motion/react"
 
 interface SessionUser {
   supabaseToken?: string
@@ -25,6 +25,11 @@ interface SessionUser {
 interface SessionData {
   user: SessionUser
 }
+
+interface IdName { id: string; name: string }
+interface Program extends IdName { default_target_attendance?: number }
+interface Semester extends IdName { semester_number: number }
+interface Course { id: string; course_name: string }
 
 export default function SetupPage() {
   const router = useRouter()
@@ -38,12 +43,6 @@ export default function SetupPage() {
   const [academicsEnabled, setAcademicsEnabled] = useState(true)
   const [personalEnabled, setPersonalEnabled] = useState(true)
   
-  // Step 2: Academic Details
-  interface IdName { id: string; name: string }
-  interface Program extends IdName { default_target_attendance?: number }
-  interface Semester extends IdName { semester_number: number }
-  interface Course { id: string; course_name: string }
-
   const [universities, setUniversities] = useState<IdName[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [semesters, setSemesters] = useState<Semester[]>([])
@@ -67,6 +66,10 @@ export default function SetupPage() {
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
   const [newCourseName, setNewCourseName] = useState("")
   
+  const toggleCourseSelection = (courseId: string) => {
+    setSelectedCourseIds(prev => prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId])
+  }
+  
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
 
@@ -79,10 +82,7 @@ export default function SetupPage() {
       }
       setSession(sess)
       
-      const supabase = createAppClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        { global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
+      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
       )
       setSupabaseClient(supabase)
       
@@ -124,7 +124,7 @@ export default function SetupPage() {
     if (selectedProgId && supabaseClient) {
       // Find the selected program to get its default target attendance
       const prog = programs.find(p => p.id === selectedProgId)
-      if (prog && prog.default_target_attendance) {
+      if (prog?.default_target_attendance) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setTargetAttendance(prog.default_target_attendance.toString())
       }
@@ -215,7 +215,7 @@ export default function SetupPage() {
     const { data, error } = await supabaseClient.from('semesters').insert([{ 
       name: newSemName.trim(), 
       program_id: selectedProgId,
-      semester_number: parseInt(newSemNumber)
+      semester_number: Number.parseInt(newSemNumber, 10)
     }]).select().single()
     setIsSubmitting(false)
     if (error) {
@@ -303,7 +303,7 @@ export default function SetupPage() {
     setIsSubmitting(false)
   }
 
-  async function handleFinalSave(e: React.FormEvent) {
+  async function handleFinalSave(e: React.SyntheticEvent) {
     e.preventDefault()
     if (!supabaseClient || !session?.user?.phone) return
     setIsSubmitting(true)
@@ -314,7 +314,7 @@ export default function SetupPage() {
       display_name: displayName.trim(),
       academics_enabled: academicsEnabled,
       personal_enabled: personalEnabled,
-      target_attendance_pct: parseFloat(targetAttendance) || 75
+      target_attendance_pct: Number.parseFloat(targetAttendance) || 75
     }
 
     if (academicsEnabled) {
@@ -390,16 +390,26 @@ export default function SetupPage() {
       }
     }
 
-    setIsSubmitting(false)
+setIsSubmitting(false)
     router.push("/dashboard")
     router.refresh()
   }
 
+  const step1Bundle = { displayName, setDisplayName, academicsEnabled, setAcademicsEnabled, personalEnabled, setPersonalEnabled, handleStep1Next };
+  const step2Bundle = {
+    isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
+    isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
+    isAddingSem, setIsAddingSem, newSemName, setNewSemName, newSemNumber, setNewSemNumber, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
+    errorMsg, setStep, handleStep2Next, isSubmitting
+  };
+  const step3Bundle = {
+    availableCourses, semesters, selectedSemId, universities, selectedUniId, academicsEnabled,
+    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 selection:bg-primary/20">
       <div className="w-full max-w-md">
-        
-        {/* Progress Dots */}
         <div className="flex justify-center gap-2 mb-6">
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 1 ? 'bg-primary' : 'bg-primary/20'}`} />
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 2 ? 'bg-primary' : 'bg-primary/20'}`} />
@@ -408,384 +418,9 @@ export default function SetupPage() {
 
         <Card className="overflow-hidden border-border/60 bg-card">
           <AnimatePresence mode="wait">
-          {step === 1 && (
-            <motion.div 
-              key="step1"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            >
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                  <User className="w-7 h-7 text-primary" />
-                </div>
-                <CardTitle className="text-3xl font-semibold tracking-tight">Welcome</CardTitle>
-                <CardDescription>A few details, then your workspace is ready.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-4">
-                <div className="space-y-2">
-                  <Label htmlFor="displayName" className="font-bold">Display Name</Label>
-                  <Input 
-                    id="displayName" 
-                    placeholder="Your name" 
-                    className="h-12 bg-background/50 border-muted-foreground/20 text-lg"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <Label className="font-bold text-muted-foreground text-[10px] uppercase tracking-wider">Tracks</Label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <TrackOption 
-                      icon={<BookOpen className="w-5 h-5" />} 
-                      label="Academic" 
-                      selected={academicsEnabled} 
-                      onClick={() => setAcademicsEnabled(!academicsEnabled)} 
-                    />
-                    <TrackOption 
-                      icon={<FolderOpen className="w-5 h-5" />} 
-                      label="Personal" 
-                      selected={personalEnabled} 
-                      onClick={() => setPersonalEnabled(!personalEnabled)} 
-                    />
-                  </div>
-                </div>
-
-                <Button 
-                  className="h-12 w-full rounded-full text-base font-semibold"
-                  disabled={!displayName.trim() || (!academicsEnabled && !personalEnabled)}
-                  onClick={handleStep1Next}
-                >
-                  Next <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </CardContent>
-            </motion.div>
-          )}
-
-          {step === 2 && (
-            <motion.div 
-              key="step2"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            >
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                  <School className="w-7 h-7 text-primary" />
-                </div>
-                <CardTitle className="text-3xl font-semibold tracking-tight">Academic details</CardTitle>
-                <CardDescription>Connect your university, program, and semester.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-5 pt-4">
-                
-                {/* UNIVERSITY */}
-                <div className="space-y-2">
-                  <Label className="font-bold flex items-center gap-2">
-                    <School className="w-4 h-4 text-muted-foreground" /> University
-                  </Label>
-                  
-                  {isAddingUni ? (
-                    <div className="flex gap-2 animate-in slide-in-from-top-1 duration-200">
-                      <Input 
-                        autoFocus
-                        placeholder="University Name" 
-                        className="h-10 bg-background"
-                        value={newUniName}
-                        onChange={(e) => setNewUniName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleCreateUni()}
-                      />
-                      <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateUni} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      </Button>
-                      <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingUni(false)}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="relative group">
-                      <Select 
-                        value={selectedUniId} 
-                        onValueChange={(val) => {
-                          if (val === "ADD_NEW_UNI") setIsAddingUni(true)
-                          else setSelectedUniId(val)
-                        }}
-                      >
-                        <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
-                          <SelectValue placeholder="Select university..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {universities.map(u => (
-                            <div key={u.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                              <SelectItem value={u.id} className="flex-1">{u.name}</SelectItem>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={(e) => handleDeleteUni(e, u.id)}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          ))}
-                          <div className="border-t mt-1 pt-1">
-                            <SelectItem value="ADD_NEW_UNI" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                              <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New University</span>
-                            </SelectItem>
-                          </div>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-
-                {/* PROGRAM */}
-                <div className="space-y-2">
-                  <Label className="font-bold flex items-center gap-2 data-[enabled=false]:opacity-50" data-enabled={!!selectedUniId}>
-                    <GraduationCap className="w-4 h-4 text-muted-foreground" /> Degree Program
-                  </Label>
-                  
-                  {isAddingProg ? (
-                    <div className="flex gap-2 animate-in slide-in-from-top-1">
-                      <Input 
-                        autoFocus
-                        placeholder="Program Name (e.g. B.Tech CS)" 
-                        className="h-10 bg-background"
-                        value={newProgName}
-                        onChange={(e) => setNewProgName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleCreateProg()}
-                      />
-                      <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateProg} disabled={isSubmitting}>
-                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                      </Button>
-                      <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingProg(false)}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Select 
-                      value={selectedProgId} 
-                      onValueChange={(val) => {
-                        if (val === "ADD_NEW_PROG") setIsAddingProg(true)
-                        else setSelectedProgId(val)
-                      }} 
-                      disabled={!selectedUniId}
-                    >
-                      <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
-                        <SelectValue placeholder={selectedUniId ? "Select program..." : "← Select uni first"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programs.map(p => (
-                          <div key={p.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                            <SelectItem value={p.id} className="flex-1">{p.name}</SelectItem>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => handleDeleteProg(e, p.id)}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        {selectedUniId && (
-                          <div className="border-t mt-1 pt-1">
-                            <SelectItem value="ADD_NEW_PROG" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                              <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New Program</span>
-                            </SelectItem>
-                          </div>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
-
-                {/* SEMESTER & TARGET */}
-                <div className="grid grid-cols gap-4">
-                  <div className="space-y-2">
-                    <Label className="font-bold data-[enabled=false]:opacity-50" data-enabled={!!selectedProgId}>Semester</Label>
-                    
-                    {isAddingSem ? (
-                      <div className="flex flex-col gap-1.5 p-2 bg-muted/30 rounded-lg border border-primary/20 animate-in zoom-in-95">
-                        <Input 
-                          autoFocus
-                          placeholder="Name (e.g. Sem 1)" 
-                          className="h-8 text-xs px-2"
-                          value={newSemName}
-                          onChange={(e) => setNewSemName(e.target.value)}
-                        />
-                        <div className="flex gap-1.5">
-                          <Input 
-                            type="number"
-                            placeholder="#" 
-                            className="h-8 w-12 text-xs px-2"
-                            value={newSemNumber}
-                            onChange={(e) => setNewSemNumber(e.target.value)}
-                          />
-                          <Button size="sm" className="h-8 flex-1 text-[10px]" onClick={handleCreateSem} disabled={isSubmitting}>Save</Button>
-                          <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setIsAddingSem(false)}><X className="w-3 h-3" /></Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <Select 
-                        value={selectedSemId} 
-                        onValueChange={(val) => {
-                          if (val === "ADD_NEW_SEM") setIsAddingSem(true)
-                          else setSelectedSemId(val)
-                        }} 
-                        disabled={!selectedProgId}
-                      >
-                        <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {semesters.map(s => (
-                            <div key={s.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                              <SelectItem value={s.id} className="flex-1">{s.name}</SelectItem>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-5 w-5 opacity-0 group-hover/item:opacity-100 text-destructive hover:bg-destructive/10"
-                                onClick={(e) => handleDeleteSem(e, s.id)}
-                              >
-                                <Trash2 className="w-2.5 h-2.5" />
-                              </Button>
-                            </div>
-                          ))}
-                          {selectedProgId && (
-                            <div className="border-t mt-1 pt-1">
-                              <SelectItem value="ADD_NEW_SEM" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                                <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New</span>
-                              </SelectItem>
-                            </div>
-                          )}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                  <div className="space-y-2 ">
-                    <Label className="font-bold flex items-center gap-2">
-                      <Target className="w-4 h-4 text-muted-foreground" /> Goal
-                    </Label>
-                    <div className="flex items-center gap-2 relative">
-                      <Input 
-                        type="number" 
-                        max="100"
-                        min="0"
-                        className="h-12 bg-background border-muted-foreground/20 text-center font-semibold text-xl"
-                        value={targetAttendance}
-                        onChange={(e) => setTargetAttendance(e.target.value)}
-                      />
-                      <span className="absolute right-3 font-bold text-muted-foreground/50">%</span>
-                    </div>
-                  </div>
-                </div>
-
-                {errorMsg && <p className="text-xs text-destructive text-center font-semibold bg-destructive/10 p-2 rounded">{errorMsg}</p>}
-
-                <div className="flex gap-3 pt-2">
-                  <Button variant="outline" className="h-12 w-14 border-muted-foreground/20" onClick={() => setStep(1)}>
-                    <ChevronLeft className="w-5 h-5" />
-                  </Button>
-                  <Button 
-                    className="h-12 flex-1 rounded-full text-base font-semibold"
-                    onClick={handleStep2Next}
-                    disabled={!selectedSemId || isSubmitting}
-                  >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"} <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </motion.div>
-          )}
-
-          {step === 3 && (
-            <motion.div 
-              key="step3"
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 12 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            >
-              <CardHeader className="text-center pb-2">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-                  <CheckCircle2 className="w-7 h-7 text-primary" />
-                </div>
-                <CardTitle className="text-3xl font-semibold tracking-tight">Select your courses</CardTitle>
-                <CardDescription>
-                  {availableCourses.length > 0 
-                    ? "Choose the subjects you're studying this semester."
-                    : "Be the first user from " + 
-                      (semesters.find(s => s.id === selectedSemId)?.name || "this semester") + 
-                      " of " + 
-                      (universities.find(u => u.id === selectedUniId)?.name || "this University") + 
-                      " to manage the study with excellence!"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6 pt-4">
-                
-                {academicsEnabled && (
-                  <div className="space-y-4">
-                    {availableCourses.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="font-bold">Existing Courses</Label>
-                        <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
-                          {availableCourses.map(course => (
-                            <div 
-                              key={course.id}
-                              onClick={() => {
-                                if (selectedCourseIds.includes(course.id)) {
-                                  setSelectedCourseIds(prev => prev.filter(id => id !== course.id))
-                                } else {
-                                  setSelectedCourseIds(prev => [...prev, course.id])
-                                }
-                              }}
-                              className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between group ${selectedCourseIds.includes(course.id) ? 'border-primary bg-primary/5' : 'border-border/50 hover:bg-muted/50'}`}
-                            >
-                              <span className="font-medium text-sm">{course.course_name}</span>
-                              {selectedCourseIds.includes(course.id) && <Check className="w-4 h-4 text-primary" />}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label className="font-bold">{availableCourses.length > 0 ? "Don't see your course?" : "Add your first course"}</Label>
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Course name (e.g. Contract Law)" 
-                          value={newCourseName}
-                          onChange={(e) => setNewCourseName(e.target.value)}
-                          className="h-10 bg-background"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-3 pt-2">
-                  <Button 
-                    className="h-12 rounded-full text-base font-semibold"
-                    onClick={handleFinalSave}
-                    disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && !newCourseName.trim())}
-                  >
-                    {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finish Setup"}
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    className="text-muted-foreground"
-                    onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as React.FormEvent) }}
-                    disabled={isSubmitting}
-                  >
-                    Skip to Dashboard
-                  </Button>
-                </div>
-              </CardContent>
-            </motion.div>
-          )}
+            {step === 1 && <SetupStep1Card {...step1Bundle} />}
+            {step === 2 && <SetupStep2Card {...step2Bundle} />}
+            {step === 3 && <SetupStep3Card {...step3Bundle} />}
           </AnimatePresence>
         </Card>
       </div>
@@ -793,11 +428,448 @@ export default function SetupPage() {
   )
 }
 
-function TrackOption({ icon, label, selected, onClick }: { icon: React.ReactNode, label: string, selected: boolean, onClick: () => void }) {
+interface Step1CardProps {
+  displayName: string
+  setDisplayName: (val: string) => void
+  academicsEnabled: boolean
+  setAcademicsEnabled: (val: boolean) => void
+  personalEnabled: boolean
+  setPersonalEnabled: (val: boolean) => void
+  handleStep1Next: () => void
+}
+
+function SetupStep1Card(props: Readonly<Step1CardProps>) {
+  const { displayName, setDisplayName, academicsEnabled, setAcademicsEnabled, personalEnabled, setPersonalEnabled, handleStep1Next } = props;
   return (
-    <motion.div 
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+    <m.div 
+      key="step1"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+    >
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+          <User className="w-7 h-7 text-primary" />
+        </div>
+        <CardTitle className="text-3xl font-semibold tracking-tight">Welcome</CardTitle>
+        <CardDescription>A few details, then your workspace is ready.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 pt-4">
+        <div className="space-y-2">
+          <Label htmlFor="displayName" className="font-bold">Display Name</Label>
+          <Input 
+            id="displayName" 
+            placeholder="Your name" 
+            className="h-12 bg-background/50 border-muted-foreground/20 text-lg"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
+        </div>
+
+        <div className="space-y-3">
+          <Label className="font-bold text-muted-foreground text-[10px] uppercase tracking-wider">Tracks</Label>
+          <div className="grid grid-cols-2 gap-3">
+            <TrackOption 
+              icon={<BookOpen className="w-5 h-5" />} 
+              label="Academic" 
+              selected={academicsEnabled} 
+              onClick={() => setAcademicsEnabled(!academicsEnabled)} 
+            />
+            <TrackOption 
+              icon={<FolderOpen className="w-5 h-5" />} 
+              label="Personal" 
+              selected={personalEnabled} 
+              onClick={() => setPersonalEnabled(!personalEnabled)} 
+            />
+          </div>
+        </div>
+
+        <Button 
+          className="h-12 w-full rounded-full text-base font-semibold"
+          disabled={!displayName.trim() || (!academicsEnabled && !personalEnabled)}
+          onClick={handleStep1Next}
+        >
+          Next <ArrowRight className="ml-2 w-5 h-5" />
+        </Button>
+      </CardContent>
+    </m.div>
+  )
+}
+
+interface Step2CardProps {
+  isAddingUni: boolean
+  setIsAddingUni: (val: boolean) => void
+  newUniName: string
+  setNewUniName: (val: string) => void
+  handleCreateUni: () => void
+  selectedUniId: string
+  setSelectedUniId: (val: string) => void
+  universities: IdName[]
+  handleDeleteUni: (e: React.MouseEvent, id: string) => void
+  isAddingProg: boolean
+  setIsAddingProg: (val: boolean) => void
+  newProgName: string
+  setNewProgName: (val: string) => void
+  handleCreateProg: () => void
+  selectedProgId: string
+  setSelectedProgId: (val: string) => void
+  programs: Program[]
+  handleDeleteProg: (e: React.MouseEvent, id: string) => void
+  isAddingSem: boolean
+  setIsAddingSem: (val: boolean) => void
+  newSemName: string
+  setNewSemName: (val: string) => void
+  newSemNumber: string
+  setNewSemNumber: (val: string) => void
+  handleCreateSem: () => void
+  selectedSemId: string
+  setSelectedSemId: (val: string) => void
+  semesters: Semester[]
+  handleDeleteSem: (e: React.MouseEvent, id: string) => void
+  errorMsg: string
+  setStep: (val: number) => void
+  handleStep2Next: () => void
+  isSubmitting: boolean
+}
+
+function SetupStep2Card(props: Readonly<Step2CardProps>) {
+  const {
+    isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
+    isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
+    isAddingSem, setIsAddingSem, newSemName, setNewSemName, newSemNumber, setNewSemNumber, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
+    errorMsg, setStep, handleStep2Next, isSubmitting
+  } = props;
+
+  return (
+    <m.div 
+      key="step2"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+    >
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+          <School className="w-7 h-7 text-primary" />
+        </div>
+        <CardTitle className="text-3xl font-semibold tracking-tight">Academic details</CardTitle>
+        <CardDescription>Connect your university, program, and semester.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5 pt-4">
+        
+        {/* UNIVERSITY */}
+        <div className="space-y-2">
+          <Label className="font-bold flex items-center gap-2">
+            <School className="w-4 h-4 text-muted-foreground" /> University
+          </Label>
+          
+          {isAddingUni ? (
+            <div className="flex gap-2 animate-in slide-in-from-top-1 duration-200">
+              <Input 
+                autoFocus
+                placeholder="University Name" 
+                className="h-10 bg-background"
+                value={newUniName}
+                onChange={(e) => setNewUniName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateUni()}
+              />
+              <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateUni} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              </Button>
+              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingUni(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="relative group">
+              <Select 
+                value={selectedUniId} 
+                onValueChange={(val) => {
+                  if (val === "ADD_NEW_UNI") setIsAddingUni(true)
+                  else setSelectedUniId(val)
+                }}
+              >
+                <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
+                  <SelectValue placeholder="Select university..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {universities.map(u => (
+                    <div key={u.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
+                      <SelectItem value={u.id} className="flex-1">{u.name}</SelectItem>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={(e) => handleDeleteUni(e, u.id)}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <div className="border-t mt-1 pt-1">
+                    <SelectItem value="ADD_NEW_UNI" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
+                      <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New University</span>
+                    </SelectItem>
+                  </div>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        {/* PROGRAM */}
+        <div className="space-y-2">
+          <Label className="font-bold flex items-center gap-2 data-[enabled=false]:opacity-50" data-enabled={!!selectedUniId}>
+            <GraduationCap className="w-4 h-4 text-muted-foreground" /> Degree Program
+          </Label>
+          
+          {isAddingProg ? (
+            <div className="flex gap-2 animate-in slide-in-from-top-1">
+              <Input 
+                autoFocus
+                placeholder="Program Name (e.g. B.Tech CS)" 
+                className="h-10 bg-background"
+                value={newProgName}
+                onChange={(e) => setNewProgName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateProg()}
+              />
+              <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateProg} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              </Button>
+              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingProg(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <Select 
+              value={selectedProgId} 
+              onValueChange={(val) => {
+                if (val === "ADD_NEW_PROG") setIsAddingProg(true)
+                else setSelectedProgId(val)
+              }} 
+              disabled={!selectedUniId}
+            >
+              <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                <SelectValue placeholder={selectedUniId ? "Select degree program..." : "Select university first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {programs.map(p => (
+                  <div key={p.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
+                    <SelectItem value={p.id} className="flex-1">{p.name}</SelectItem>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteProg(e, p.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="border-t mt-1 pt-1">
+                  <SelectItem value="ADD_NEW_PROG" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
+                    <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New Program</span>
+                  </SelectItem>
+                </div>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* SEMESTER */}
+        <div className="space-y-2">
+          <Label className="font-bold flex items-center gap-2 data-[enabled=false]:opacity-50" data-enabled={!!selectedProgId}>
+            <Calendar className="w-4 h-4 text-muted-foreground" /> Current Semester
+          </Label>
+          
+          {isAddingSem ? (
+            <div className="flex gap-2 animate-in slide-in-from-top-1">
+              <Input 
+                autoFocus
+                placeholder="Name (e.g. Sem 3)" 
+                className="h-10 bg-background flex-1"
+                value={newSemName}
+                onChange={(e) => setNewSemName(e.target.value)}
+              />
+              <Input 
+                type="number"
+                placeholder="No." 
+                className="h-10 bg-background w-20"
+                value={newSemNumber}
+                onChange={(e) => setNewSemNumber(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreateSem()}
+              />
+              <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateSem} disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              </Button>
+              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingSem(false)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ) : (
+            <Select 
+              value={selectedSemId} 
+              onValueChange={(val) => {
+                if (val === "ADD_NEW_SEM") setIsAddingSem(true)
+                else setSelectedSemId(val)
+              }} 
+              disabled={!selectedProgId}
+            >
+              <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+                <SelectValue placeholder={selectedProgId ? "Select semester..." : "Select program first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {semesters.map(s => (
+                  <div key={s.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
+                    <SelectItem value={s.id} className="flex-1">{s.name}</SelectItem>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => handleDeleteSem(e, s.id)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+                <div className="border-t mt-1 pt-1">
+                  <SelectItem value="ADD_NEW_SEM" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
+                    <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New Semester</span>
+                  </SelectItem>
+                </div>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {errorMsg && <p className="text-xs text-destructive text-center font-semibold bg-destructive/10 p-2 rounded">{errorMsg}</p>}
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="outline" className="h-12 w-14 border-muted-foreground/20" onClick={() => setStep(1)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <Button 
+            className="h-12 flex-1 rounded-full text-base font-semibold"
+            onClick={handleStep2Next}
+            disabled={!selectedSemId || isSubmitting}
+          >
+            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"} <ArrowRight className="ml-2 w-5 h-5" />
+          </Button>
+        </div>
+      </CardContent>
+    </m.div>
+  )
+}
+
+interface Step3CardProps {
+  availableCourses: Course[]
+  semesters: Semester[]
+  selectedSemId: string
+  universities: IdName[]
+  selectedUniId: string
+  academicsEnabled: boolean
+  selectedCourseIds: string[]
+  toggleCourseSelection: (id: string) => void
+  newCourseName: string
+  setNewCourseName: (val: string) => void
+  handleFinalSave: (e: React.SyntheticEvent) => void
+  isSubmitting: boolean
+  setSelectedCourseIds: React.Dispatch<React.SetStateAction<string[]>>
+  setStep: (val: number) => void
+  errorMsg: string
+}
+
+function SetupStep3Card(props: Readonly<Step3CardProps>) {
+  const {
+    availableCourses, semesters, selectedSemId, universities, selectedUniId, academicsEnabled,
+    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
+  } = props;
+
+  return (
+    <m.div 
+      key="step3"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+    >
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
+          <CheckCircle2 className="w-7 h-7 text-primary" />
+        </div>
+        <CardTitle className="text-3xl font-semibold tracking-tight">Select your courses</CardTitle>
+        <CardDescription>
+          {availableCourses.length > 0 
+            ? "Choose the subjects you're studying this semester."
+            : "Be the first user from " + 
+              (semesters.find(s => s.id === selectedSemId)?.name || "this semester") + 
+              " of " + 
+              (universities.find(u => u.id === selectedUniId)?.name || "this University") + 
+              " to manage the study with excellence!"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-6 pt-4">
+        
+        {academicsEnabled && (
+          <div className="space-y-4">
+            {availableCourses.length > 0 && (
+              <div className="space-y-2">
+                <Label className="font-bold">Existing Courses</Label>
+                <CourseSelectionList 
+                  courses={availableCourses} 
+                  selectedIds={selectedCourseIds} 
+                  onToggle={toggleCourseSelection} 
+                />
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="font-bold">{availableCourses.length > 0 ? "Don't see your course?" : "Add your first course"}</Label>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Course name (e.g. Contract Law)" 
+                  value={newCourseName}
+                  onChange={(e) => setNewCourseName(e.target.value)}
+                  className="h-10 bg-background"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {errorMsg && <p className="text-xs text-destructive text-center font-semibold bg-destructive/10 p-2 rounded">{errorMsg}</p>}
+
+        <div className="flex gap-3 pt-2">
+          <Button variant="outline" className="h-12 w-14 border-muted-foreground/20" onClick={() => setStep(2)}>
+            <ChevronLeft className="w-5 h-5" />
+          </Button>
+          <Button 
+            className="h-12 flex-1 rounded-full text-base font-semibold"
+            onClick={handleFinalSave}
+            disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && !newCourseName.trim())}
+          >
+            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finish Setup"}
+          </Button>
+        </div>
+        <div className="text-center">
+          <Button 
+            variant="ghost" 
+            className="text-muted-foreground"
+            onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as React.SyntheticEvent) }}
+            disabled={isSubmitting}
+          >
+            Skip to Dashboard
+          </Button>
+        </div>
+      </CardContent>
+    </m.div>
+  )
+}
+
+function TrackOption({ icon, label, selected, onClick }: Readonly<{ icon: React.ReactNode, label: string, selected: boolean, onClick: () => void }>) {
+  return (
+    <m.div 
       onClick={onClick}
       className={`flex cursor-pointer flex-col items-center gap-2 rounded-2xl border p-4 transition-colors group ${selected ? 'border-primary bg-primary/5' : 'border-border/60 bg-background hover:bg-muted/50'}`}
     >
@@ -805,6 +877,35 @@ function TrackOption({ icon, label, selected, onClick }: { icon: React.ReactNode
         {icon}
       </div>
       <span className={`text-xs font-bold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
-    </motion.div>
+    </m.div>
+  )
+}
+
+function CourseSelectionList({ 
+  courses, 
+  selectedIds, 
+  onToggle 
+}: Readonly<{ 
+  courses: { id: string; course_name: string }[]; 
+  selectedIds: string[]; 
+  onToggle: (id: string) => void 
+}>) {
+  return (
+    <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
+      {courses.map(course => {
+        const isSelected = selectedIds.includes(course.id)
+        return (
+          <button 
+            type="button"
+            key={course.id}
+            onClick={() => onToggle(course.id)}
+            className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between group w-full text-left ${isSelected ? 'border-primary bg-primary/5' : 'border-border/50 hover:bg-muted/50'}`}
+          >
+            <span className="font-medium text-sm">{course.course_name}</span>
+            {isSelected && <Check className="w-4 h-4 text-primary" />}
+          </button>
+        )
+      })}
+    </div>
   )
 }
