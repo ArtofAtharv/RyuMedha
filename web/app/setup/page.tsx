@@ -460,6 +460,7 @@ function SetupStep1Card(props: Readonly<Step1CardProps>) {
           <Label htmlFor="displayName" className="font-bold">Display Name</Label>
           <Input 
             id="displayName" 
+            autoComplete="name"
             placeholder="Your name" 
             className="h-12 bg-background/50 border-muted-foreground/20 text-lg"
             value={displayName}

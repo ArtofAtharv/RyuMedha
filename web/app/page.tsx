@@ -525,6 +525,7 @@ const colorMap: Record<string, { icon: string; bg: string; border: string }> = {
   rose: { icon: "text-rose-500", bg: "bg-rose-500/10", border: "border-rose-500/20" },
   green: { icon: "text-green-500", bg: "bg-green-500/10", border: "border-green-500/20" },
   emerald: { icon: "text-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/20" },
+  crimson: { icon: "text-[#FF4E6B]", bg: "bg-[#FF4E6B]/10", border: "border-[#FF4E6B]/20" },
 }
 
 function DeepFeatureCard({

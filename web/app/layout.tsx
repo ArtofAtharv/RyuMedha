@@ -83,6 +83,7 @@ export default function RootLayout({
         <Script id="color-theme-init" strategy="beforeInteractive">{`
           try {
             var t = localStorage.getItem('ryumedha-color-theme');
+            if (t === 'red') { t = 'crimson'; localStorage.setItem('ryumedha-color-theme', 'crimson'); }
             if (t && t !== 'neutral') {
               document.documentElement.setAttribute('data-theme', t);
             }
