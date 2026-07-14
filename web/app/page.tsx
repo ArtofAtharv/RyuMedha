@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { m, Variants } from "motion/react"
 import type { ReactNode } from "react";
-import { useSession } from "next-auth/react";
+import { useSupabaseSession } from "@/lib/supabase-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -42,14 +42,14 @@ function todayLabel() {
 }
 
 export default function LandingPage() {
-  const { status } = useSession();
+  const { session, loading } = useSupabaseSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "authenticated") router.push("/dashboard");
-  }, [status, router]);
+    if (session) router.push("/dashboard");
+  }, [session, router]);
 
-  if (status === "loading" || status === "authenticated") return null;
+  if (loading || session) return null;
 
   return (
     <div className="bg-background text-foreground">
