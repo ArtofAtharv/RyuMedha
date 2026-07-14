@@ -26,7 +26,6 @@ function LoginPageInner() {
           redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
           queryParams: {
             access_type: 'offline',
-            prompt: 'consent',
           },
           scopes: 'https://www.googleapis.com/auth/tasks https://www.googleapis.com/auth/calendar'
         }

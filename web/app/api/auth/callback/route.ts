@@ -8,18 +8,28 @@ export async function GET(request: Request) {
   const next = requestUrl.searchParams.get('next') ?? '/dashboard'
 
   if (code) {
+    const cookieStore = await cookies()
+    
+    // Create Supabase client with Next.js cookies storage adapter so it can read the PKCE code verifier
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         auth: {
           flowType: 'pkce',
-          persistSession: false,
+          persistSession: true,
+          detectSessionInUrl: false,
+          storage: {
+            getItem: (key) => cookieStore.get(key)?.value ?? null,
+            setItem: (key, value) => {},
+            removeItem: (key) => {}
+          }
         }
       }
     )
     
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
     if (!error && data.session) {
       const response = NextResponse.redirect(new URL(next, request.url))
       
