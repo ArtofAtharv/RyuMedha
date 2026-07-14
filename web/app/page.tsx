@@ -10,7 +10,7 @@ import { m, Variants } from "motion/react"
 import type { ReactNode } from "react";
 import { useSupabaseSession } from "@/lib/supabase-auth";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /* ── animation presets ── */
 const containerVariants: Variants = {
@@ -44,12 +44,17 @@ function todayLabel() {
 export default function LandingPage() {
   const { session, loading } = useSupabaseSession();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (session) router.push("/dashboard");
   }, [session, router]);
 
-  if (loading || session) return null;
+  if (mounted && (loading || session)) return null;
 
   return (
     <div className="bg-background text-foreground">
