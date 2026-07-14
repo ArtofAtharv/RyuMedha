@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions — Ryu Medha",
+  title: "Terms & Conditions - Ryu Medha",
   description: "Read the Terms and Conditions governing your use of the Ryu Medha academic tracking platform.",
 }
 

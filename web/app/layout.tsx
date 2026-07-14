@@ -35,6 +35,7 @@ const changaOne = Changa_One({
 
 export const metadata: Metadata = {
   title: "Ryu Medha",
+  applicationName: "Ryu Medha",
   description: "Track attendance, grades, tasks, and focus sessions in one quiet workspace. With WhatsApp as the fastest way in.",
   icons: {
     icon: "/favicon.ico",
