@@ -16,7 +16,8 @@ import {
   Menu,
   Check,
   Loader2,
-  ListTodo
+  ListTodo,
+  Bell
 } from "lucide-react"
 import { useProfile } from "@/components/dashboard/profile-context"
 import { toast } from "sonner"
@@ -58,6 +59,91 @@ export default function TasksPage() {
   const [timePreset, setTimePreset] = useState<"all-day" | "morning" | "evening" | "custom">("all-day")
   const [customTime, setCustomTime] = useState("")
   const [saving, setSaving] = useState(false)
+
+  // Notifications states
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default")
+  const [togglingNotifications, setTogglingNotifications] = useState(false)
+
+  // Initialize notifications status
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission)
+      const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
+      
+      if (Notification.permission === "denied") {
+        setNotificationsEnabled(false)
+        localStorage.setItem("tasks_notifications_enabled", "false")
+      } else {
+        setNotificationsEnabled(stored && Notification.permission === "granted")
+      }
+    }
+  }, [])
+
+  // Initialize sidebar state based on screen size on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false)
+      }
+    }
+  }, [])
+
+  // Auto-register service worker on mount if notifications are enabled
+  useEffect(() => {
+    async function reregister() {
+      if (typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window) {
+        const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
+        if (stored && Notification.permission === "granted") {
+          try {
+            await navigator.serviceWorker.register('/sw.js')
+          } catch (e) {
+            console.error("Failed to re-register service worker on mount:", e)
+          }
+        }
+      }
+    }
+    reregister()
+  }, [])
+
+  const handleToggleNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Notifications are not supported by this browser.")
+      return
+    }
+
+    setTogglingNotifications(true)
+    try {
+      if (notificationsEnabled) {
+        await unsubscribeFromPush()
+        setNotificationsEnabled(false)
+        localStorage.setItem("tasks_notifications_enabled", "false")
+        toast.success("Desktop reminders disabled.")
+      } else {
+        let perm = Notification.permission
+        if (perm === "default") {
+          perm = await Notification.requestPermission()
+          setNotificationPermission(perm)
+        }
+
+        if (perm === "granted") {
+          await subscribeToPush()
+          setNotificationsEnabled(true)
+          localStorage.setItem("tasks_notifications_enabled", "true")
+          toast.success("Desktop reminders enabled! You'll receive popups when due.")
+        } else {
+          setNotificationsEnabled(false)
+          localStorage.setItem("tasks_notifications_enabled", "false")
+          toast.error("Notification permission denied. Please allow notifications in site settings.")
+        }
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to update notification settings.")
+    } finally {
+      setTogglingNotifications(false)
+    }
+  }
 
   // Initialize and fetch lists
   useEffect(() => {
@@ -377,30 +463,55 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="flex h-[80vh] border rounded-3xl overflow-hidden bg-card/60 backdrop-blur-md shadow-xl border-border/50 max-w-6xl mx-auto px-4 mt-6">
+    <div className="relative flex h-[80vh] border rounded-3xl overflow-hidden bg-card/60 backdrop-blur-md shadow-xl border-border/50 max-w-6xl mx-auto px-2 mt-4 md:px-4 md:mt-6">
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-35 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Task Lists */}
       <aside
-        className={`${
-          sidebarOpen ? "w-64" : "w-0"
-        } transition-all duration-300 flex-shrink-0 border-r border-border/50 flex flex-col h-full overflow-hidden`}
+        className={`
+          fixed inset-y-0 left-0 z-40 md:z-auto md:relative
+          bg-background md:bg-transparent h-full
+          ${sidebarOpen ? "w-64 translate-x-0 border-r" : "w-0 -translate-x-full md:translate-x-0 md:w-0"}
+          transition-all duration-300 flex-shrink-0 border-border/50 flex flex-col overflow-hidden
+        `}
       >
-        <div className="flex items-center space-x-2 px-6 py-5 border-b border-border/50">
-          <div className="bg-primary/10 text-primary p-2 rounded-xl flex items-center justify-center shadow-sm">
-            <ListTodo className="w-5 h-5" />
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+          <div className="flex items-center space-x-2">
+            <div className="bg-primary/10 text-primary p-2 rounded-xl flex items-center justify-center shadow-sm">
+              <ListTodo className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base leading-tight">My Tasks</h1>
+              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                Google Account Sync
+              </span>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-base leading-tight">My Tasks</h1>
-            <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-              Google Account Sync
-            </span>
-          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+            aria-label="Close sidebar"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
         </div>
 
         <nav className="flex-1 py-4 overflow-y-auto px-3 space-y-1">
           {taskLists.map(list => (
             <button
               key={list.id}
-              onClick={() => handleListSelect(list.id)}
+              onClick={() => {
+                handleListSelect(list.id)
+                if (window.innerWidth < 768) {
+                  setSidebarOpen(false)
+                }
+              }}
               className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
                 activeListId === list.id
                   ? "bg-primary/10 text-primary font-semibold"
@@ -416,6 +527,34 @@ export default function TasksPage() {
             </button>
           ))}
         </nav>
+
+        {/* Notifications Toggle */}
+        <div className="p-4 border-t border-border/50 bg-muted/20 flex flex-col space-y-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-foreground flex items-center gap-1.5">
+              <Bell className="w-3.5 h-3.5 text-primary" /> Desktop Reminders
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleNotifications}
+              disabled={togglingNotifications}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                notificationsEnabled ? "bg-primary" : "bg-muted-foreground/30"
+              } ${togglingNotifications ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${
+                  notificationsEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          {notificationPermission === "denied" && (
+            <p className="text-[10px] text-destructive leading-tight font-medium">
+              Notifications blocked. Enable them in site settings.
+            </p>
+          )}
+        </div>
 
         <div className="p-4 border-t border-border/50 bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
           <span>Google Sync Status</span>
@@ -433,11 +572,12 @@ export default function TasksPage() {
       {/* Main Task List */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <header className="h-16 border-b border-border/50 flex items-center justify-between px-6 z-10 flex-shrink-0 gap-4">
-          <div className="flex items-center space-x-4 flex-1">
+        <header className="h-16 border-b border-border/50 flex items-center justify-between px-4 sm:px-6 z-10 flex-shrink-0 gap-3 sm:gap-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
+              aria-label="Toggle sidebar"
             >
               <Menu className="w-5 h-5" />
             </button>
@@ -457,8 +597,8 @@ export default function TasksPage() {
             </div>
           </div>
 
-          <Button onClick={handleOpenAddModal} size="sm" className="gap-1.5 rounded-xl font-bold h-9">
-            <Plus className="w-4 h-4" /> Add Task
+          <Button onClick={handleOpenAddModal} size="sm" className="gap-1.5 rounded-xl font-bold h-9 px-3 sm:px-4">
+            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Task</span>
           </Button>
         </header>
 
@@ -795,8 +935,8 @@ function ReminderRow({
   isOverdue,
 }: ReminderRowProps) {
   return (
-    <div className="group flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors">
-      <div className="flex items-start space-x-3.5 flex-1 min-w-0">
+    <div className="group flex items-center justify-between px-3 py-3 sm:px-5 sm:py-3.5 hover:bg-muted/40 transition-colors">
+      <div className="flex items-start space-x-2.5 sm:space-x-3.5 flex-1 min-w-0">
         <button
           onClick={() => onToggle(reminder)}
           className="mt-0.5 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
@@ -841,7 +981,7 @@ function ReminderRow({
         </div>
       </div>
 
-      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity pl-4">
+      <div className="flex items-center space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity pl-2 sm:pl-4">
         <button
           onClick={() => onEdit(reminder)}
           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
@@ -859,4 +999,72 @@ function ReminderRow({
       </div>
     </div>
   )
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/")
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+async function subscribeToPush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    throw new Error("Push notifications are not supported by this browser.")
+  }
+
+  const registration = await navigator.serviceWorker.register("/sw.js")
+  await navigator.serviceWorker.ready
+
+  let subscription = await registration.pushManager.getSubscription()
+
+  if (!subscription) {
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidPublicKey) {
+      throw new Error("VAPID public key is missing in environment.")
+    }
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey)
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey,
+    })
+  }
+
+  const res = await fetch("/api/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      subscription: subscription.toJSON(),
+      action: "subscribe",
+    }),
+  })
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || "Failed to save push subscription.")
+  }
+}
+
+async function unsubscribeFromPush() {
+  if (!("serviceWorker" in navigator)) return
+
+  const registration = await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription()
+
+  if (subscription) {
+    await subscription.unsubscribe()
+
+    await fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: subscription.toJSON(),
+        action: "unsubscribe",
+      }),
+    })
+  }
 }
