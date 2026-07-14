@@ -2,20 +2,20 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useSession } from "next-auth/react"
+import { useSupabaseSession } from "@/lib/supabase-auth"
 import { User } from "lucide-react"
 import { AccountSheet } from "@/components/account-sheet"
 import Image from "next/image"
 
 export default function Navigation() {
-  const { data: session, status } = useSession()
+  const { session, isAuthenticated } = useSupabaseSession()
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const isAuthenticated = status === "authenticated"
-  const initials = session?.user?.name
-    ? session.user.name
+  const name = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
+  const initials = name
+    ? name
       .split(" ")
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join("")
       .slice(0, 2)
       .toUpperCase()

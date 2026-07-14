@@ -17,7 +17,7 @@
 import * as React from "react"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSupabaseSession } from "@/lib/supabase-auth"
 import { AnimatePresence, m } from "motion/react"
 import { Check, ChevronRight, Headphones, LogIn, LogOut, Moon, Phone, User, Palette, X } from "lucide-react"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
@@ -204,12 +204,12 @@ function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
 /* ─── shared sheet content ─────────────────────────────── */
 
 function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
-  const { data: session, status } = useSession()
-  const isAuthenticated = status === "authenticated"
+  const { session, isAuthenticated } = useSupabaseSession()
   const user = session?.user
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
+  const initials = name
+    ? name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
     : null
 
   return (
@@ -245,18 +245,12 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
             {/* Text */}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">
-                {user.name ?? "Student"}
+                {name ?? "Student"}
               </p>
               {user.email && (
                 <p className="truncate text-xs text-muted-foreground mt-0.5">
                   {user.email}
                 </p>
-              )}
-              {user.phone && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Phone className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{user.phone}</span>
-                </div>
               )}
             </div>
 
@@ -329,7 +323,14 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
       <div className="px-2 py-2">
         {isAuthenticated ? (
           <button
-            onClick={() => { haptic(); signOut({ callbackUrl: "/login" }) }}
+            onClick={async () => {
+              haptic()
+              const { getAppClient } = await import("@/lib/supabase-client")
+              const supabase = getAppClient()
+              await supabase.auth.signOut()
+              onClose()
+              window.location.href = "/login"
+            }}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 active:bg-destructive/15"
           >
             <LogOut className="h-4 w-4" />
@@ -337,7 +338,7 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
           </button>
         ) : (
           <button
-            onClick={() => { haptic(); signIn() }}
+            onClick={() => { haptic(); onClose(); window.location.href = "/login" }}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted/70"
           >
             <LogIn className="h-4 w-4" />

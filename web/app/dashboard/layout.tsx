@@ -1,6 +1,5 @@
 import { ReactNode } from "react"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav"
 import { createClient } from "@supabase/supabase-js"
@@ -8,23 +7,38 @@ import { ProfileProvider, UserProfile } from "@/components/dashboard/profile-con
 import { GamificationProvider } from "@/components/dashboard/gamification-context"
 
 export default async function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect("/login")
+  const cookieStore = await cookies()
+  const accessToken = cookieStore.get("sb-access-token")?.value
 
-  // Fetch the user's profile on the server
+  if (!accessToken) {
+    redirect("/login")
+  }
+
+  // Create server-side authenticated Supabase client
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    }
   )
 
-  const { data: profile } = await supabase
+  // Fetch the user's profile on the server (RLS automatically scopes to their auth.uid())
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('whatsapp_number', session.user.phone)
     .single()
 
-  if (profile && (!profile.display_name || profile.display_name.trim() === '')) {
+  if (error || !profile) {
+    console.error("DashboardLayout profile fetch error:", error)
+    redirect("/login")
+  }
+
+  if (!profile.display_name || profile.display_name.trim() === '') {
     redirect('/setup')
   }
 
