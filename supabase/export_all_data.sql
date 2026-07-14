@@ -10,9 +10,20 @@ AS $$
 DECLARE
   result JSON;
   is_caller_admin BOOLEAN;
+  caller_sub TEXT;
 BEGIN
-  -- Determine if the caller is an administrator
-  SELECT is_admin INTO is_caller_admin FROM profiles WHERE id = auth.uid();
+  -- Get caller sub (phone number or UUID depending on auth system)
+  BEGIN
+    caller_sub := current_setting('request.jwt.claims', true)::jsonb ->> 'sub';
+  EXCEPTION WHEN OTHERS THEN
+    caller_sub := NULL;
+  END;
+
+  -- Determine if the caller is an administrator (check by phone or UUID)
+  SELECT is_admin INTO is_caller_admin 
+  FROM profiles 
+  WHERE whatsapp_number = caller_sub 
+     OR id::text = caller_sub;
   
   IF is_caller_admin = true THEN
     SELECT json_build_object(
