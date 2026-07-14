@@ -5,13 +5,23 @@ import Link from "next/link"
 import { useSupabaseSession } from "@/lib/supabase-auth"
 import { User } from "lucide-react"
 import { AccountSheet } from "@/components/account-sheet"
+import { useProfile } from "@/components/dashboard/profile-context"
 import Image from "next/image"
 
 export default function Navigation() {
   const { session, isAuthenticated } = useSupabaseSession()
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const name = session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
+  let profile: any = null
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const context = useProfile()
+    profile = context?.profile
+  } catch (e) {
+    // Rendered outside ProfileProvider (e.g. landing page)
+  }
+
+  const name = profile?.display_name || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
   const initials = name
     ? name
       .split(" ")

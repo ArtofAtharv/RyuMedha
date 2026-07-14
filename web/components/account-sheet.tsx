@@ -203,11 +203,22 @@ function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
 
 /* ─── shared sheet content ─────────────────────────────── */
 
+import { useProfile } from "@/components/dashboard/profile-context"
+
 function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
   const { session, isAuthenticated } = useSupabaseSession()
   const user = session?.user
 
-  const name = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
+  let profile: any = null
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const context = useProfile()
+    profile = context?.profile
+  } catch (e) {
+    // Rendered outside ProfileProvider (e.g. landing page)
+  }
+
+  const name = profile?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const initials = name
     ? name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
     : null
