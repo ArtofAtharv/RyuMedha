@@ -78,15 +78,20 @@ export default function LandingPage() {
               variants={itemVariants}
               className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary"
             >
-              Ryu Medha
+              Academic Workspace
             </m.h2>
             <m.h1
               variants={itemVariants}
-              className="text-5xl font-semibold tracking-[-0.055em] text-balance leading-[1.06] md:text-6xl lg:text-7xl xl:text-8xl"
+              className="text-5xl font-bold tracking-[-0.055em] text-foreground md:text-6xl lg:text-7xl xl:text-8xl"
             >
-              Ryu Medha:<br />Own your semester,<br />
-              <span className="text-primary">every single day.</span>
+              Ryu Medha
             </m.h1>
+            <m.p
+              variants={itemVariants}
+              className="text-2xl font-semibold tracking-tight text-muted-foreground mt-4 leading-normal sm:text-3xl md:text-4xl"
+            >
+              Own your semester, <span className="text-primary font-changa-one">every single day.</span>
+            </m.p>
 
             <m.p
               variants={itemVariants}
