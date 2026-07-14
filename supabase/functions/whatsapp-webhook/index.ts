@@ -165,40 +165,12 @@ async function sendBotReplies(to: string, reply: string | string[] | null) {
 
 async function processSingleMessage(message: any) {
   const from = message.from;
-  const phone = from?.startsWith('+') ? from : `+${from || ''}`;
-  const timestamp = new Date(Number.parseInt(message.timestamp, 10) * 1000).toISOString();
-
-  await supabase
-    .from('profiles')
-    .update({ last_user_message_at: timestamp })
-    .in('whatsapp_number', [from, `+${from}`]);
-
-  const isInteractive = !!(message.button?.text || message.interactive?.button_reply?.id || message.interactive?.list_reply?.id);
   const text = message.text?.body || message.button?.text || message.interactive?.button_reply?.id || message.interactive?.list_reply?.id;
 
   if (!text) return;
-  console.log(`📩 [${phone}] (interactive: ${isInteractive}): ${text}`);
+  console.log(`📩 [${from}] Received message during maintenance: ${text}`);
 
-  if (isInteractive && text === 'all_done') {
-    await sendWhatsAppMessage(from, "That's fantastic! Keep up the great momentum. 🌟");
-    return;
-  }
-  
-  if (text === 'log_menu' || text === 'subjects') {
-    const { data: profile } = await supabase.from('profiles').select('id, academics_enabled, current_semester_id').in('whatsapp_number', [from, `+${from}`]).single();
-    await handleLogMenuCommand(from, profile);
-    return;
-  }
-
-  if (isInteractive && text === 'show_tasks') {
-    await sendWhatsAppMessage(from, "Checking your list... 📂 (I will send your tasks shortly!)");
-    const reply = await processMessage(phone, 'tasks', { isInteractive: false });
-    await sendBotReplies(from, reply);
-    return;
-  }
-
-  const reply = await processMessage(phone, text, { isInteractive });
-  await sendBotReplies(from, reply);
+  await sendWhatsAppMessage(from, "The bot is under maintenance and upgrade, please visit ryumedha.in.");
 }
 
 async function handleMessages(messages: any[]) {

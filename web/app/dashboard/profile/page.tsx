@@ -623,17 +623,33 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center shrink-0">
-              <Phone className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Email / Phone</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">{profile.email || profile.whatsapp_number}</p>
-            </div>
-          </div>
+          <ProfileRow
+            icon={<User className="w-4 h-4 text-white" />}
+            iconBg="bg-teal-500"
+            label="Email"
+            value={profile.email ?? "Not Linked"}
+            isEditing={editField === "email"}
+            editValue={editValue}
+            saving={saving}
+            onEdit={() => startEdit("email", profile.email || "")}
+            onCancel={cancelEdit}
+            onChange={setEditValue}
+            onSave={() => saveField("email", editValue)}
+          />
+
+          <ProfileRow
+            icon={<Phone className="w-4 h-4 text-white" />}
+            iconBg="bg-green-500"
+            label="Link WhatsApp No"
+            value={profile.whatsapp_number ?? "Not Linked"}
+            isEditing={editField === "whatsapp_number"}
+            editValue={editValue}
+            saving={saving}
+            onEdit={() => startEdit("whatsapp_number", profile.whatsapp_number || "")}
+            onCancel={cancelEdit}
+            onChange={setEditValue}
+            onSave={() => saveField("whatsapp_number", editValue)}
+          />
         </div>
       </div>
 
