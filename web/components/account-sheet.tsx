@@ -182,6 +182,7 @@ function useIsMobile(breakpoint = 640) {
 interface AccountSheetProps {
   open: boolean
   onClose: () => void
+  displayName?: string
 }
 
 /* ─── overlay backdrop ─────────────────────────────────── */
@@ -205,20 +206,11 @@ function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
 
 import { useProfile } from "@/components/dashboard/profile-context"
 
-function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
+function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; displayName?: string }>) {
   const { session, isAuthenticated } = useSupabaseSession()
   const user = session?.user
 
-  let profile: any = null
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const context = useProfile()
-    profile = context?.profile
-  } catch (e) {
-    // Rendered outside ProfileProvider (e.g. landing page)
-  }
-
-  const name = profile?.display_name || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
+  const name = displayName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const initials = name
     ? name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
     : null
@@ -369,7 +361,7 @@ function Divider() {
 
 const SNAP_THRESHOLD = 80 // px downward drag to dismiss
 
-function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
+function BottomSheet({ open, onClose, displayName }: Readonly<AccountSheetProps>) {
   const [dragY, setDragY] = useState(0)
   const startY = useRef(0)
   const isDragging = useRef(false)
@@ -430,7 +422,7 @@ function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
 
             {/* Safe-area padding at the bottom (iOS) */}
             <div className="pb-safe">
-              <SheetContent onClose={onClose} />
+              <SheetContent onClose={onClose} displayName={displayName} />
               <div className="h-6" /> {/* extra breathing room */}
             </div>
           </m.div>
@@ -442,7 +434,7 @@ function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
 
 /* ─── Desktop — Centered Modal ─────────────────────────── */
 
-function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
+function Modal({ open, onClose, displayName }: Readonly<AccountSheetProps>) {
   // Close on Escape
   useEffect(() => {
     if (!open) return
@@ -471,7 +463,7 @@ function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
             aria-modal="true"
             aria-label="Your account"
           >
-            <SheetContent onClose={onClose} />
+            <SheetContent onClose={onClose} displayName={displayName} />
           </m.div>
         </>
       )}
@@ -481,21 +473,40 @@ function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
 
 /* ─── Public export — adaptive wrapper ─────────────────── */
 
+import { getAppClient } from "@/lib/supabase-client"
+
 export function AccountSheet({ open, onClose }: Readonly<AccountSheetProps>) {
   const isMobile = useIsMobile(640)
   const [mounted, setMounted] = useState(false)
+  const [displayName, setDisplayName] = useState("")
+  const { session, isAuthenticated } = useSupabaseSession()
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (open && isAuthenticated) {
+      const supabase = getAppClient()
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .single()
+        .then(({ data }) => {
+          if (data?.display_name) {
+            setDisplayName(data.display_name)
+          }
+        })
+    }
+  }, [open, isAuthenticated])
+
   if (!mounted) return null
 
   return createPortal(
     isMobile
-      ? <BottomSheet open={open} onClose={onClose} />
-      : <Modal open={open} onClose={onClose} />,
+      ? <BottomSheet open={open} onClose={onClose} displayName={displayName} />
+      : <Modal open={open} onClose={onClose} displayName={displayName} />,
     document.body
   )
 }

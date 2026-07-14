@@ -1,27 +1,38 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useSupabaseSession } from "@/lib/supabase-auth"
 import { User } from "lucide-react"
 import { AccountSheet } from "@/components/account-sheet"
-import { useProfile } from "@/components/dashboard/profile-context"
+import { usePathname } from "next/navigation"
+import { getAppClient } from "@/lib/supabase-client"
 import Image from "next/image"
 
 export default function Navigation() {
   const { session, isAuthenticated } = useSupabaseSession()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const pathname = usePathname()
+  const [displayName, setDisplayName] = useState("")
 
-  let profile: any = null
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const context = useProfile()
-    profile = context?.profile
-  } catch (e) {
-    // Rendered outside ProfileProvider (e.g. landing page)
-  }
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setDisplayName("")
+      return
+    }
+    const supabase = getAppClient()
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .single()
+      .then(({ data }) => {
+        if (data?.display_name) {
+          setDisplayName(data.display_name)
+        }
+      })
+  }, [isAuthenticated, pathname])
 
-  const name = profile?.display_name || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
+  const name = displayName || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
   const initials = name
     ? name
       .split(" ")
