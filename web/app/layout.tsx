@@ -34,7 +34,7 @@ const changaOne = Changa_One({
 })
 
 export const metadata: Metadata = {
-  title: "Ryu Medha — Your Academic Edge",
+  title: "Ryu Medha - Academic Organizer",
   description: "Track attendance, grades, tasks, and focus sessions in one quiet workspace. With WhatsApp as the fastest way in.",
   icons: {
     icon: "/favicon.ico",
