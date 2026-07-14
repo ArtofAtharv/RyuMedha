@@ -7,30 +7,46 @@ export function useSupabaseSession() {
   const supabase = getAppClient()
 
   useEffect(() => {
-    // Helper to extract cookies on the client side
+    // Robust cookie parser helper
     const getCookie = (name: string) => {
       if (typeof document === 'undefined') return null
-      const row = document.cookie
-        .split('; ')
-        .find((r) => r.startsWith(`${name}=`))
-      return row ? decodeURIComponent(row.split('=')[1]) : null
+      const cookies = document.cookie.split(';')
+      for (let i = 0; i < cookies.length; i++) {
+        const c = cookies[i].trim()
+        if (c.startsWith(`${name}=`)) {
+          return decodeURIComponent(c.substring(name.length + 1))
+        }
+      }
+      return null
     }
 
     async function syncSession() {
       const accessToken = getCookie('sb-access-token')
       const refreshToken = getCookie('sb-refresh-token')
 
+      console.log('useSupabaseSession: checking cookies', { 
+        hasAccessToken: !!accessToken, 
+        hasRefreshToken: !!refreshToken 
+      })
+
       // Get standard active session
       const { data: { session: activeSession } } = await supabase.auth.getSession()
 
+      console.log('useSupabaseSession: active session from client SDK', {
+        hasSession: !!activeSession
+      })
+
       if (!activeSession && accessToken && refreshToken) {
-        // If server cookies exist but client SDK memory is empty, set it on the client
+        console.log('useSupabaseSession: setting session on client using server cookies')
         const { data, error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken
         })
         if (!error && data.session) {
+          console.log('useSupabaseSession: session sync successful')
           setSession(data.session)
+        } else if (error) {
+          console.error('useSupabaseSession: session sync error', error)
         }
       } else {
         setSession(activeSession)
@@ -41,6 +57,10 @@ export function useSupabaseSession() {
     syncSession()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
+      console.log('useSupabaseSession: auth state change triggered', {
+        event: _event,
+        hasSession: !!activeSession
+      })
       setSession(activeSession)
       setLoading(false)
 

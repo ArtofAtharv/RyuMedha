@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/dashboard/page-header"
@@ -172,18 +171,12 @@ export default function TimersPage() {
 
   useEffect(() => {
     async function init() {
-      const session = await getSession()
-      if (!session) return
-      
-      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
-      )
-      
+      const supabase = getAppClient()
       setSupabaseClient(supabase)
       
       const { data: profile } = await supabase
         .from('profiles')
         .select('id')
-        .eq('whatsapp_number', session.user.phone)
         .single()
         
       if (profile) setProfileId(profile.id)

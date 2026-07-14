@@ -33,17 +33,17 @@ export async function GET(request: Request) {
     if (!error && data.session) {
       const response = NextResponse.redirect(new URL(next, request.url))
       
-      // Store Supabase session tokens in cookies for server components
+      // Store Supabase session tokens in cookies for server components (made readable to client hook)
       response.cookies.set('sb-access-token', data.session.access_token, {
         path: '/',
-        httpOnly: true,
+        httpOnly: false,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: data.session.expires_in,
       })
       response.cookies.set('sb-refresh-token', data.session.refresh_token, {
         path: '/',
-        httpOnly: true,
+        httpOnly: false,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
