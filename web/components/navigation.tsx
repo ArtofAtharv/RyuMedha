@@ -56,7 +56,7 @@ export default function Navigation() {
               height={32}
               className="rounded-full invert dark:invert-0"
             />
-            <span className="text-xl tracking-tight font-playball">Ryu Medha</span>
+            <span className="text-xl tracking-tight font-changa-one">Ryu Medha</span>
           </Link>
 
           {/* Account avatar — opens AccountSheet */}
