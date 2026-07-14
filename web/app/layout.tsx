@@ -34,7 +34,7 @@ const changaOne = Changa_One({
 })
 
 export const metadata: Metadata = {
-  title: "Ryu Medha - Academic Organizer",
+  title: "Ryu Medha",
   description: "Track attendance, grades, tasks, and focus sessions in one quiet workspace. With WhatsApp as the fastest way in.",
   icons: {
     icon: "/favicon.ico",
@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: "Ryu Medha - Academic Organizer",
+    title: "Ryu Medha",
     url: "https://ryumedha.in",
     siteName: "Ryu Medha",
     type: "website",
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
         url: "https://ryumedha.vercel.app/icon.png",
         width: 630,
         height: 630,
-        alt: "Ryu Medha - Academic Organizer",
+        alt: "Ryu Medha",
         type: "image/png",
       },
     ],

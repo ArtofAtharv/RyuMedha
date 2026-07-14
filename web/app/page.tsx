@@ -73,13 +73,13 @@ export default function LandingPage() {
               variants={itemVariants}
               className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary"
             >
-              Ryu Medha - Smart Academic Workspace
+              Ryu Medha
             </m.h2>
             <m.h1
               variants={itemVariants}
               className="text-5xl font-semibold tracking-[-0.055em] text-balance leading-[1.06] md:text-6xl lg:text-7xl xl:text-8xl"
             >
-              Own your<br />semester,<br />
+              Ryu Medha:<br />Own your semester,<br />
               <span className="text-primary">every single day.</span>
             </m.h1>
 
@@ -158,10 +158,10 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-start gap-8">
           <div className="flex-1 space-y-4">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <span className="text-primary font-changa-one">Ryu Medha</span> - Google Integration & Purpose
+              <span className="text-primary font-changa-one">Ryu Medha</span> - Google User Data Policy & Purpose
             </h2>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              <strong>Ryu Medha</strong> is a comprehensive academic organizer designed to help students track and manage their college semester. Our core mission is to streamline academic schedules, deadlines, attendance, and study habits in a centralized, quiet workspace.
+              <strong>Ryu Medha</strong> is a comprehensive academic organizer designed to help students track and manage their college semester. Our core mission is to streamline academic schedules, deadlines, attendance, and study habits in a centralized, quiet workspace. This section outlines the purpose of our application and how it uses the Google user data you are requesting.
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               To achieve this, Ryu Medha securely integrates with your Google Account to access:
