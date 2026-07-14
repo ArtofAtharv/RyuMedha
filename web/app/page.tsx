@@ -68,7 +68,7 @@ export default function LandingPage() {
       >
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           animate="visible"
           className="w-full px-5 sm:px-8 lg:px-14 xl:px-20 py-10 grid items-center gap-10 lg:grid-cols-[1fr_480px] xl:grid-cols-[1fr_520px]"
         >
@@ -198,7 +198,7 @@ export default function LandingPage() {
       <m.section
         id="features"
         variants={containerVariants}
-        initial="hidden"
+        initial={mounted ? "hidden" : "visible"}
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
         className="border-y border-border min-h-screen flex flex-col justify-center px-5 sm:px-8 lg:px-14 xl:px-20 py-20"
@@ -250,7 +250,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="max-w-3xl py-16"
@@ -296,7 +296,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16"
@@ -325,7 +325,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16 grid gap-12 lg:grid-cols-2 lg:items-center"
@@ -371,7 +371,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16"
@@ -417,7 +417,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16"
@@ -477,7 +477,7 @@ export default function LandingPage() {
       <section className="min-h-screen flex items-center px-5 sm:px-8 lg:px-14 xl:px-20">
         <m.div
           variants={containerVariants}
-          initial="hidden"
+          initial={mounted ? "hidden" : "visible"}
           whileInView="visible"
           viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16 flex flex-col items-center text-center gap-6"
