@@ -6,7 +6,7 @@ import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2, BellRing } from "lucide-react"
+import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2, BellRing, FolderOpen } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
 import { PageHeader } from '@/components/dashboard/page-header'
@@ -59,6 +59,27 @@ export default function WhatsAppAdminPage() {
 
   // Use the database is_admin flag
   const isAdmin = profile?.is_admin === true
+
+  const handleExportAllUsers = async () => {
+    if (!supabaseClient) return
+    try {
+      toast.info("Compiling all users' database records...")
+      const { data, error } = await supabaseClient.rpc('export_all_data')
+      if (error) throw error
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2))
+      const downloadAnchor = document.createElement('a')
+      downloadAnchor.setAttribute("href", dataStr)
+      downloadAnchor.setAttribute("download", `ryumedha_admin_all_users_export_${new Date().toISOString().split('T')[0]}.json`)
+      document.body.appendChild(downloadAnchor)
+      downloadAnchor.click()
+      downloadAnchor.remove()
+      toast.success("Database exported successfully!")
+    } catch (err: any) {
+      console.error(err)
+      toast.error(`Export failed: ${err.message || err}`)
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -231,6 +252,9 @@ export default function WhatsAppAdminPage() {
             </Button>
             <Button onClick={triggerAttendanceGuardian} variant="outline" size="sm" className="shrink-0 gap-2 border-primary/20 hover:bg-primary/10 shadow-sm h-9">
               <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
+            </Button>
+            <Button onClick={handleExportAllUsers} variant="outline" size="sm" className="shrink-0 gap-2 border-emerald-500/20 hover:bg-emerald-500/10 shadow-sm h-9 text-emerald-500">
+              <FolderOpen className="w-4 h-4" /> Export All Users Data
             </Button>
             <Button onClick={() => { if (supabaseClient) fetchData(supabaseClient) }} variant="outline" size="sm" className="shrink-0 gap-2 shadow-sm h-9">
               <Zap className="w-4 h-4" /> Refresh
