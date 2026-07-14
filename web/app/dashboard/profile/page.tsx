@@ -288,6 +288,52 @@ export default function ProfilePage() {
     await signOut({ callbackUrl: '/login' })
   }
 
+  async function handleExportUserData() {
+    if (!profile || !supabaseClient) return
+    try {
+      toast.info("Preparing your data export...")
+      
+      const [
+        { data: subjects },
+        { data: attendance },
+        { data: grades },
+        { data: timers },
+        { data: tasks },
+        { data: reminders }
+      ] = await Promise.all([
+        supabaseClient.from('subjects').select('*').eq('profile_id', profile.id),
+        supabaseClient.from('attendance_logs').select('*').eq('profile_id', profile.id),
+        supabaseClient.from('grades').select('*').eq('profile_id', profile.id),
+        supabaseClient.from('study_timers').select('*').eq('profile_id', profile.id),
+        supabaseClient.from('tasks').select('*').eq('profile_id', profile.id),
+        supabaseClient.from('task_reminders').select('*').eq('profile_id', profile.id),
+      ])
+
+      const exportData = {
+        exported_at: new Date().toISOString(),
+        profile,
+        subjects: subjects || [],
+        attendance_logs: attendance || [],
+        grades: grades || [],
+        study_timers: timers || [],
+        tasks: tasks || [],
+        task_reminders: reminders || []
+      }
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2))
+      const downloadAnchor = document.createElement('a')
+      downloadAnchor.setAttribute("href", dataStr)
+      downloadAnchor.setAttribute("download", `ryumedha_export_${profile.display_name || 'user'}_${new Date().toISOString().split('T')[0]}.json`)
+      document.body.appendChild(downloadAnchor)
+      downloadAnchor.click()
+      downloadAnchor.remove()
+      toast.success("Data exported successfully!")
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to export data")
+    }
+  }
+
   // Institutional Management Functions
   async function handleCreateUni() {
     if (!newUniName.trim() || !supabaseClient) return
@@ -714,6 +760,29 @@ export default function ProfilePage() {
           </p>
         </div>
       )}
+
+      {/* Data Portability Section */}
+      <div className="space-y-1.5">
+        <h2 className="text-[13px] uppercase tracking-wider text-muted-foreground ml-4 font-medium">Data Portability</h2>
+        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden divide-y divide-border/50">
+          <button 
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+            onClick={handleExportUserData}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                <FolderOpen className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm font-medium">Export My Data</p>
+                <p className="text-xs text-muted-foreground">Download a copy of your personal data as JSON</p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+          </button>
+        </div>
+      </div>
 
       {/* Danger Zone */}
       <div className="space-y-1.5 pt-4">
