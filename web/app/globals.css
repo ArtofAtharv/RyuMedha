@@ -10,6 +10,7 @@ body {
 
 @theme {
   --font-playball: var(--font-playball);
+  --font-changa-one: var(--font-changa-one);
 }
 
 @theme inline {

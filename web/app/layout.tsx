@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Geist_Mono, Playball } from "next/font/google";
+import { Inter, Geist_Mono, Playball, Changa_One } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import Navigation from "@/components/navigation";
@@ -24,6 +24,13 @@ const playball = Playball({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-playball',
+})
+
+const changaOne = Changa_One({
+  weight: '400',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-changa-one',
 })
 
 export const metadata: Metadata = {
@@ -76,7 +83,7 @@ export default function RootLayout({
     // the html element before React hydrates — this suppresses the mismatch warning
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.className} ${inter.variable} ${geistMono.variable} ${playball.variable} font-sans antialiased pb-[80px] md:pb-0`}
+        className={`${inter.className} ${inter.variable} ${geistMono.variable} ${playball.variable} ${changaOne.variable} font-sans antialiased pb-[80px] md:pb-0`}
         suppressHydrationWarning
       >
         {/* Restore color theme from localStorage before first paint — no flash */}

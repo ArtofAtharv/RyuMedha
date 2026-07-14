@@ -57,7 +57,7 @@ function LoginPageInner() {
             className="rounded-full invert dark:invert-0 transition-all duration-300 hover:scale-105 hover:rotate-3 shadow-md"
             priority
           />
-          <span className="text-3xl font-normal tracking-tight font-playball text-foreground mt-1">
+          <span className="text-3xl font-normal tracking-tight font-changa-one text-foreground mt-1">
             Ryu Medha
           </span>
           <p className="text-[13px] text-muted-foreground/80 font-medium">
