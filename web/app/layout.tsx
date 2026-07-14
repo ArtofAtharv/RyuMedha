@@ -51,7 +51,7 @@ export const metadata: Metadata = {
     telephone: false,
   },
   openGraph: {
-    title: "Ryu Medha — Your Academic Edge",
+    title: "Ryu Medha - Academic Organizer",
     url: "https://ryumedha.in",
     siteName: "Ryu Medha",
     type: "website",
@@ -62,7 +62,7 @@ export const metadata: Metadata = {
         url: "https://ryumedha.vercel.app/icon.png",
         width: 630,
         height: 630,
-        alt: "Ryu Medha — Your Academic Edge",
+        alt: "Ryu Medha - Academic Organizer",
         type: "image/png",
       },
     ],
