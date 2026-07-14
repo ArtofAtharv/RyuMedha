@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useSession, signIn, signOut } from "next-auth/react"
 import { AnimatePresence, m } from "motion/react"
-import { Check, ChevronRight, LogIn, LogOut, Moon, Phone, User, Palette, X } from "lucide-react"
+import { Check, ChevronRight, Headphones, LogIn, LogOut, Moon, Phone, User, Palette, X } from "lucide-react"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/haptic"
@@ -27,7 +27,7 @@ import Link from "next/link"
 
 /* ─── Color theme data & logic ─────────────────────────── */
 
-type ColorTheme = "neutral" | "violet" | "green" | "rose" | "orange" | "red"
+type ColorTheme = "neutral" | "violet" | "green" | "rose" | "orange" | "crimson"
 
 const STORAGE_KEY = "ryumedha-color-theme"
 
@@ -37,7 +37,7 @@ const THEMES: { value: ColorTheme; label: string; bg: string; ring: string }[] =
   { value: "green",   label: "Green",    bg: "bg-green-600",                   ring: "ring-green-500"  },
   { value: "rose",    label: "Rose",     bg: "bg-rose-600",                    ring: "ring-rose-500"   },
   { value: "orange",  label: "Orange",   bg: "bg-orange-500",                  ring: "ring-orange-400" },
-  { value: "red",     label: "Red",      bg: "bg-[#fa2d48]",                   ring: "ring-[#fa2d48]"  },   
+  { value: "crimson", label: "Crimson",  bg: "bg-[#FF4E6B]",                   ring: "ring-[#FF4E6B]"  },   
   
 ]
 
@@ -57,6 +57,7 @@ function useColorTheme() {
   useEffect(() => {
     let saved = (localStorage.getItem(STORAGE_KEY) as ColorTheme) ?? "neutral"
     if ((saved as string) === "blue") saved = "violet" // migrate old value
+    if ((saved as string) === "red") saved = "crimson" // migrate red to crimson
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setActive(saved)
     applyTheme(saved)
@@ -311,6 +312,18 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
       </section>
 
       <Divider />
+
+      {/* ── Support & Help ────────────────────────── */}
+      <div className="px-2 py-2">
+        <Link
+          href="/support"
+          onClick={() => { haptic(); onClose() }}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted/70"
+        >
+          <Headphones className="h-4 w-4 text-muted-foreground" />
+          Support & Help
+        </Link>
+      </div>
 
       {/* ── Auth action ───────────────────────────── */}
       <div className="px-2 py-2">

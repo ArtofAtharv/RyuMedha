@@ -297,6 +297,23 @@ function LoginPageInner() {
                   </p>
                 </div>
 
+                {/* Important WhatsApp Notice */}
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/5 p-3.5 flex items-start gap-3 text-left">
+                  <MessageCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-[13px] leading-snug text-foreground/90">
+                    <span className="font-semibold text-foreground">Important:</span> To receive your OTP, you must first message our{' '}
+                    <a
+                      href="https://wa.me/message/P4QSZGK7MV2PL1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary font-semibold underline underline-offset-2 hover:opacity-80 inline-flex items-center gap-0.5"
+                    >
+                      WhatsApp Bot
+                    </a>{' '}
+                    (send &ldquo;Hi&rdquo;) before clicking continue below.
+                  </div>
+                </div>
+
                 {/* Phone field */}
                 <div className="flex flex-col gap-1.5">
                   <Label
@@ -420,6 +437,23 @@ function LoginPageInner() {
                   </p>
                 </div>
 
+                {/* Reminder for OTP receipt */}
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 flex items-center gap-2.5 text-left text-[12px] text-muted-foreground">
+                  <MessageCircle className="h-4 w-4 text-primary shrink-0" />
+                  <span>
+                    Didn&apos;t get the code? Ensure you sent a message to our{' '}
+                    <a
+                      href="https://wa.me/message/P4QSZGK7MV2PL1"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary font-semibold underline underline-offset-2"
+                    >
+                      WhatsApp Bot
+                    </a>{' '}
+                    first.
+                  </span>
+                </div>
+
                 {/* OTP slots */}
                 <div className="flex flex-col items-center gap-2">
                   <InputOTP
@@ -429,6 +463,7 @@ function LoginPageInner() {
                     disabled={loading || expired}
                     onBlur={() => setOtpTouched(true)}
                     containerClassName="justify-center"
+                    autoComplete="one-time-code"
                     autoFocus
                   >
                     <InputOTPGroup className="gap-2">

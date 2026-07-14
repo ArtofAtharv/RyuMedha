@@ -236,6 +236,35 @@ body {
   --sidebar-ring: oklch(0.769 0.188 70.08);
 }
 
+/* ── CRIMSON / RYU CORAL (#FF4E6B) ── */
+:root[data-theme="crimson"] {
+  --primary: oklch(0.685 0.245 24.5);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.685 0.245 24.5);
+  --chart-1: oklch(0.685 0.245 24.5);
+  --chart-2: oklch(0.74 0.20 20.0);
+  --chart-3: oklch(0.60 0.22 30.0);
+  --chart-4: oklch(0.78 0.16 15.0);
+  --chart-5: oklch(0.82 0.14 35.0);
+  --sidebar-primary: oklch(0.685 0.245 24.5);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.685 0.245 24.5);
+}
+
+:root[data-theme="crimson"].dark {
+  --primary: oklch(0.685 0.245 24.5);
+  --primary-foreground: oklch(0.985 0 0);
+  --ring: oklch(0.685 0.245 24.5);
+  --chart-1: oklch(0.685 0.245 24.5);
+  --chart-2: oklch(0.74 0.20 20.0);
+  --chart-3: oklch(0.60 0.22 30.0);
+  --chart-4: oklch(0.78 0.16 15.0);
+  --chart-5: oklch(0.82 0.14 35.0);
+  --sidebar-primary: oklch(0.685 0.245 24.5);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-ring: oklch(0.685 0.245 24.5);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
