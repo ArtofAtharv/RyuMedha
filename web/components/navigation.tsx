@@ -78,6 +78,7 @@ export default function Navigation() {
               width={32}
               height={32}
               className="rounded-full invert dark:invert-0"
+              priority
             />
             <span className="text-xl tracking-tight font-changa-one hidden sm:inline">Ryu Medha</span>
           </Link>

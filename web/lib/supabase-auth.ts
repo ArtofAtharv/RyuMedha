@@ -24,11 +24,6 @@ export function useSupabaseSession() {
       const accessToken = getCookie('sb-access-token')
       const refreshToken = getCookie('sb-refresh-token')
 
-      console.log('useSupabaseSession: checking cookies', { 
-        hasAccessToken: !!accessToken, 
-        hasRefreshToken: !!refreshToken 
-      })
-
       let activeSession = null
       try {
         const { data, error: sessionError } = await supabase.auth.getSession()
@@ -54,18 +49,12 @@ export function useSupabaseSession() {
         console.error('useSupabaseSession: getSession exception', err)
       }
 
-      console.log('useSupabaseSession: active session from client SDK', {
-        hasSession: !!activeSession
-      })
-
       if (!activeSession && refreshToken) {
-        console.log('useSupabaseSession: setting session on client using server cookies')
         const { data, error } = await supabase.auth.setSession({
           access_token: accessToken || '',
           refresh_token: refreshToken
         })
         if (!error && data.session) {
-          console.log('useSupabaseSession: session sync successful')
           setSession(data.session)
         } else if (error) {
           console.error('useSupabaseSession: session sync error', error)
@@ -91,10 +80,6 @@ export function useSupabaseSession() {
     syncSession()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, activeSession) => {
-      console.log('useSupabaseSession: auth state change triggered', {
-        event: _event,
-        hasSession: !!activeSession
-      })
       setSession(activeSession)
       setLoading(false)
 
