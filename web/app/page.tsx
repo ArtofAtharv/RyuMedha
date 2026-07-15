@@ -1,20 +1,39 @@
+"use client"
+
 import Link from "next/link";
 import {
   ArrowRight, Zap, BarChart2, ShieldCheck,
   BookOpen, Clock, CheckSquare, GraduationCap,
   MessageCircle, BarChart, Timer
 } from "lucide-react";
+import { m, Variants } from "motion/react"
 import type { ReactNode } from "react";
-import SessionRedirect from "./session-redirect";
+import { useSupabaseSession } from "@/lib/supabase-auth";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-/* ─────────────────────────────────────────────────────────────
-   NOTE: This is intentionally a Server Component so that bots
-   (including Google OAuth verification crawlers) receive the
-   full, statically-rendered HTML including the <h1> tag.
-
-   All client-side interactivity (session redirect, animations)
-   is handled in child "use client" leaf components.
-───────────────────────────────────────────────────────────── */
+/* ── animation presets ── */
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.12, delayChildren: 0.05 }
+  }
+}
+const itemVariants: Variants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0, opacity: 1,
+    transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }
+  }
+}
+const fadeUp: Variants = {
+  hidden: { y: 32, opacity: 0 },
+  visible: {
+    y: 0, opacity: 1,
+    transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }
+  }
+}
 
 function todayLabel() {
   return new Date().toLocaleDateString("en-IN", {
@@ -23,10 +42,17 @@ function todayLabel() {
 }
 
 export default function LandingPage() {
+  const { session, loading } = useSupabaseSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session) router.push("/dashboard");
+  }, [session, router]);
+
+  if (loading || session) return null;
+
   return (
     <div className="bg-background text-foreground">
-      {/* Redirect logged-in users to /dashboard — client-only, invisible */}
-      <SessionRedirect />
 
       {/* ══════════════════════════════════════════
           HERO — full viewport below navbar
@@ -35,36 +61,33 @@ export default function LandingPage() {
         className="flex items-center"
         style={{ minHeight: "calc(100vh - 56px)" }}
       >
-        <div
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
           className="w-full px-5 sm:px-8 lg:px-14 xl:px-20 py-10 grid items-center gap-10 lg:grid-cols-[1fr_480px] xl:grid-cols-[1fr_520px]"
         >
           {/* Left */}
           <div className="max-w-2xl">
-            <p
-              className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1 text-xs font-semibold text-primary"
+            <m.h1
+              variants={itemVariants}
+              className="text-5xl font-semibold tracking-[-0.055em] text-balance leading-[1.06] md:text-6xl lg:text-7xl xl:text-8xl"
             >
-              Academic Workspace
-            </p>
-            <h1
-              className="text-5xl font-bold tracking-[-0.055em] text-foreground md:text-6xl lg:text-7xl xl:text-8xl"
-            >
-              Ryu Medha
-            </h1>
-            <p
-              className="text-2xl font-semibold tracking-tight text-muted-foreground mt-4 leading-normal sm:text-3xl md:text-4xl"
-            >
-              Own your semester, <span className="text-primary font-changa-one">every single day.</span>
-            </p>
+              Own your<br />semester,<br />
+              <span className="text-primary">every single day.</span>
+            </m.h1>
 
-            <p
+            <m.p
+              variants={itemVariants}
               className="mt-6 max-w-xl text-base leading-7 text-muted-foreground md:text-lg md:leading-8"
             >
               Ryu Medha keeps attendance, grades, tasks, and study sessions
               in one calm workspace. The fastest way in is a WhatsApp message
               you already know how to send.
-            </p>
+            </m.p>
 
-            <div
+            <m.div
+              variants={itemVariants}
               className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center"
             >
               <Link
@@ -79,11 +102,12 @@ export default function LandingPage() {
               >
                 See how it works
               </a>
-            </div>
+            </m.div>
           </div>
 
           {/* Right -- preview card */}
-          <div
+          <m.div
+            variants={itemVariants}
             className="w-full rounded-3xl border border-border bg-card/60 backdrop-blur-md shadow-sm overflow-hidden"
           >
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -117,8 +141,8 @@ export default function LandingPage() {
                 and your dashboard updates in seconds. No app switching needed.
               </p>
             </div>
-          </div>
-        </div>
+          </m.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
@@ -128,10 +152,10 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-start gap-8">
           <div className="flex-1 space-y-4">
             <h2 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <span className="text-primary font-changa-one">Ryu Medha</span> - Google User Data Policy &amp; Purpose
+              <span className="text-primary font-changa-one">Ryu Medha</span> - Google Integration & Purpose
             </h2>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              <strong>Ryu Medha</strong> is a comprehensive academic organizer designed to help students track and manage their college semester. Our core mission is to streamline academic schedules, deadlines, attendance, and study habits in a centralized, quiet workspace. This section outlines the purpose of our application and how it uses the Google user data you are requesting.
+              <strong>Ryu Medha</strong> is a comprehensive academic organizer designed to help students track and manage their college semester. Our core mission is to streamline academic schedules, deadlines, attendance, and study habits in a centralized, quiet workspace.
             </p>
             <p className="text-sm leading-relaxed text-muted-foreground">
               To achieve this, Ryu Medha securely integrates with your Google Account to access:
@@ -160,16 +184,20 @@ export default function LandingPage() {
       {/* ══════════════════════════════════════════
           FEATURE STRIP
           ══════════════════════════════════════════ */}
-      <section
+      <m.section
         id="features"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-80px" }}
         className="border-y border-border min-h-screen flex flex-col justify-center px-5 sm:px-8 lg:px-14 xl:px-20 py-20"
       >
-        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Why Ryu Medha
-        </p>
-        <h2 className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl mb-12">
+        </m.p>
+        <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl mb-12">
           Three principles. One tool that respects your time.
-        </h2>
+        </m.h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FeatureCard
@@ -203,31 +231,37 @@ export default function LandingPage() {
             ]}
           />
         </div>
-      </section>
+      </m.section>
 
       {/* ══════════════════════════════════════════
           WHAT IS RYU MEDHA — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <div className="max-w-3xl py-16">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="max-w-3xl py-16"
+        >
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             What it is
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl lg:text-5xl text-balance">
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl lg:text-5xl text-balance">
             One place for your entire academic life.
-          </h2>
-          <p className="mt-6 text-base leading-7 text-muted-foreground md:text-lg">
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-6 text-base leading-7 text-muted-foreground md:text-lg">
             Most students juggle five different apps: one for attendance,
             another for tasks, a spreadsheet for grades, a timer app, and
             a notes folder. Ryu Medha collapses all of that into a single,
             quietly intelligent workspace that stays out of your way.
-          </p>
-          <p className="mt-4 text-base leading-7 text-muted-foreground md:text-lg">
+          </m.p>
+          <m.p variants={fadeUp} className="mt-4 text-base leading-7 text-muted-foreground md:text-lg">
             And because the best interface is one you already have open,
             the WhatsApp bot lets you log attendance, check your stats, and
             manage tasks without ever opening a browser.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-4">
+          </m.p>
+          <m.div variants={fadeUp} className="mt-10 flex flex-wrap gap-4">
             {[
               { icon: <BookOpen className="h-4 w-4" />, text: "Attendance per subject" },
               { icon: <GraduationCap className="h-4 w-4" />, text: "Cumulative grade tracking" },
@@ -241,21 +275,27 @@ export default function LandingPage() {
                 {item.text}
               </span>
             ))}
-          </div>
-        </div>
+          </m.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           FEATURES DEEP DIVE — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <div className="w-full py-16">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="w-full py-16"
+        >
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Every feature, intentional
-          </p>
-          <h2 className="mb-10 text-3xl font-semibold tracking-tight md:text-4xl text-balance">
+          </m.p>
+          <m.h2 variants={fadeUp} className="mb-10 text-3xl font-semibold tracking-tight md:text-4xl text-balance">
             Built around how you actually study.
-          </h2>
+          </m.h2>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <DeepFeatureCard icon={<BookOpen className="h-5 w-5" />} color="blue" title="Attendance Tracker" description="Mark present, absent, or deemed for each subject. Get warned the moment your percentage drops below your target. Never get surprised by a shortage." />
@@ -265,35 +305,41 @@ export default function LandingPage() {
             <DeepFeatureCard icon={<BarChart2 className="h-5 w-5" />} color="green" title="Study Analytics" description="Visual charts of your focus sessions over time. Spot your most productive days, your slowest weeks, and plan accordingly." />
             <DeepFeatureCard icon={<MessageCircle className="h-5 w-5" />} color="emerald" title="WhatsApp Bot" description="The fastest interface is a message you already know how to type. Mark attendance, check stats, and manage tasks in under 10 seconds." />
           </div>
-        </div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           DUAL MODE — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <div className="w-full py-16 grid gap-12 lg:grid-cols-2 lg:items-center">
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="w-full py-16 grid gap-12 lg:grid-cols-2 lg:items-center"
+        >
           <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Two modes, one dashboard
-            </p>
-            <h2 className="text-3xl font-semibold tracking-tight md:text-4xl text-balance">
+            </m.p>
+            <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance">
               College subjects and personal goals, side by side.
-            </h2>
-            <p className="mt-5 text-base leading-7 text-muted-foreground">
+            </m.h2>
+            <m.p variants={fadeUp} className="mt-5 text-base leading-7 text-muted-foreground">
               Your life is not just lectures and exams. Ryu Medha has an
               Academic mode for your college subjects and a Personal mode for
               everything else: learning guitar, building a startup, preparing
               for competitive exams.
-            </p>
-            <p className="mt-4 text-base leading-7 text-muted-foreground">
+            </m.p>
+            <m.p variants={fadeUp} className="mt-4 text-base leading-7 text-muted-foreground">
               Both modes share the same task manager, timer, and analytics,
               so you get a complete picture of how you spend your time, not
               just your exam-ready hours.
-            </p>
+            </m.p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <m.div variants={fadeUp} className="grid gap-3 sm:grid-cols-2">
             <DualModeCard
               label="Academic"
               items={["Attendance per subject", "Deemed and shortage warnings", "Semester-scoped grades", "Assignment deadlines"]}
@@ -304,24 +350,30 @@ export default function LandingPage() {
               items={["Custom learning tracks", "Skill score board", "Goal-linked tasks", "Deep work analytics"]}
               accent="violet"
             />
-          </div>
-        </div>
+          </m.div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           BY THE NUMBERS
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <div className="w-full py-16">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="w-full py-16"
+        >
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             By the numbers
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
             Built to be fast, free, and frictionless.
-          </h2>
-          <p className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
             No setup fees, no paywalls, no complexity. Ryu Medha is designed to get out of your way and let you focus on what matters.
-          </p>
+          </m.p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCell
@@ -345,23 +397,29 @@ export default function LandingPage() {
               description="Attendance, grades, tasks, focus timers, and analytics. Everything you need, in one focused workspace."
             />
           </div>
-        </div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           HOW IT WORKS
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20">
-        <div className="w-full py-16">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="w-full py-16"
+        >
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Getting started
-          </p>
-          <h2 className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-4xl text-balance max-w-2xl">
             Up and running in under two minutes.
-          </h2>
-          <p className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base leading-7 text-muted-foreground">
             No signup form, no onboarding slides, no waiting. Just open WhatsApp and you are already in.
-          </p>
+          </m.p>
 
           <div className="grid gap-4 sm:grid-cols-3">
             {[
@@ -384,8 +442,9 @@ export default function LandingPage() {
                 detail: "Your data, always in sync"
               }
             ].map((s) => (
-              <div
+              <m.div
                 key={s.step}
+                variants={fadeUp}
                 className="group flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
               >
                 <span className="mb-5 text-4xl font-bold tracking-tight text-primary/20 leading-none">{s.step}</span>
@@ -395,27 +454,31 @@ export default function LandingPage() {
                   <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                   <span className="text-xs text-muted-foreground">{s.detail}</span>
                 </div>
-              </div>
+              </m.div>
             ))}
           </div>
-        </div>
+        </m.div>
       </section>
 
       {/* ══════════════════════════════════════════
           CTA — full screen
           ══════════════════════════════════════════ */}
       <section className="min-h-screen flex items-center px-5 sm:px-8 lg:px-14 xl:px-20">
-        <div
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
           className="w-full py-16 flex flex-col items-center text-center gap-6"
         >
-          <h2 className="text-3xl font-semibold tracking-tight md:text-5xl text-balance max-w-2xl">
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-5xl text-balance max-w-2xl">
             Your semester is already happening. Start tracking it.
-          </h2>
-          <p className="text-base text-muted-foreground max-w-lg">
+          </m.h2>
+          <m.p variants={fadeUp} className="text-base text-muted-foreground max-w-lg">
             Free, fast, and built for the way you already live.
             Sign up in under 60 seconds with just your WhatsApp number.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
+          </m.p>
+          <m.div variants={fadeUp} className="flex flex-col gap-3 sm:flex-row">
             <Link
               href="/login"
               className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary px-8 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 active:opacity-75"
@@ -431,8 +494,8 @@ export default function LandingPage() {
               <MessageCircle className="h-4 w-4 text-green-500" />
               Open WhatsApp bot
             </a>
-          </div>
-        </div>
+          </m.div>
+        </m.div>
       </section>
 
     </div>
@@ -466,7 +529,8 @@ function FeatureCard({
   icon: ReactNode; title: string; description: string; bullets: string[];
 }>) {
   return (
-    <div
+    <m.div
+      variants={itemVariants}
       className="group flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
     >
       <div className="mb-6 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-105">
@@ -486,7 +550,7 @@ function FeatureCard({
           </li>
         ))}
       </ul>
-    </div>
+    </m.div>
   );
 }
 
@@ -507,7 +571,8 @@ function DeepFeatureCard({
 }>) {
   const c = colorMap[color] ?? colorMap.blue
   return (
-    <div
+    <m.div
+      variants={fadeUp}
       className="group flex flex-col rounded-2xl border border-border bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
     >
       <div className={`mb-5 inline-flex h-10 w-10 items-center justify-center rounded-xl border ${c.border} ${c.bg} ${c.icon} transition-transform duration-300 group-hover:scale-105`}>
@@ -515,7 +580,7 @@ function DeepFeatureCard({
       </div>
       <h3 className="mb-2 text-base font-semibold tracking-tight">{title}</h3>
       <p className="text-sm leading-6 text-muted-foreground">{description}</p>
-    </div>
+    </m.div>
   )
 }
 
@@ -548,15 +613,18 @@ function DualModeCard({
 
 function StatCell({ value, label, description }: Readonly<{ value: string; label: string; description: string }>) {
   return (
-    <div
+    <m.div
+      variants={fadeUp}
       className="group flex flex-col rounded-2xl border border-border bg-card/50 p-8 backdrop-blur-sm transition-all duration-300 hover:border-primary/25 hover:shadow-sm"
     >
+      {/* Primary accent line follows theme */}
       <div className="mb-6 h-px w-8 rounded-full bg-primary" />
+      {/* Value in primary color */}
       <p className="text-4xl font-semibold tracking-tight text-primary lg:text-5xl">{value}</p>
       <div className="mt-4 flex flex-col gap-1">
         <p className="text-sm font-semibold text-foreground">{label}</p>
         <p className="text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
-    </div>
+    </m.div>
   )
 }

@@ -1,15 +1,8 @@
 'use client'
 
 import { ThemeProvider } from '@/components/theme-provider'
-import { MotionConfig } from "motion/react"
+import { LazyMotion, domAnimation } from "motion/react"
 
-/**
- * NOTE: We intentionally do NOT use LazyMotion here.
- * LazyMotion creates a Suspense boundary that wraps all children in
- * `style="opacity:0"` until the motion JS bundle loads — this hides the
- * entire page body from search crawlers and Google OAuth verification bots.
- * MotionConfig is lightweight and causes no Suspense wrapping.
- */
 export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ThemeProvider
@@ -18,9 +11,9 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
       enableSystem
       disableTransitionOnChange
     >
-      <MotionConfig reducedMotion="user">
+      <LazyMotion features={domAnimation}>
         {children}
-      </MotionConfig>
+      </LazyMotion>
     </ThemeProvider>
   )
 }
