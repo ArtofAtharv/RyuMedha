@@ -715,3 +715,55 @@ export async function deleteReminder(id: string, listId = "@default"): Promise<b
     return false
   }
 }
+
+export async function createTaskList(title: string): Promise<TaskList | null> {
+  try {
+    const { oauth2Client: auth } = await getAuthenticatedClient()
+    const service = google.tasks({ version: "v1", auth })
+    const response = await service.tasklists.insert({
+      requestBody: { title }
+    })
+    revalidatePath("/dashboard/tasks")
+    return {
+      id: response.data.id || "",
+      title: response.data.title || "",
+    }
+  } catch (error) {
+    console.error("Error creating task list:", error)
+    return null
+  }
+}
+
+export async function updateTaskList(listId: string, title: string): Promise<TaskList | null> {
+  try {
+    const { oauth2Client: auth } = await getAuthenticatedClient()
+    const service = google.tasks({ version: "v1", auth })
+    const response = await service.tasklists.patch({
+      tasklist: listId,
+      requestBody: { title }
+    })
+    revalidatePath("/dashboard/tasks")
+    return {
+      id: response.data.id || "",
+      title: response.data.title || "",
+    }
+  } catch (error) {
+    console.error("Error updating task list:", error)
+    return null
+  }
+}
+
+export async function deleteTaskList(listId: string): Promise<boolean> {
+  try {
+    const { oauth2Client: auth } = await getAuthenticatedClient()
+    const service = google.tasks({ version: "v1", auth })
+    await service.tasklists.delete({
+      tasklist: listId
+    })
+    revalidatePath("/dashboard/tasks")
+    return true
+  } catch (error) {
+    console.error("Error deleting task list:", error)
+    return false
+  }
+}

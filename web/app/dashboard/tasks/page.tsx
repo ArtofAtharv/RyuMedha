@@ -27,6 +27,9 @@ import {
   createReminder,
   updateReminder,
   deleteReminder,
+  createTaskList,
+  updateTaskList,
+  deleteTaskList,
   type Reminder,
   type TaskList
 } from "@/app/actions/google-tasks"
@@ -69,6 +72,76 @@ export default function TasksPage() {
   const [reminderCustom, setReminderCustom] = useState(true)
   const [customReminderValue, setCustomReminderValue] = useState(3)
   const [customReminderUnit, setCustomReminderUnit] = useState<"minutes" | "hours" | "days" | "weeks">("hours")
+
+  // List Modal states
+  const [isListModalOpen, setIsListModalOpen] = useState(false)
+  const [editingList, setEditingList] = useState<TaskList | null>(null)
+  const [listTitle, setListTitle] = useState("")
+  const [listSaving, setListSaving] = useState(false)
+
+  const handleOpenCreateListModal = () => {
+    setEditingList(null)
+    setListTitle("")
+    setIsListModalOpen(true)
+  }
+
+  const handleOpenEditListModal = (list: TaskList) => {
+    setEditingList(list)
+    setListTitle(list.title)
+    setIsListModalOpen(true)
+  }
+
+  const handleSaveList = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!listTitle.trim()) return
+    setListSaving(true)
+    try {
+      if (editingList) {
+        const updated = await updateTaskList(editingList.id, listTitle.trim())
+        if (updated) {
+          setTaskLists(prev => prev.map(l => l.id === editingList.id ? updated : l))
+          toast.success("List renamed.")
+        }
+      } else {
+        const created = await createTaskList(listTitle.trim())
+        if (created) {
+          setTaskLists(prev => [...prev, created])
+          setActiveListId(created.id)
+          await handleSync(created.id)
+          toast.success("List created.")
+        }
+      }
+      setIsListModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to save list.")
+    } finally {
+      setListSaving(false)
+    }
+  }
+
+  const handleDeleteList = async (listId: string) => {
+    if (!confirm("Are you sure you want to delete this list and all its tasks?")) return
+    try {
+      const success = await deleteTaskList(listId)
+      if (success) {
+        setTaskLists(prev => prev.filter(l => l.id !== listId))
+        if (activeListId === listId) {
+          const remaining = taskLists.filter(l => l.id !== listId)
+          if (remaining.length > 0) {
+            setActiveListId(remaining[0].id)
+            await handleSync(remaining[0].id)
+          }
+        }
+        toast.success("List deleted.")
+      } else {
+        toast.error("Failed to delete list.")
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to delete list.")
+    }
+  }
 
   // Notifications states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
@@ -552,29 +625,69 @@ export default function TasksPage() {
           </button>
         </div>
 
-        <nav className="flex-1 py-4 overflow-y-auto px-3 space-y-1">
+        <div className="flex items-center justify-between px-6 py-2 mt-4 shrink-0">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Lists</span>
+          <button
+            onClick={handleOpenCreateListModal}
+            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Create New List"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        <nav className="flex-1 py-2 overflow-y-auto px-3 space-y-1">
           {taskLists.map(list => (
-            <button
+            <div
               key={list.id}
-              onClick={() => {
-                handleListSelect(list.id)
-                if (window.innerWidth < 768) {
-                  setSidebarOpen(false)
-                }
-              }}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
+              className={`group/list w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all text-left ${
                 activeListId === list.id
                   ? "bg-primary/10 text-primary font-semibold"
                   : "hover:bg-muted/50 text-muted-foreground"
               }`}
             >
-              <div
-                className={`w-2 h-2 rounded-full ${
-                  activeListId === list.id ? "bg-primary" : "bg-muted-foreground/30"
-                }`}
-              />
-              <span className="truncate">{list.title}</span>
-            </button>
+              <button
+                onClick={() => {
+                  handleListSelect(list.id)
+                  if (window.innerWidth < 768) {
+                    setSidebarOpen(false)
+                  }
+                }}
+                className="flex-1 flex items-center space-x-3 truncate py-0.5"
+              >
+                <div
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    activeListId === list.id ? "bg-primary" : "bg-muted-foreground/30"
+                  }`}
+                />
+                <span className="truncate">{list.title}</span>
+              </button>
+              
+              <div className="flex items-center space-x-0.5 opacity-0 group-hover/list:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpenEditListModal(list)
+                  }}
+                  className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-foreground"
+                  title="Rename List"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                {taskLists.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteList(list.id)
+                    }}
+                    className="p-1 rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
+                    title="Delete List"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
           ))}
         </nav>
 
@@ -1050,6 +1163,46 @@ export default function TasksPage() {
                 className="rounded-xl px-5 h-9 font-bold"
               >
                 {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Edit Task List Modal */}
+      <Dialog open={isListModalOpen} onOpenChange={setIsListModalOpen}>
+        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50">
+          <DialogHeader className="pb-4 border-b border-border/50">
+            <DialogTitle>{editingList ? "Rename List" : "Create List"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveList} className="space-y-4 pt-4">
+            <div className="space-y-1">
+              <Label htmlFor="listTitle" className="text-xs font-bold text-muted-foreground uppercase">List Title</Label>
+              <Input
+                id="listTitle"
+                type="text"
+                placeholder="e.g. Shopping List, Work, Homework..."
+                value={listTitle}
+                onChange={e => setListTitle(e.target.value)}
+                required
+                className="bg-muted/40 border-border/50 h-10"
+              />
+            </div>
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/50">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsListModalOpen(false)}
+                className="rounded-xl h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={listSaving || !listTitle.trim()}
+                className="rounded-xl px-5 h-9 font-bold"
+              >
+                {listSaving ? "Saving..." : "Save"}
               </Button>
             </div>
           </form>
