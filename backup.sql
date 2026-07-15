@@ -39,6 +39,8 @@ CREATE TABLE profiles (
     google_access_token TEXT,
     google_refresh_token TEXT,
     google_token_expiry BIGINT,
+    whatsapp_verification_code TEXT,
+    whatsapp_verification_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
