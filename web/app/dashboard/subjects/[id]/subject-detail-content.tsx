@@ -45,7 +45,10 @@ import { haptic } from "@/lib/haptic"
 import { createReminder, deleteReminder } from "@/app/actions/google-tasks"
 
 interface SubjectCourse {
+  id?: string
   instructor_name?: string
+  expected_total_lectures?: number
+  exam_dates?: Record<string, string>
 }
 
 interface SubjectData {
@@ -53,6 +56,8 @@ interface SubjectData {
   name: string
   color_hex?: string
   source_course_id?: SubjectCourse
+  instructor_name?: string
+  expected_total_lectures?: number
 }
 
 interface AttendanceLog {

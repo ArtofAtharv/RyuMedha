@@ -23,6 +23,7 @@ interface ProfileContextProps {
   profile: UserProfile | null;
   activeTrack: 'academics' | 'personal';
   setActiveTrack: (track: 'academics' | 'personal') => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const ProfileContext = createContext<ProfileContextProps>({

@@ -702,7 +702,6 @@ export default function SubjectsPage() {
                     }}
                     onDelete={() => setSubjectToDelete(sub)}
                     onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                    onDeleteExamDate={(label) => handleDeleteExamDate(sub.id, label)}
                   />
                 </m.div>
               ))}
@@ -759,7 +758,6 @@ export default function SubjectsPage() {
                         })}
                         onDelete={() => setSubjectToDelete(sub)}
                         onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                        onDeleteExamDate={(label) => handleDeleteExamDate(sub.id, label)}
                       />
                     </m.div>
                   )

@@ -327,7 +327,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
 
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, title, due_date, subject_id, is_exam')
+      .select('id, title, due_date, subject_id, is_exam, description, is_completed, completed_at')
       .eq('profile_id', profileId)
 
     const { data: localReminders } = await supabase

@@ -194,13 +194,12 @@ export default async function DashboardPage() {
   let personalPendingTasksToday = 0
   
   pendingTasks?.forEach(t => {
-    // @ts-expect-error — Supabase join returns subjects as object or array
     const subjectsObj = t.subjects
     const type = Array.isArray(subjectsObj) 
       ? subjectsObj[0]?.type 
       : (subjectsObj as {type?: string})?.type
 
-    const subId = t.subject_id || t.subjectId
+    const subId = t.subject_id
     const isUnlinked = !subId || !type
 
     if (isUnlinked) {
