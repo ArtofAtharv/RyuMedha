@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useSupabaseSession } from "@/lib/supabase-auth"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,7 +34,7 @@ interface Course { id: string; course_name: string }
 export default function SetupPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
-  const [session, setSession] = useState<SessionData | null>(null)
+  const { session } = useSupabaseSession()
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string | null>(null)
   
@@ -75,21 +75,18 @@ export default function SetupPage() {
 
   useEffect(() => {
     async function init() {
-      const sess = await getSession()
-      if (!sess) {
+      const supabase = getAppClient()
+      setSupabaseClient(supabase)
+
+      const { data: { session: activeSession } } = await supabase.auth.getSession()
+      if (!activeSession) {
         router.push("/login")
         return
       }
-      setSession(sess)
-      
-      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
-      )
-      setSupabaseClient(supabase)
       
       const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('whatsapp_number', sess.user.phone)
         .single()
         
       if (profile) {
@@ -105,7 +102,7 @@ export default function SetupPage() {
       if (unis) setUniversities(unis)
     }
     init()
-  }, [router, session?.user?.phone])
+  }, [router])
 
   // cascaded fetches for Step 2
   useEffect(() => {
@@ -262,7 +259,7 @@ export default function SetupPage() {
   }
 
   async function saveProfileOnly() {
-    if (!supabaseClient || !session?.user?.phone) return
+    if (!supabaseClient || !profileId) return
     setIsSubmitting(true)
     const { error } = await supabaseClient
       .from('profiles')
@@ -271,7 +268,7 @@ export default function SetupPage() {
         academics_enabled: academicsEnabled,
         personal_enabled: personalEnabled
       })
-      .eq('whatsapp_number', session.user.phone)
+      .eq('id', profileId)
     
     setIsSubmitting(false)
     if (error) setErrorMsg(error.message)
@@ -305,7 +302,7 @@ export default function SetupPage() {
 
   async function handleFinalSave(e: React.SyntheticEvent) {
     e.preventDefault()
-    if (!supabaseClient || !session?.user?.phone) return
+    if (!supabaseClient || !profileId) return
     setIsSubmitting(true)
     setErrorMsg("")
 
@@ -326,7 +323,7 @@ export default function SetupPage() {
     const { error: pError } = await supabaseClient
       .from('profiles')
       .update(profileUpdates)
-      .eq('whatsapp_number', session.user.phone)
+      .eq('id', profileId)
 
     if (pError) {
       setErrorMsg(pError.message)

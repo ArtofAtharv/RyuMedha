@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { getSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -88,11 +87,7 @@ export default function WhatsAppAdminPage() {
         return
       }
 
-      const session = await getSession()
-      if (!session) return
-      
-      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
-      )
+      const supabase = getAppClient()
       setSupabaseClient(supabase)
       
       await fetchData(supabase)
@@ -164,12 +159,12 @@ export default function WhatsAppAdminPage() {
   const triggerPendingTasksBlast = async () => {
     if (!supabaseClient) return
     try {
-      const session = await getSession()
+      const { data: { session: activeSession } } = await supabaseClient.auth.getSession()
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook?trigger=tasks`
       const res = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session?.user.supabaseToken || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${activeSession?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
         }
       })
       if (!res.ok) throw new Error(await res.text())
@@ -186,12 +181,12 @@ export default function WhatsAppAdminPage() {
   const triggerAttendanceGuardian = async () => {
     if (!supabaseClient) return
     try {
-      const session = await getSession()
+      const { data: { session: activeSession } } = await supabaseClient.auth.getSession()
       const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/whatsapp-webhook?trigger=daily`
       const res = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session?.user.supabaseToken || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+          'Authorization': `Bearer ${activeSession?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
         }
       })
       if (!res.ok) throw new Error(await res.text())

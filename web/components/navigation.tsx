@@ -1,21 +1,42 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useSession } from "next-auth/react"
+import { useSupabaseSession } from "@/lib/supabase-auth"
 import { User } from "lucide-react"
 import { AccountSheet } from "@/components/account-sheet"
+import { usePathname } from "next/navigation"
+import { getAppClient } from "@/lib/supabase-client"
 import Image from "next/image"
 
 export default function Navigation() {
-  const { data: session, status } = useSession()
+  const { session, isAuthenticated } = useSupabaseSession()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const pathname = usePathname()
+  const [displayName, setDisplayName] = useState("")
 
-  const isAuthenticated = status === "authenticated"
-  const initials = session?.user?.name
-    ? session.user.name
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setDisplayName("")
+      return
+    }
+    const supabase = getAppClient()
+    supabase
+      .from("profiles")
+      .select("display_name")
+      .single()
+      .then(({ data }) => {
+        if (data?.display_name) {
+          setDisplayName(data.display_name)
+        }
+      })
+  }, [isAuthenticated, pathname])
+
+  const name = displayName || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
+  const initials = name
+    ? name
       .split(" ")
-      .map((n) => n[0])
+      .map((n: string) => n[0])
       .join("")
       .slice(0, 2)
       .toUpperCase()
@@ -35,7 +56,7 @@ export default function Navigation() {
               height={32}
               className="rounded-full invert dark:invert-0"
             />
-            <span className="text-xl tracking-tight font-playball">Ryu Medha</span>
+            <span className="text-xl tracking-tight font-changa-one">Ryu Medha</span>
           </Link>
 
           {/* Account avatar — opens AccountSheet */}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getSession } from "next-auth/react"
+import { useSupabaseSession } from "@/lib/supabase-auth"
 import { useRouter } from "next/navigation"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { m, AnimatePresence } from "motion/react"
@@ -24,6 +24,7 @@ interface ProfileData {
   id: string
   display_name?: string
   whatsapp_number?: string
+  email?: string | null
   current_university_id?: string | null
   current_program_id?: string | null
   current_semester_id?: string | null
@@ -43,7 +44,7 @@ interface SubjectRow {
 
 export default function ProfilePage() {
   const router = useRouter()
-  const [session, setSession] = useState<SessionData | null>(null)
+  const { session } = useSupabaseSession()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   
   const [universities, setUniversities] = useState<IdName[]>([])
@@ -170,15 +171,26 @@ export default function ProfilePage() {
     }
 
     async function init() {
-      const sess = await getSession()
-      if (!sess) return
-      setSession(sess)
-      
-      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
-      )
-      
+      const supabase = getAppClient()
       setSupabaseClient(supabase)
-      await fetchInitialData(supabase, sess)
+
+      // Fetch initial data (RLS scopes profiles to caller)
+      const [{ data: prof }, { data: unis }] = await Promise.all([
+        supabase.from('profiles').select('*').single(),
+        supabase.from('universities').select('id, name').order('name')
+      ])
+
+      if (unis) setUniversities(unis)
+
+      if (prof) {
+        setProfile(prof)
+        await Promise.all([
+          fetchUniversityData(supabase, prof.current_university_id),
+          fetchProgramData(supabase, prof.current_program_id),
+          fetchSemesterData(supabase, prof.current_semester_id)
+        ])
+      }
+      setLoading(false)
     }
     init()
   }, [])
@@ -186,8 +198,8 @@ export default function ProfilePage() {
 
   // Refetch just the profile and names
   async function refreshProfileData() {
-    if (!supabaseClient || !session) return
-    const { data: prof } = await supabaseClient.from('profiles').select('*').eq('whatsapp_number', session.user.phone).single()
+    if (!supabaseClient) return
+    const { data: prof } = await supabaseClient.from('profiles').select('*').single()
     if (prof) {
       setProfile(prof)
       await fetchNamesAndDropdowns(supabaseClient, prof)
@@ -284,8 +296,8 @@ export default function ProfilePage() {
     await supabaseClient.from('profiles').delete().eq('id', profile.id)
     
     // Sign out and redirect
-    const { signOut } = await import("next-auth/react")
-    await signOut({ callbackUrl: '/login' })
+    await supabaseClient.auth.signOut()
+    window.location.href = '/login'
   }
 
   async function handleExportUserData() {
@@ -569,7 +581,7 @@ export default function ProfilePage() {
     )
   }
 
-  const displayName = profile.display_name || session?.user?.name || session?.user?.phone
+  const displayName = profile.display_name || session?.user?.email || 'User'
 
 
   return (
@@ -588,7 +600,7 @@ export default function ProfilePage() {
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-semibold tracking-tight truncate">{displayName}</h1>
           <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-            {session?.user?.phone}
+            {session?.user?.email}
           </p>
         </div>
       </div>
@@ -611,17 +623,33 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          <div className="flex items-center gap-3 px-4 py-3">
-            <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center shrink-0">
-              <Phone className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">Phone Number</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground">{session?.user?.phone}</p>
-            </div>
-          </div>
+          <ProfileRow
+            icon={<User className="w-4 h-4 text-white" />}
+            iconBg="bg-teal-500"
+            label="Email"
+            value={profile.email ?? "Not Linked"}
+            isEditing={editField === "email"}
+            editValue={editValue}
+            saving={saving}
+            onEdit={() => startEdit("email", profile.email || "")}
+            onCancel={cancelEdit}
+            onChange={setEditValue}
+            onSave={() => saveField("email", editValue)}
+          />
+
+          <ProfileRow
+            icon={<Phone className="w-4 h-4 text-white" />}
+            iconBg="bg-green-500"
+            label="Link WhatsApp No"
+            value={profile.whatsapp_number ?? "Not Linked"}
+            isEditing={editField === "whatsapp_number"}
+            editValue={editValue}
+            saving={saving}
+            onEdit={() => startEdit("whatsapp_number", profile.whatsapp_number || "")}
+            onCancel={cancelEdit}
+            onChange={setEditValue}
+            onSave={() => saveField("whatsapp_number", editValue)}
+          />
         </div>
       </div>
 

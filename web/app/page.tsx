@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { m, Variants } from "motion/react"
 import type { ReactNode } from "react";
-import { useSession } from "next-auth/react";
+import { useSupabaseSession } from "@/lib/supabase-auth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -42,14 +42,14 @@ function todayLabel() {
 }
 
 export default function LandingPage() {
-  const { status } = useSession();
+  const { session, loading } = useSupabaseSession();
   const router = useRouter();
 
   useEffect(() => {
-    if (status === "authenticated") router.push("/dashboard");
-  }, [status, router]);
+    if (session) router.push("/dashboard");
+  }, [session, router]);
 
-  if (status === "loading" || status === "authenticated") return null;
+  if (loading || session) return null;
 
   return (
     <div className="bg-background text-foreground">
@@ -143,6 +143,42 @@ export default function LandingPage() {
             </div>
           </m.div>
         </m.div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          GOOGLE INTEGRATION & PURPOSE
+          ══════════════════════════════════════════ */}
+      <section className="border-t border-border bg-card/25 py-16 px-5 sm:px-8 lg:px-14 xl:px-20">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-start gap-8">
+          <div className="flex-1 space-y-4">
+            <h2 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
+              <span className="text-primary font-changa-one">Ryu Medha</span> - Google Integration & Purpose
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              <strong>Ryu Medha</strong> is a comprehensive academic organizer designed to help students track and manage their college semester. Our core mission is to streamline academic schedules, deadlines, attendance, and study habits in a centralized, quiet workspace.
+            </p>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              To achieve this, Ryu Medha securely integrates with your Google Account to access:
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2 mt-4">
+              <div className="rounded-xl border border-border bg-muted/40 p-4">
+                <h3 className="text-sm font-semibold mb-1">Google Tasks API</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Used to sync your homework, assignments, and exam deadlines directly between your dashboard and Google Tasks. This enables us to schedule offline popup reminders and system notifications when your tasks are due.
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-muted/40 p-4">
+                <h3 className="text-sm font-semibold mb-1">Google Calendar API</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Used to display your lecture schedules, exams, and classes on your main calendar layout, helping you balance your focus time and avoid schedule conflicts.
+                </p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground/80 mt-4 leading-normal">
+              We respect your privacy: your Google data is accessed solely to synchronize your personal tasks and schedules, and is never shared, sold, or used for advertising. You can unlink your account at any time in your profile settings.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* ══════════════════════════════════════════

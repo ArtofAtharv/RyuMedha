@@ -1,7 +1,6 @@
 // app/dashboard/page.tsx — protected server component (session via proxy.ts)
 
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
@@ -12,15 +11,16 @@ import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-con
 import { OverviewContent } from "./overview-content"
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions)
-  if (!session) redirect('/login')
+  const cookieStore = await cookies()
+  const accessToken = cookieStore.get('sb-access-token')?.value
+  if (!accessToken) redirect('/login')
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       global: {
-        headers: { Authorization: `Bearer ${session.user.supabaseToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       },
     }
   )
@@ -29,7 +29,6 @@ export default async function DashboardPage() {
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
-    .eq('whatsapp_number', session.user.phone)
     .single()
 
   if (!profile?.display_name) {
@@ -252,7 +251,7 @@ export default async function DashboardPage() {
               unmarkedSubjectsToday,
               pendingTasksToday,
               timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'academic') || [],
-              token: session.user.supabaseToken,
+              token: accessToken,
               profileId: profile?.id,
               targetPct
             }}

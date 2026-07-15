@@ -1,855 +1,1366 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { getSession } from "next-auth/react"
-
+import React, { useState, useEffect, useMemo, useCallback } from "react"
+import {
+  Plus,
+  Moon,
+  Sun,
+  Search,
+  CheckCircle,
+  Circle,
+  Calendar as CalendarIcon,
+  Trash2,
+  Edit2,
+  RefreshCw,
+  Clock,
+  Menu,
+  Check,
+  Loader2,
+  ListTodo,
+  Bell
+} from "lucide-react"
+import { useProfile } from "@/components/dashboard/profile-context"
+import { toast } from "sonner"
+import {
+  fetchTaskLists,
+  fetchReminders,
+  createReminder,
+  updateReminder,
+  deleteReminder,
+  createTaskList,
+  updateTaskList,
+  deleteTaskList,
+  type Reminder,
+  type TaskList
+} from "@/app/actions/google-tasks"
+import { PageHeader } from "@/components/dashboard/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { CircleCheck, Clock, Trash2, Plus, Bell, BellRing, Target, Calendar as CalIcon } from "lucide-react"
-import { m, AnimatePresence } from "motion/react"
-import { haptic } from "@/lib/haptic"
-import { toast } from "sonner"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useProfile } from '@/components/dashboard/profile-context'
-import { DatePicker } from "@/components/ui/date-picker"
-import type { DashboardSubject, TaskItem } from "@/lib/dashboard-types"
-import { getSourceCourse } from "@/lib/source-course"
-import { PageHeader } from '@/components/dashboard/page-header'
-import type { UserProfile } from "@/components/dashboard/profile-context"
-
-const PRIORITY_COLORS: Record<string, string> = {
-  urgent: 'bg-red-500',
-  high: 'bg-orange-500',
-  medium: 'bg-yellow-500',
-  low: 'bg-green-500',
-}
-
-async function urlB64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replaceAll('-', '+').replaceAll('_', '/');
-  const rawData = globalThis.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.codePointAt(i) ?? 0; }
-  return outputArray;
-}
+import { getAppClient } from "@/lib/supabase-client"
 
 export default function TasksPage() {
   const { profile } = useProfile()
-  const [tasks, setTasks] = useState<TaskItem[]>([])
-  const [completedTasks, setCompletedTasks] = useState<TaskItem[]>([])
-  const [subjects, setSubjects] = useState<DashboardSubject[]>([])
+  const [reminders, setReminders] = useState<Reminder[]>([])
+  const [taskLists, setTaskLists] = useState<TaskList[]>([])
+  const [activeListId, setActiveListId] = useState("@default")
+  const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
-
-  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
+  
+  // New task modal states
   const [title, setTitle] = useState("")
-  const [priority, setPriority] = useState("medium")
-  const [dueDate, setDueDate] = useState("")
-  const [subjectId, setSubjectId] = useState("none")
-  const [dueTime, setDueTime] = useState("09:00")
-  const [remindOnDue, setRemindOnDue] = useState(false)
-  const [remind1Day, setRemind1Day] = useState(false)
-  const [remindCustom, setRemindCustom] = useState(false)
-  const [customHours, setCustomHours] = useState(2)
-  const [pushEnabled, setPushEnabled] = useState(false)
-  const [isSubscribing, setIsSubscribing] = useState(false)
-  
-  // Filter State
-  const [filterType, setFilterType] = useState("all") // all, exams, generic
+  const [notes, setNotes] = useState("")
+  const [dateType, setDateType] = useState<"none" | "today" | "tomorrow" | "next-week" | "custom">("none")
+  const [customDate, setCustomDate] = useState("")
+  const [timePreset, setTimePreset] = useState<"all-day" | "morning" | "evening" | "custom">("all-day")
+  const [customTime, setCustomTime] = useState("")
+  const [saving, setSaving] = useState(false)
 
-  const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
-  const [profileId, setProfileId] = useState<string|null>(null)
-  
-  // Edit State
-  const [editingTaskId, setEditingTaskId] = useState<string|null>(null)
-  const [editTitle, setEditTitle] = useState("")
-  const [editPriority, setEditPriority] = useState("medium")
-  const [editDueDate, setEditDueDate] = useState<Date | null>(null)
-  const [editSubjectId, setEditSubjectId] = useState("none")
-  const [editDueTime, setEditDueTime] = useState("09:00")
-  const [editRemindOnDue, setEditRemindOnDue] = useState(false)
-  const [editRemind1Day, setEditRemind1Day] = useState(false)
-  const [editRemindCustom, setEditRemindCustom] = useState(false)
-  const [editCustomHours, setEditCustomHours] = useState(2)
+  // Reminder settings states
+  const [reminderDueTime, setReminderDueTime] = useState(true)
+  const [reminder1Day, setReminder1Day] = useState(true)
+  const [reminder2Days, setReminder2Days] = useState(true)
+  const [reminder1Week, setReminder1Week] = useState(true)
+  const [reminder2Weeks, setReminder2Weeks] = useState(true)
+  const [reminderCustom, setReminderCustom] = useState(true)
+  const [customReminderValue, setCustomReminderValue] = useState(3)
+  const [customReminderUnit, setCustomReminderUnit] = useState<"minutes" | "hours" | "days" | "weeks">("hours")
 
+  // List Modal states
+  const [isListModalOpen, setIsListModalOpen] = useState(false)
+  const [editingList, setEditingList] = useState<TaskList | null>(null)
+  const [listTitle, setListTitle] = useState("")
+  const [listSaving, setListSaving] = useState(false)
 
-  async function togglePushNotifications() {
-    haptic()
+  const handleOpenCreateListModal = () => {
+    setEditingList(null)
+    setListTitle("")
+    setIsListModalOpen(true)
+  }
+
+  const handleOpenEditListModal = (list: TaskList) => {
+    setEditingList(list)
+    setListTitle(list.title)
+    setIsListModalOpen(true)
+  }
+
+  const handleSaveList = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!listTitle.trim()) return
+    setListSaving(true)
     try {
-      setIsSubscribing(true)
-      if (pushEnabled) {
-        const registration = await navigator.serviceWorker.ready
-        const subscription = await registration.pushManager.getSubscription()
-        if (subscription) await subscription.unsubscribe()
-        
-        await fetch('/api/push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'unsubscribe', subscription })
-        })
-        setPushEnabled(false)
+      if (editingList) {
+        const updated = await updateTaskList(editingList.id, listTitle.trim())
+        if (updated) {
+          setTaskLists(prev => prev.map(l => l.id === editingList.id ? updated : l))
+          toast.success("List renamed.")
+        }
       } else {
-        if (!('serviceWorker' in navigator) || !('PushManager' in globalThis)) {
-          alert('Push notifications are not supported by your browser.')
-          setIsSubscribing(false)
-          return
+        const created = await createTaskList(listTitle.trim())
+        if (created) {
+          setTaskLists(prev => [...prev, created])
+          setActiveListId(created.id)
+          await handleSync(created.id)
+          toast.success("List created.")
         }
-        const permission = await Notification.requestPermission()
-        if (permission !== 'granted') {
-          alert('Permission not granted for Notification')
-          setIsSubscribing(false)
-          return
-        }
-        await navigator.serviceWorker.register('/sw.js')
-        const registration = await navigator.serviceWorker.ready
-        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-        if (!vapidKey) throw new Error("VAPID key not configured")
-        
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: await urlB64ToUint8Array(vapidKey)
-        })
-        
-        await fetch('/api/push', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'subscribe', subscription })
-        })
-        setPushEnabled(true)
       }
-    } catch (e) {
-      console.error(e)
-      alert("Failed to toggle push notifications.")
+      setIsListModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to save list.")
     } finally {
-      setIsSubscribing(false)
+      setListSaving(false)
     }
   }
 
-  const fetchTasksAndSubjects = useCallback(async (supabase: AppSupabaseClient, pid: string | null) => {
-    if (!pid) return
-    setLoading(true)
-    
-    const { data: rawSubs } = await supabase
-      .from('subjects')
-      .select('id, name, color_hex, type, source_course_id(semester_id)')
-      .eq('profile_id', pid)
-      .eq('is_active', true)
-      .order('name')
+  const handleDeleteList = async (listId: string) => {
+    if (!confirm("Are you sure you want to delete this list and all its tasks?")) return
+    try {
+      const success = await deleteTaskList(listId)
+      if (success) {
+        setTaskLists(prev => prev.filter(l => l.id !== listId))
+        if (activeListId === listId) {
+          const remaining = taskLists.filter(l => l.id !== listId)
+          if (remaining.length > 0) {
+            setActiveListId(remaining[0].id)
+            await handleSync(remaining[0].id)
+          }
+        }
+        toast.success("List deleted.")
+      } else {
+        toast.error("Failed to delete list.")
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to delete list.")
+    }
+  }
 
-    const subs = (rawSubs as DashboardSubject[] | null)?.filter((s) => {
-      if (s.type === 'personal') return true
-      return getSourceCourse(s.source_course_id)?.semester_id === profile?.current_semester_id
-    }) || []
-    setSubjects(subs)
+  // Notifications states
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default")
+  const [togglingNotifications, setTogglingNotifications] = useState(false)
 
-    const { data: pending } = await supabase
-      .from('tasks')
-      .select('*, subjects(id, name, color_hex, type), task_reminders(id, scheduled_for, reminder_type)')
-      .eq('profile_id', pid)
-      .eq('is_completed', false)
-      .order('due_date', { ascending: true, nullsFirst: false })
+  // Initialize notifications status
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotificationPermission(Notification.permission)
+      const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
       
-    const { data: done } = await supabase
-      .from('tasks')
-      .select('*, subjects(id, name, color_hex, type), task_reminders(id, scheduled_for, reminder_type)')
-      .eq('profile_id', pid)
-      .eq('is_completed', true)
-      .order('completed_at', { ascending: false })
-      .limit(10)
+      if (Notification.permission === "denied") {
+        setNotificationsEnabled(false)
+        localStorage.setItem("tasks_notifications_enabled", "false")
+      } else {
+        setNotificationsEnabled(stored && Notification.permission === "granted")
+      }
+    }
+  }, [])
 
-    const validSubjectIds = new Set(subs.map((s) => s.id))
-    
-    setTasks(((pending as TaskItem[] | null) ?? []).filter((t) => !t.subject_id || validSubjectIds.has(t.subject_id)))
-    setCompletedTasks(((done as TaskItem[] | null) ?? []).filter((t) => !t.subject_id || validSubjectIds.has(t.subject_id)))
-    setLoading(false)
-  }, [profile?.current_semester_id])
+  // Initialize sidebar state based on screen size on mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (window.innerWidth < 768) {
+        setSidebarOpen(false)
+      }
+    }
+  }, [])
 
+  // Auto-register service worker on mount if notifications are enabled
+  useEffect(() => {
+    async function reregister() {
+      if (typeof window !== "undefined" && "serviceWorker" in navigator && "Notification" in window) {
+        const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
+        if (stored && Notification.permission === "granted") {
+          try {
+            await navigator.serviceWorker.register('/sw.js')
+          } catch (e) {
+            console.error("Failed to re-register service worker on mount:", e)
+          }
+        }
+      }
+    }
+    reregister()
+  }, [])
+
+  const handleToggleNotifications = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Notifications are not supported by this browser.")
+      return
+    }
+
+    setTogglingNotifications(true)
+    try {
+      if (notificationsEnabled) {
+        await unsubscribeFromPush()
+        setNotificationsEnabled(false)
+        localStorage.setItem("tasks_notifications_enabled", "false")
+        toast.success("Desktop reminders disabled.")
+      } else {
+        let perm = Notification.permission
+        if (perm === "default") {
+          perm = await Notification.requestPermission()
+          setNotificationPermission(perm)
+        }
+
+        if (perm === "granted") {
+          await subscribeToPush()
+          setNotificationsEnabled(true)
+          localStorage.setItem("tasks_notifications_enabled", "true")
+          toast.success("Desktop reminders enabled! You'll receive popups when due.")
+        } else {
+          setNotificationsEnabled(false)
+          localStorage.setItem("tasks_notifications_enabled", "false")
+          toast.error("Notification permission denied. Please allow notifications in site settings.")
+        }
+      }
+    } catch (err: any) {
+      console.error(err)
+      toast.error(err.message || "Failed to update notification settings.")
+    } finally {
+      setTogglingNotifications(false)
+    }
+  }
+
+  // Initialize and fetch lists
   useEffect(() => {
     async function init() {
-      const session = await getSession()
-      if (!session) return
-      
-      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } } }
-      )
-      
-      setSupabaseClient(supabase)
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, push_notifications_enabled')
-        .eq('whatsapp_number', session.user.phone)
-        .single()
-        
-      if (profile) {
-        setProfileId(profile.id)
-        setPushEnabled(profile.push_notifications_enabled || false)
+      try {
+        const lists = await fetchTaskLists()
+        setTaskLists(lists)
+        if (lists.length > 0) {
+          setActiveListId(lists[0].id)
+        }
+        await handleSync(lists[0]?.id || "@default")
+      } catch (err) {
+        console.error(err)
+        toast.error("Connect your Google account to manage tasks.")
+      } finally {
+        setLoading(false)
       }
-
-      await fetchTasksAndSubjects(supabase, profile?.id)
     }
     init()
-  }, [fetchTasksAndSubjects])
+  }, [])
 
-  // Helper to reliably parse local date string 'YYYY-MM-DD' into a stable UTC ISO string for DB
-  // This expects the Date object direct from the datepicker now.
-  function getDateISO(date: Date | null, timeString?: string) {
-    if (!date) return null
-    // Offset local timezone so midnight is preserved perfectly
-    const offsetDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000))
-    const dateStr = offsetDate.toISOString().split('T')[0]
-    
-    if (timeString) {
-      // Create a full localized Date passing both components
-      // This will ensure it creates a valid UTC ISO string for DB
-      return new Date(`${dateStr}T${timeString}:00`).toISOString()
-    }
-    return dateStr
-  }
-
-  async function handleAddTask(e: React.SyntheticEvent) {
-    e.preventDefault()
-    if (!supabaseClient || !profileId) return
-    haptic()
-    if (!title.trim()) return
-
-    const finalDate = dueDate ? getDateISO(new Date(dueDate), dueTime) : null
-    
-    const { data: newTask, error: _addError } = await supabaseClient
-      .from('tasks')
-      .insert([{
-        profile_id: profileId,
-        title: title.trim(),
-        priority: priority,
-        due_date: finalDate,
-        subject_id: subjectId === "none" ? null : subjectId,
-        has_reminder: remindOnDue || remind1Day || remindCustom,
-        reminder_time: finalDate,
-        is_completed: false,
-        is_exam: false
-      }]).select().single()
-
-    if (newTask && finalDate) {
-      const rems = buildReminderRows(newTask.id, profileId, new Date(finalDate).getTime(), {
-        onDue: remindOnDue,
-        oneDay: remind1Day,
-        custom: remindCustom,
-        customHours: customHours,
-      })
-      if (rems.length > 0) {
-        await supabaseClient.from('task_reminders').insert(rems)
-      }
-    }
-
-    setTitle("")
-    setDueDate("")
-    setPriority("medium")
-    setSubjectId("none")
-    setRemindOnDue(false)
-    setRemind1Day(false)
-    setRemindCustom(false)
-    setCustomHours(2)
-    setDueTime("")
-    setIsAddTaskModalOpen(false)
-    fetchTasksAndSubjects(supabaseClient, profileId)
-  }
-
-  async function toggleComplete(task: TaskItem) {
-    if (!supabaseClient || !profileId) return
-    haptic()
-    await supabaseClient
-      .from('tasks')
-      .update({ 
-        is_completed: !task.is_completed, 
-        completed_at: task.is_completed ? null : new Date().toISOString() 
-      })
-      .eq('id', task.id)
-    fetchTasksAndSubjects(supabaseClient, profileId)
-  }
-
-  function startEdit(task: TaskItem) {
-    haptic()
-    setEditingTaskId(task.id)
-    setEditTitle(task.title)
-    setEditPriority(task.priority)
-    setEditSubjectId(task.subject_id || "none")
-    setEditRemindOnDue(false)
-    setEditRemind1Day(false)
-    setEditRemindCustom(false)
-    setEditCustomHours(2)
-    
-    task.task_reminders?.forEach((r) => {
-      if (r.reminder_type === 'due_date') setEditRemindOnDue(true)
-      if (r.reminder_type === '1_day_prior') setEditRemind1Day(true)
-      if (r.reminder_type === 'custom_hours') {
-        setEditRemindCustom(true)
-        if (task.due_date && r.scheduled_for) {
-          const diffMs = new Date(task.due_date).getTime() - new Date(r.scheduled_for).getTime()
-          setEditCustomHours(Math.round(diffMs / 3600000))
-        }
-      }
-    })
-    
-    if (task.due_date) {
-      const rt = new Date(task.due_date);
-      setEditDueTime(`${rt.getHours().toString().padStart(2, '0')}:${rt.getMinutes().toString().padStart(2, '0')}`)
-    } else {
-      setEditDueTime("09:00")
-    }
-
-    if (task.due_date) {
-      // Use offset date creation to correctly set local time
-      const components = task.due_date.split('T')[0].split('-')
-      if (components.length === 3) {
-        setEditDueDate(new Date(Number.parseInt(components[0]), Number.parseInt(components[1]) - 1, Number.parseInt(components[2])))
-      } else {
-        setEditDueDate(new Date(task.due_date))
-      }
-    } else {
-      setEditDueDate(null)
+  // Sync reminders with server
+  const handleSync = async (listId = activeListId) => {
+    setIsSyncing(true)
+    try {
+      const fresh = await fetchReminders(listId)
+      setReminders(fresh)
+    } catch (error) {
+      console.error("Sync error:", error)
+      toast.error("Failed to sync with Google Tasks.")
+    } finally {
+      setIsSyncing(false)
     }
   }
 
-  function buildReminderRows(
-    taskId: string,
-    pid: string,
-    baseTime: number,
-    opts: { onDue: boolean; oneDay: boolean; custom: boolean; customHours: number }
-  ) {
-    const rows = []
-    if (opts.onDue)
-      rows.push({ task_id: taskId, profile_id: pid, scheduled_for: new Date(baseTime).toISOString(), reminder_type: 'due_date' })
-    if (opts.oneDay)
-      rows.push({ task_id: taskId, profile_id: pid, scheduled_for: new Date(baseTime - 86400000).toISOString(), reminder_type: '1_day_prior' })
-    if (opts.custom)
-      rows.push({ task_id: taskId, profile_id: pid, scheduled_for: new Date(baseTime - (opts.customHours * 3600000)).toISOString(), reminder_type: 'custom_hours' })
-    return rows
+  // Trigger sync on list switch
+  const handleListSelect = (listId: string) => {
+    setActiveListId(listId)
+    handleSync(listId)
   }
 
-  async function saveEdit() {
-    if (!supabaseClient || !profileId || !editingTaskId || !editTitle.trim()) return
-    haptic()
+  const handleToggleComplete = async (reminder: Reminder) => {
+    const nextCompleted = !reminder.completed
+    // Optimistic UI update
+    setReminders(prev =>
+      prev.map(r =>
+        r.id === reminder.id ? { ...r, completed: nextCompleted } : r
+      )
+    )
 
     try {
-      let dateObj = editDueDate;
-      if (typeof editDueDate === 'string') dateObj = new Date(editDueDate);
-      const finalDate = dateObj ? getDateISO(dateObj, editDueTime) : null
-
-      const { error } = await supabaseClient
-        .from('tasks')
-        .update({
-          title: editTitle.trim(),
-          priority: editPriority,
-          due_date: finalDate,
-          subject_id: editSubjectId === "none" ? null : editSubjectId,
-          has_reminder: editRemindOnDue || editRemind1Day || editRemindCustom,
-          reminder_time: finalDate,
-        })
-        .eq('id', editingTaskId)
-
-      if (error) throw error;
-
-      await supabaseClient.from('task_reminders').delete().eq('task_id', editingTaskId)
-
-      if (finalDate) {
-        const rems = buildReminderRows(editingTaskId, profileId, new Date(finalDate).getTime(), {
-          onDue: editRemindOnDue,
-          oneDay: editRemind1Day,
-          custom: editRemindCustom,
-          customHours: editCustomHours,
-        })
-        if (rems.length > 0) {
-          const { error: remError } = await supabaseClient.from('task_reminders').insert(rems)
-          if (remError) throw remError;
-        }
-      }
-
-      toast.success("Task updated successfully!")
-      setEditingTaskId(null)
-      fetchTasksAndSubjects(supabaseClient, profileId)
-    } catch (err: unknown) {
-      const saveErr = err as Error
-      console.error("Save Edit Error:", saveErr)
-      toast.error(`Failed to save task: ${saveErr.message}`)
+      await updateReminder(reminder.id, { completed: nextCompleted }, activeListId)
+      toast.success(nextCompleted ? "Task completed!" : "Task marked active.")
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to update task.")
+      // Revert on error
+      setReminders(prev =>
+        prev.map(r =>
+          r.id === reminder.id ? { ...r, completed: !nextCompleted } : r
+        )
+      )
     }
   }
 
-  async function deleteTask(id: string) {
-    if (!supabaseClient || !profileId) return
-    haptic()
-    await supabaseClient.from('tasks').delete().eq('id', id)
-    fetchTasksAndSubjects(supabaseClient, profileId)
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this task?")) return
+
+    const previousReminders = [...reminders]
+    setReminders(prev => prev.filter(r => r.id !== id))
+
+    try {
+      const success = await deleteReminder(id, activeListId)
+      if (!success) throw new Error("Delete failed")
+      toast.success("Task deleted successfully.")
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to delete task.")
+      setReminders(previousReminders)
+    }
+  }
+
+  const handleOpenAddModal = () => {
+    setEditingReminder(null)
+    setTitle("")
+    setNotes("")
+    setDateType("today")
+    setTimePreset("all-day")
+    setCustomDate("")
+    setCustomTime("")
+    setReminderDueTime(true)
+    setReminder1Day(true)
+    setReminder2Days(true)
+    setReminder1Week(true)
+    setReminder2Weeks(true)
+    setReminderCustom(true)
+    setCustomReminderValue(3)
+    setCustomReminderUnit("hours")
+    setIsModalOpen(true)
+  }
+
+  const handleOpenEditModal = (reminder: Reminder) => {
+    setEditingReminder(reminder)
+    setTitle(reminder.title)
+    setNotes(reminder.notes || "")
+    
+    if (reminder.due) {
+      const dateObj = new Date(reminder.due)
+      const datePart = dateObj.toISOString().split("T")[0]
+      const todayStr = new Date().toISOString().split("T")[0]
+      
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const tomorrowStr = tomorrow.toISOString().split("T")[0]
+      
+      const nextWeek = new Date()
+      nextWeek.setDate(nextWeek.getDate() + 7)
+      const nextWeekStr = nextWeek.toISOString().split("T")[0]
+
+      if (datePart === todayStr) setDateType("today")
+      else if (datePart === tomorrowStr) setDateType("tomorrow")
+      else if (datePart === nextWeekStr) setDateType("next-week")
+      else {
+        setDateType("custom")
+        setCustomDate(datePart)
+      }
+
+      const hours = dateObj.getHours()
+      const minutes = dateObj.getMinutes()
+      
+      if (hours === 0 && minutes === 0 && reminder.due.endsWith("T00:00:00.000Z")) {
+        setTimePreset("all-day")
+      } else {
+        setTimePreset("custom")
+        setCustomTime(`${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`)
+      }
+    } else {
+      setDateType("none")
+      setTimePreset("all-day")
+    }
+
+    if (reminder.reminderSettings) {
+      setReminderDueTime(reminder.reminderSettings.dueTime)
+      setReminder1Day(reminder.reminderSettings.oneDayPrior)
+      setReminder2Days(reminder.reminderSettings.twoDaysPrior)
+      setReminder1Week(reminder.reminderSettings.oneWeekPrior)
+      setReminder2Weeks(reminder.reminderSettings.twoWeeksPrior)
+      setReminderCustom(reminder.reminderSettings.customPrior)
+      setCustomReminderValue(reminder.reminderSettings.customValue || 3)
+      setCustomReminderUnit((reminder.reminderSettings.customUnit as any) || "hours")
+    } else {
+      setReminderDueTime(true)
+      setReminder1Day(true)
+      setReminder2Days(true)
+      setReminder1Week(true)
+      setReminder2Weeks(true)
+      setReminderCustom(true)
+      setCustomReminderValue(3)
+      setCustomReminderUnit("hours")
+    }
+    
+    setIsModalOpen(true)
+  }
+
+  const handleSaveReminder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!title.trim()) return
+
+    setSaving(true)
+    try {
+      let finalDue: string | undefined = undefined
+
+      if (dateType !== "none") {
+        let datePart = ""
+        const today = new Date()
+
+        if (dateType === "today") {
+          datePart = today.toISOString().split("T")[0]
+        } else if (dateType === "tomorrow") {
+          const tomorrow = new Date()
+          tomorrow.setDate(today.getDate() + 1)
+          datePart = tomorrow.toISOString().split("T")[0]
+        } else if (dateType === "next-week") {
+          const nextWeek = new Date()
+          nextWeek.setDate(today.getDate() + 7)
+          datePart = nextWeek.toISOString().split("T")[0]
+        } else if (dateType === "custom" && customDate) {
+          datePart = customDate
+        }
+
+        if (datePart) {
+          if (timePreset === "all-day") {
+            finalDue = `${datePart}T00:00:00.000Z`
+          } else {
+            let timePart = "09:00"
+            if (timePreset === "morning") timePart = "08:00"
+            else if (timePreset === "evening") timePart = "18:00"
+            else if (timePreset === "custom" && customTime) {
+              timePart = customTime
+            }
+            
+            const [hours, mins] = timePart.split(":")
+            const combined = new Date(datePart)
+            combined.setHours(parseInt(hours), parseInt(mins), 0, 0)
+            finalDue = combined.toISOString()
+          }
+        }
+      }
+
+      const reminderSettings = {
+        dueTime: reminderDueTime,
+        oneDayPrior: reminder1Day,
+        twoDaysPrior: reminder2Days,
+        oneWeekPrior: reminder1Week,
+        twoWeeksPrior: reminder2Weeks,
+        customPrior: reminderCustom,
+        customValue: customReminderValue,
+        customUnit: customReminderUnit
+      }
+
+      if (editingReminder) {
+        // Edit mode
+        const updated = await updateReminder(
+          editingReminder.id,
+          { title, notes, due: finalDue, reminderSettings },
+          activeListId
+        )
+        if (updated) {
+          setReminders(prev => prev.map(r => (r.id === editingReminder.id ? updated : r)))
+          toast.success("Task updated.")
+        }
+      } else {
+        // Create mode
+        const created = await createReminder({
+          title,
+          notes,
+          due: finalDue,
+          listId: activeListId,
+          reminderSettings
+        })
+        if (created) {
+          setReminders(prev => [created, ...prev])
+          toast.success("Task created.")
+        }
+      }
+      setIsModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      toast.error("Failed to save task.")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Filters
+  const filteredReminders = useMemo(() => {
+    let list = reminders
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      list = list.filter(
+        r =>
+          r.title.toLowerCase().includes(query) ||
+          r.notes?.toLowerCase().includes(query)
+      )
+    }
+    return list
+  }, [reminders, searchQuery])
+
+  // Sorting
+  const groups = useMemo(() => {
+    const now = new Date()
+    const todayStr = now.toISOString().split("T")[0]
+    
+    const tomorrow = new Date()
+    tomorrow.setDate(now.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().split("T")[0]
+
+    const nextWeek = new Date()
+    nextWeek.setDate(now.getDate() + 7)
+
+    const result = {
+      overdue: [] as Reminder[],
+      today: [] as Reminder[],
+      tomorrow: [] as Reminder[],
+      upcoming: [] as Reminder[],
+      noDate: [] as Reminder[],
+      completed: [] as Reminder[],
+    }
+
+    filteredReminders.forEach(r => {
+      if (r.completed) {
+        result.completed.push(r)
+        return
+      }
+
+      if (!r.due) {
+        result.noDate.push(r)
+        return
+      }
+
+      const duePart = r.due.split("T")[0]
+      const dueDate = new Date(r.due)
+
+      if (duePart < todayStr) {
+        result.overdue.push(r)
+      } else if (duePart === todayStr) {
+        result.today.push(r)
+      } else if (duePart === tomorrowStr) {
+        result.tomorrow.push(r)
+      } else if (dueDate <= nextWeek) {
+        result.upcoming.push(r)
+      } else {
+        result.noDate.push(r)
+      }
+    })
+
+    // Sort completed by date
+    result.completed.sort((a, b) => {
+      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0
+      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0
+      return bTime - aTime
+    })
+
+    return result
+  }, [filteredReminders])
+
+  const formatReminderDate = (isoStr?: string) => {
+    if (!isoStr) return ""
+    const date = new Date(isoStr)
+    const isAllDay = isoStr.endsWith("T00:00:00.000Z")
+    
+    const options: Intl.DateTimeFormatOptions = {
+      month: "short",
+      day: "numeric",
+    }
+    
+    let formatted = date.toLocaleDateString("en-US", options)
+    
+    if (!isAllDay) {
+      const timeOptions: Intl.DateTimeFormatOptions = {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      }
+      formatted += `, ${date.toLocaleTimeString("en-US", timeOptions)}`
+    }
+    
+    return formatted
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-      
-      <PageHeader 
-        title="Tasks & Exams"
-        description="Keep track of your assignments, to-dos, and upcoming assessments."
-        action={
-          <div className="flex items-center gap-2 mt-4 sm:mt-0 w-full sm:w-auto">
-            <Button 
-               variant={pushEnabled ? "default" : "outline"} 
-               onClick={togglePushNotifications} 
-               disabled={isSubscribing}
-               className="gap-2 rounded-full h-9 shadow-sm text-xs font-bold shrink-0"
-            >
-              {pushEnabled ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
-              {pushEnabled ? "Push Enabled" : "Enable Push"}
-            </Button>
+    <div className="relative flex h-[80vh] border rounded-3xl overflow-hidden bg-card/60 backdrop-blur-md shadow-xl border-border/50 max-w-6xl mx-auto px-2 mt-4 md:px-4 md:mt-6">
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-35 bg-black/40 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="flex-1 sm:w-[120px] h-9 bg-background shadow-sm border-muted-foreground/20 rounded-full text-xs font-bold px-3">
-                <SelectValue placeholder="View All" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">View All</SelectItem>
-                <SelectItem value="exams">Exams</SelectItem>
-                <SelectItem value="generic">Tasks</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button onClick={() => setIsAddTaskModalOpen(true)} className="gap-2 rounded-full font-bold shadow-sm h-9">
-              <Plus className="w-4 h-4" /> Add
-            </Button>
+      {/* Sidebar Task Lists */}
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-40 md:z-auto md:relative
+          bg-background md:bg-transparent h-full
+          ${sidebarOpen ? "w-64 translate-x-0 border-r" : "w-0 -translate-x-full md:translate-x-0 md:w-0"}
+          transition-all duration-300 flex-shrink-0 border-border/50 flex flex-col overflow-hidden
+        `}
+      >
+        <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
+          <div className="flex items-center space-x-2">
+            <div className="bg-primary/10 text-primary p-2 rounded-xl flex items-center justify-center shadow-sm">
+              <ListTodo className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base leading-tight">My Tasks</h1>
+              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                Google Account Sync
+              </span>
+            </div>
           </div>
-        }
-      />
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+            aria-label="Close sidebar"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
 
-      <Dialog open={isAddTaskModalOpen} onOpenChange={setIsAddTaskModalOpen}>
-        <DialogContent className="sm:max-w-xl p-0 overflow-hidden outline-none border-border/50">
-          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
-            <DialogTitle>Add New Task</DialogTitle>
-          </DialogHeader>
-          <div className="p-6 max-h-[75vh] overflow-y-auto">
-            <form onSubmit={handleAddTask} className="flex flex-col gap-4">
+        <div className="flex items-center justify-between px-6 py-2 mt-4 shrink-0">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Lists</span>
+          <button
+            onClick={handleOpenCreateListModal}
+            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Create New List"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
+
+        <nav className="flex-1 py-2 overflow-y-auto px-3 space-y-1">
+          {taskLists.map(list => (
+            <div
+              key={list.id}
+              className={`group/list w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all text-left ${
+                activeListId === list.id
+                  ? "bg-primary/10 text-primary font-semibold"
+                  : "hover:bg-muted/50 text-muted-foreground"
+              }`}
+            >
+              <button
+                onClick={() => {
+                  handleListSelect(list.id)
+                  if (window.innerWidth < 768) {
+                    setSidebarOpen(false)
+                  }
+                }}
+                className="flex-1 flex items-center space-x-3 truncate py-0.5"
+              >
+                <div
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    activeListId === list.id ? "bg-primary" : "bg-muted-foreground/30"
+                  }`}
+                />
+                <span className="truncate">{list.title}</span>
+              </button>
               
-              <div className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="space-y-1.5 w-full sm:flex-1">
-                  <Label htmlFor="title" className="text-sm font-semibold text-muted-foreground">What needs doing?</Label>
-                  <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Read Chapter 5" required className="bg-background shadow-sm border-muted-foreground/20 h-10" />
-                </div>
-                
-                <div className="space-y-1.5 w-full sm:w-1/3">
-                  <Label htmlFor="subject" className="text-sm font-semibold text-muted-foreground">Subject Link</Label>
-                  <div className="w-full">
-                  <Select value={subjectId} onValueChange={setSubjectId}>
-                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20 w-full">
-                      <SelectValue placeholder="No Subject" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Subject</SelectItem>
-                      {subjects
-                        .filter(s => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
-                        .map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
-                      }
-                    </SelectContent>
-                  </Select>
-                  </div>
-                </div>
+              <div className="flex items-center space-x-0.5 opacity-0 group-hover/list:opacity-100 transition-opacity">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleOpenEditListModal(list)
+                  }}
+                  className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-foreground"
+                  title="Rename List"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                {taskLists.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteList(list.id)
+                    }}
+                    className="p-1 rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
+                    title="Delete List"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Notifications Toggle */}
+        <div className="p-4 border-t border-border/50 bg-muted/20 flex flex-col space-y-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-foreground flex items-center gap-1.5">
+              <Bell className="w-3.5 h-3.5 text-primary" /> Desktop Reminders
+            </span>
+            <button
+              type="button"
+              onClick={handleToggleNotifications}
+              disabled={togglingNotifications}
+              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                notificationsEnabled ? "bg-primary" : "bg-muted-foreground/30"
+              } ${togglingNotifications ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${
+                  notificationsEnabled ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+          {notificationPermission === "denied" && (
+            <p className="text-[10px] text-destructive leading-tight font-medium">
+              Notifications blocked. Enable them in site settings.
+            </p>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-border/50 bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
+          <span>Google Sync Status</span>
+          <button
+            onClick={() => handleSync(activeListId)}
+            disabled={isSyncing}
+            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            title="Sync Tasks"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary" : ""}`} />
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Task List */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header */}
+        <header className="h-16 border-b border-border/50 flex items-center justify-between px-4 sm:px-6 z-10 flex-shrink-0 gap-3 sm:gap-4">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Search */}
+            <div className="relative max-w-sm w-full">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
+                <Search className="w-4 h-4" />
+              </span>
+              <Input
+                type="text"
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full bg-muted/40 border-border/50 rounded-xl pl-10 pr-4 text-sm h-9"
+              />
+            </div>
+          </div>
+
+          <Button onClick={handleOpenAddModal} size="sm" className="gap-1.5 rounded-xl font-bold h-9 px-3 sm:px-4">
+            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Task</span>
+          </Button>
+        </header>
+
+        {/* Content Area */}
+        <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          {/* Overdue */}
+          {groups.overdue.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-destructive flex items-center space-x-1.5">
+                <span>Overdue</span>
+                <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-[10px]">
+                  {groups.overdue.length}
+                </span>
+              </h3>
+              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
+                {groups.overdue.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                    isOverdue
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Today */}
+          {groups.today.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+                Today
+              </h3>
+              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
+                {groups.today.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Tomorrow */}
+          {groups.tomorrow.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Tomorrow
+              </h3>
+              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
+                {groups.tomorrow.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Upcoming */}
+          {groups.upcoming.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Upcoming (Next 7 Days)
+              </h3>
+              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
+                {groups.upcoming.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* No Date */}
+          {groups.noDate.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                No Date / Later
+              </h3>
+              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
+                {groups.noDate.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Empty State */}
+          {filteredReminders.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                <Check className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="text-base font-semibold text-foreground">
+                  All caught up!
+                </h4>
+                <p className="text-sm text-muted-foreground max-w-xs">
+                  No active tasks in this list. Tap Add Task to create a reminder.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Completed */}
+          {groups.completed.length > 0 && (
+            <section className="space-y-2 pt-6 border-t border-border/50">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Completed ({groups.completed.length})
+              </h3>
+              <div className="bg-card/40 rounded-2xl overflow-hidden shadow-sm border border-border/55 divide-y divide-border/50 opacity-70">
+                {groups.completed.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
+
+      {/* Add / Edit Task Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50 max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-4 border-b border-border/50">
+            <DialogTitle>{editingReminder ? "Edit Task" : "Add Task"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveReminder} className="space-y-4 pt-4">
+            <div className="space-y-1">
+              <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase">What needs doing?</Label>
+              <Input
+                id="title"
+                type="text"
+                placeholder="Remind me to..."
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                required
+                className="bg-muted/40 border-border/50 h-10"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="notes" className="text-xs font-bold text-muted-foreground uppercase">Details</Label>
+              <textarea
+                id="notes"
+                placeholder="Add notes..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={2}
+                className="w-full bg-muted/40 border border-border/50 rounded-xl p-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary outline-none resize-none placeholder-muted-foreground/60 text-foreground"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs font-bold text-muted-foreground uppercase block">Due Date</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { id: "none", label: "No Date" },
+                  { id: "today", label: "Today" },
+                  { id: "tomorrow", label: "Tomorrow" },
+                  { id: "next-week", label: "Next Week" },
+                ].map(item => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    onClick={() => setDateType(item.id as any)}
+                    className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
+                      dateType === item.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="space-y-1.5 w-full sm:w-1/3">
-                  <Label htmlFor="priority" className="text-sm font-semibold text-muted-foreground">Priority</Label>
-                  <div className="w-full">
-                  <Select value={priority} onValueChange={setPriority}>
-                    <SelectTrigger className="h-10 bg-background shadow-sm border-muted-foreground/20 w-full">
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="urgent">🔴 Urgent</SelectItem>
-                      <SelectItem value="high">🟠 High</SelectItem>
-                      <SelectItem value="medium">🟡 Medium</SelectItem>
-                      <SelectItem value="low">🟢 Low</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateType("custom")
+                    if (!customDate) {
+                      setCustomDate(new Date().toISOString().split("T")[0])
+                    }
+                  }}
+                  className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
+                    dateType === "custom"
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/60 hover:bg-muted text-muted-foreground"
+                  }`}
+                >
+                  Choose Custom Date
+                </button>
+                {dateType === "custom" && (
+                  <div className="mt-3 p-3 bg-muted/20 border border-border/50 rounded-xl space-y-2">
+                    <Input
+                      type="date"
+                      value={customDate}
+                      onChange={e => setCustomDate(e.target.value)}
+                      className="bg-card border-border/50"
+                    />
                   </div>
-                </div>
-                
-                <div className="space-y-1.5 w-full sm:w-1/3">
-                  <Label htmlFor="duedate" className="text-sm font-semibold text-muted-foreground flex items-center gap-1"><CalIcon className="w-3.5 h-3.5"/> Due Date</Label>
-                  <DatePicker
-                    date={dueDate ? new Date(dueDate) : undefined}
-                    setDate={(d) => setDueDate(d ? d.toISOString() : "")}
-                    className="w-full bg-background shadow-sm border-muted-foreground/20 h-10"
-                  />
+                )}
+              </div>
+            </div>
+
+            {dateType !== "none" && (
+              <div className="space-y-2 pt-2 border-t border-border/50">
+                <Label className="text-xs font-bold text-muted-foreground uppercase block">Time</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: "all-day", label: "All Day" },
+                    { id: "morning", label: "Morning (8 AM)" },
+                    { id: "evening", label: "Evening (6 PM)" },
+                  ].map(item => (
+                    <button
+                      type="button"
+                      key={item.id}
+                      onClick={() => setTimePreset(item.id as any)}
+                      className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
+                        timePreset === item.id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border/60 hover:bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
 
-                <div className="flex flex-col w-full gap-3 mt-2 sm:mt-0">
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-semibold text-muted-foreground">Reminders</Label>
-                    <div className="flex flex-wrap gap-1.5 p-1 rounded-xl bg-muted/20 border border-muted-foreground/10 items-center">
-                      <Button type="button" size="sm" variant={remindOnDue ? "default" : "ghost"} className="h-8 text-xs px-3 rounded-lg font-bold" onClick={() => setRemindOnDue(!remindOnDue)}>On Due Date</Button>
-                      <Button type="button" size="sm" variant={remind1Day ? "default" : "ghost"} className="h-8 text-xs px-3 rounded-lg font-bold" onClick={() => setRemind1Day(!remind1Day)}>1 Day Prior</Button>
-                      <div className="flex items-center gap-0.5 bg-background/50 rounded-lg border border-muted-foreground/10 overflow-hidden">
-                        <Button type="button" size="sm" variant={remindCustom ? "default" : "ghost"} className="h-8 text-[10px] px-2 rounded-none border-0 font-bold" onClick={() => setRemindCustom(!remindCustom)}>Hours Prior:</Button>
-                        <Input type="number" min="1" max="72" value={customHours} onChange={(e) => setCustomHours(Number(e.target.value))} className={`h-8 w-11 text-xs px-1 text-center rounded-none border-0 focus-visible:ring-0 ${remindCustom ? 'bg-primary text-primary-foreground font-bold' : 'bg-transparent'}`} disabled={!remindCustom} />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-3 w-full">
-                    <div className="space-y-1.5 w-full sm:w-[120px]">
-                      <Label htmlFor="duetime" className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider ml-1">Due Time</Label>
-                      <Input 
-                        id="duetime" 
-                        type="time" 
-                        value={dueTime} 
-                        onChange={(e) => setDueTime(e.target.value)} 
-                        className="bg-background shadow-sm border-muted-foreground/20 h-10 font-medium" 
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTimePreset("custom")
+                      if (!customTime) setCustomTime("12:00")
+                    }}
+                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
+                      timePreset === "custom"
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 hover:bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    Choose Custom Time
+                  </button>
+                  {timePreset === "custom" && (
+                    <div className="mt-3 p-3 bg-muted/20 border border-border/50 rounded-xl">
+                      <Input
+                        type="time"
+                        value={customTime}
+                        onChange={e => setCustomTime(e.target.value)}
+                        className="bg-card border-border/50"
                       />
                     </div>
-                    <Button type="submit" className="h-12 sm:h-10 px-8 font-bold w-full sm:w-auto shadow-sm">
-                      <Plus className="w-5 h-5 mr-2" /> Add Task
-                    </Button>
-                  </div>
+                  )}
                 </div>
               </div>
-            </form>
-          </div>
+            )}
+
+            {dateType !== "none" && (
+              <div className="space-y-3 pt-3 border-t border-border/50">
+                <Label className="text-xs font-bold text-muted-foreground uppercase block">Reminders</Label>
+                
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminderDueTime}
+                      onChange={e => setReminderDueTime(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>At due time</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminder1Day}
+                      onChange={e => setReminder1Day(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>1 day prior</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminder2Days}
+                      onChange={e => setReminder2Days(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>2 days prior</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminder1Week}
+                      onChange={e => setReminder1Week(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>1 week prior</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={reminder2Weeks}
+                      onChange={e => setReminder2Weeks(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>2 weeks prior</span>
+                  </label>
+                </div>
+
+                <div className="pt-2 border-t border-border/30">
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none mb-2">
+                    <input
+                      type="checkbox"
+                      checked={reminderCustom}
+                      onChange={e => setReminderCustom(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span className="font-medium">Custom prior reminder</span>
+                  </label>
+                  
+                  {reminderCustom && (
+                    <div className="flex items-center space-x-2 mt-2 p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={customReminderValue}
+                        onChange={e => setCustomReminderValue(parseInt(e.target.value) || 1)}
+                        className="w-20 bg-card border-border/50 h-8 text-sm"
+                      />
+                      <select
+                        value={customReminderUnit}
+                        onChange={e => setCustomReminderUnit(e.target.value as any)}
+                        className="bg-card border border-border/50 rounded-lg text-sm p-1.5 focus:ring-1 focus:ring-primary outline-none text-foreground h-8"
+                      >
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                      </select>
+                      <span className="text-xs text-muted-foreground">prior</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/50">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-xl h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving || !title.trim()}
+                className="rounded-xl px-5 h-9 font-bold"
+              >
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
         </DialogContent>
       </Dialog>
 
-        {/* Task Lists */}
-        <div className="space-y-8">
-          
-          {/* Pending Tasks */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold flex items-center gap-2"><Clock className="w-5 h-5 text-orange-500"/> Pending Tasks</h2>
-            {loading ? (
-              <div className="space-y-4">
-                <div className="h-6 w-32 bg-muted animate-pulse rounded-md mb-2" />
-                {(['skeleton-task-a', 'skeleton-task-b', 'skeleton-task-c']).map((skId) => (
-                  <div key={skId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border bg-card animate-pulse gap-4">
-                    <div className="flex items-center gap-3 w-full">
-                      <div className="w-6 h-6 rounded-full bg-muted/60 shrink-0" />
-                      <div className="space-y-2 w-full">
-                        <div className="h-5 w-3/4 sm:w-1/2 bg-muted rounded-md" />
-                        <div className="flex gap-2">
-                          <div className="h-4 w-12 bg-muted/60 rounded-full" />
-                          <div className="h-4 w-20 bg-muted/60 rounded-full" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            
-            {!loading && tasks.length === 0 && (
-              <p className="text-muted-foreground font-medium text-sm py-4">No pending tasks! Time to relax. ☕</p>
-            )}
-
-            {!loading && tasks.length > 0 && (
-              <div className="space-y-8">
-                {/* Upcoming Exams Section (Visible if not filtered to 'tasks' string) */}
-                {filterType !== 'tasks' && tasks.some(t => t.is_exam) && (
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3">
-                      <Target className="w-4 h-4" /> Upcoming Exams
-                    </h3>
-                    <m.div layout className="grid gap-3">
-                      <AnimatePresence mode="popLayout">
-                        {tasks
-                          .filter(t => t.is_exam)
-                          .filter(t => !t.subjects || 
-                                      (t.subjects.type === 'academic' && profile?.academics_enabled) || 
-                                      (t.subjects.type === 'personal' && profile?.personal_enabled))
-                          .map(t => (
-                            <TaskRow 
-                              key={t.id} 
-                              task={t} 
-                              subjects={subjects} 
-                              profile={profile} 
-                              editingTaskId={editingTaskId} 
-                              toggleComplete={toggleComplete} 
-                              startEdit={startEdit} 
-                              deleteTask={deleteTask}
-                              editTitle={editTitle} setEditTitle={setEditTitle}
-                              editSubjectId={editSubjectId} setEditSubjectId={setEditSubjectId}
-                              editPriority={editPriority} setEditPriority={setEditPriority}
-                              editDueDate={editDueDate} setEditDueDate={setEditDueDate}
-                              editDueTime={editDueTime} setEditDueTime={setEditDueTime}
-                              editRemindOnDue={editRemindOnDue} setEditRemindOnDue={setEditRemindOnDue}
-                              editRemind1Day={editRemind1Day} setEditRemind1Day={setEditRemind1Day}
-                              editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom}
-                              editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
-                              
-                              saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
-                            />
-                          ))}
-                      </AnimatePresence>
-                    </m.div>
-                  </div>
-                )}
-                
-                {/* General Tasks Section */}
-                {filterType !== 'exams' && tasks.some(t => !t.is_exam) && (
-                  <div className="space-y-3">
-                    {tasks.some(t => t.is_exam) && <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2 mb-3 mt-6 border-t pt-6">Other Tasks</h3>}
-                    <m.div layout className="grid gap-3">
-                      <AnimatePresence mode="popLayout">
-                        {tasks
-                          .filter(t => !t.is_exam)
-                          .filter(t => !t.subjects || 
-                                      (t.subjects.type === 'academic' && profile?.academics_enabled) || 
-                                      (t.subjects.type === 'personal' && profile?.personal_enabled))
-                          .map(t => (
-                            <TaskRow 
-                              key={t.id} 
-                              task={t} 
-                              subjects={subjects} 
-                              profile={profile} 
-                              editingTaskId={editingTaskId} 
-                              toggleComplete={toggleComplete} 
-                              startEdit={startEdit} 
-                              deleteTask={deleteTask}
-                              editTitle={editTitle} setEditTitle={setEditTitle}
-                              editSubjectId={editSubjectId} setEditSubjectId={setEditSubjectId}
-                              editPriority={editPriority} setEditPriority={setEditPriority}
-                              editDueDate={editDueDate} setEditDueDate={setEditDueDate}
-                              editDueTime={editDueTime} setEditDueTime={setEditDueTime}
-                              editRemindOnDue={editRemindOnDue} setEditRemindOnDue={setEditRemindOnDue}
-                              editRemind1Day={editRemind1Day} setEditRemind1Day={setEditRemind1Day}
-                              editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom}
-                              editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
-                              
-                              saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
-                            />
-                          ))}
-                      </AnimatePresence>
-                    </m.div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-
-
-          {/* Completed Tasks */}
-          <div className="space-y-4 pt-4 border-t">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-muted-foreground"><CircleCheck className="w-5 h-5"/> Recently Completed</h2>
-            {completedTasks.length > 0 ? (
-              <m.div layout className="grid gap-3 opacity-70">
-                <AnimatePresence mode="popLayout">
-                  {completedTasks
-                    .filter(t => !t.subjects || 
-                                 (t.subjects.type === 'academic' && profile?.academics_enabled) || 
-                                 (t.subjects.type === 'personal' && profile?.personal_enabled))
-                    .map(t => (
-                      <m.div 
-                        layout
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        key={t.id} 
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 border border-none rounded-lg bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl"
-                      >
-                        <div className="flex items-center gap-3">
-                          <button onClick={() => toggleComplete(t)} className="text-green-500 hover:text-orange-500 transition-colors shrink-0" title="Mark pending">
-                            {t.is_exam ? <Target className="w-6 h-6 text-primary" /> : <CircleCheck className="w-6 h-6" />}
-                          </button>
-                          <div>
-                            <p className="font-medium line-through text-muted-foreground inline-flex items-center gap-2">
-                              {t.title}
-                              {t.subjects && <span className="text-[10px] font-semibold no-underline text-foreground px-1.5 py-0.5 rounded-sm bg-background border">{t.subjects.name}</span>}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 mt-2 sm:mt-0 w-full justify-end sm:w-auto">
-                          {t.completed_at && <span className="text-xs text-muted-foreground">Done: {new Date(t.completed_at).toLocaleDateString()}</span>}
-                          <button onClick={() => deleteTask(t.id)} className="text-muted-foreground hover:text-destructive p-2 transition-colors"><Trash2 className="w-4 h-4"/></button>
-                        </div>
-                      </m.div>
-                  ))}
-                </AnimatePresence>
-              </m.div>
-            ) : <p className="text-sm text-muted-foreground font-medium py-2">No completed tasks yet.</p>}
-          </div>
-
-        </div>
-    </main>
-  )
-}
-
-function TaskView({ t, startEdit, deleteTask }: Readonly<{ t: TaskItem, startEdit: (t: TaskItem) => void, deleteTask: (id: string) => void }>) {
-  return (
-    <>
-      <button onClick={() => startEdit(t)} className="text-left flex-1 group focus:outline-none">
-        <div className="flex items-center gap-2">
-          <p className={`font-semibold transition-colors ${t.is_exam ? 'text-primary' : 'group-hover:text-primary'}`}>{t.title}</p>
-          {t.has_reminder && <Bell className="w-3.5 h-3.5 text-blue-500 fill-blue-500"/>}
-          {t.has_reminder && t.reminder_time && (
-            <span className="text-[10px] text-blue-500 font-medium">
-              {new Date(t.reminder_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-            </span>
-          )}
-        </div>
-        
-        <div className="flex gap-2 items-center mt-1 flex-wrap">
-          <Badge className={`${PRIORITY_COLORS[t.priority]} text-white border-0 text-[10px] px-1.5 py-0 uppercase tracking-wider`}>
-            {t.priority}
-          </Badge>
-          {t.subjects && (
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted border" style={{color: t.subjects.color_hex}}>
-              {t.subjects.name}
-            </span>
-          )}
-          {t.due_date && <span className={`text-xs font-bold px-1.5 rounded flex items-center gap-1 ${t.is_exam ? 'bg-primary/20 text-primary' : 'bg-destructive/10 text-destructive/90'}`}><CalIcon className="w-3 h-3"/> {t.is_exam ? 'Exam on ' : 'Due '} {new Date(t.due_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}</span>}
-          
-          <span className="text-[10px] text-muted-foreground/60 ml-auto hidden sm:inline-block">Created: {new Date(t.created_at).toLocaleDateString()}</span>
-        </div>
-      </button>
-      <div className="flex justify-end border-t sm:border-0 pt-2 sm:pt-0">
-        <button onClick={() => deleteTask(t.id)} className="text-muted-foreground hover:text-destructive p-2 shrink-0 transition-colors bg-muted/40 hover:bg-destructive/10 rounded-md">
-          <Trash2 className="w-4 h-4"/>
-        </button>
-      </div>
-    </>
-  )
-}
-
-function TaskEditForm({ 
-  subjects, profile, editTitle, setEditTitle, editSubjectId, setEditSubjectId, editPriority, setEditPriority,
-  editDueDate, setEditDueDate, editDueTime, setEditDueTime, editRemindOnDue, setEditRemindOnDue,
-  editRemind1Day, setEditRemind1Day, editRemindCustom, setEditRemindCustom, editCustomHours, setEditCustomHours,
-  saveEdit, setEditingTaskId
-}: Readonly<{
-  subjects: DashboardSubject[]; profile: UserProfile | null;
-  editTitle: string; setEditTitle: (v: string) => void;
-  editSubjectId: string; setEditSubjectId: (v: string) => void;
-  editPriority: string; setEditPriority: (v: string) => void;
-  editDueDate: Date | null; setEditDueDate: React.Dispatch<React.SetStateAction<Date | null>>;
-  editDueTime: string; setEditDueTime: (v: string) => void;
-  editRemindOnDue: boolean; setEditRemindOnDue: (v: boolean) => void;
-  editRemind1Day: boolean; setEditRemind1Day: (v: boolean) => void;
-  editRemindCustom: boolean; setEditRemindCustom: (v: boolean) => void;
-  editCustomHours: number; setEditCustomHours: (v: number) => void;
-  saveEdit: () => void; setEditingTaskId: (v: string | null) => void;
-}>) {
-  return (
-    <div className="flex flex-col gap-3 w-full pr-0 sm:pr-2">
-      <div className="flex flex-col sm:flex-row gap-2 w-full">
-        <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="h-9 flex-1 w-full" />
-        <Select value={editSubjectId} onValueChange={setEditSubjectId}>
-          <SelectTrigger className="h-9 w-full sm:w-[140px]">
-            <SelectValue placeholder="No Subject" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">No Subject</SelectItem>
-            {subjects
-              .filter((s) => (s.type === 'academic' && profile?.academics_enabled) || (s.type === 'personal' && profile?.personal_enabled))
-              .map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
-            }
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="flex gap-2 w-full sm:w-auto items-end">
-          <Select value={editPriority} onValueChange={setEditPriority}>
-            <SelectTrigger className="h-9 w-[120px]">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="urgent">Urgent</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-          <DatePicker
-            date={editDueDate ? new Date(editDueDate) : undefined}
-            setDate={(d) => setEditDueDate(d ?? null)}
-            className="w-[140px] h-9 px-3"
-          />
-        </div>
-        
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex gap-2 items-center flex-wrap">
-            <Label className="text-xs font-semibold text-muted-foreground">Reminders</Label>
-            <div className="flex items-center gap-1.5 bg-muted/50 p-1 rounded-md border border-muted-foreground/10">
-              <Button type="button" size="sm" variant={editRemindOnDue ? "default" : "ghost"} className="h-7 text-xs px-2" onClick={() => setEditRemindOnDue(!editRemindOnDue)}>On Due</Button>
-              <Button type="button" size="sm" variant={editRemind1Day ? "default" : "ghost"} className="h-7 text-xs px-2" onClick={() => setEditRemind1Day(!editRemind1Day)}>1D Prior</Button>
-              <div className="flex items-center gap-1">
-                <Button type="button" size="sm" variant={editRemindCustom ? "default" : "ghost"} className="h-7 text-xs px-2 rounded-r-none border-r border-background/20" onClick={() => setEditRemindCustom(!editRemindCustom)}>Hrs:</Button>
-                <Input type="number" min="1" max="72" value={editCustomHours} onChange={(e) => setEditCustomHours(Number(e.target.value))} className={`h-7 w-12 text-xs px-1 text-center rounded-l-none border-0 ${editRemindCustom ? 'bg-primary text-primary-foreground' : 'bg-transparent'}`} disabled={!editRemindCustom} />
-              </div>
+      {/* Add / Edit Task List Modal */}
+      <Dialog open={isListModalOpen} onOpenChange={setIsListModalOpen}>
+        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50">
+          <DialogHeader className="pb-4 border-b border-border/50">
+            <DialogTitle>{editingList ? "Rename List" : "Create List"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSaveList} className="space-y-4 pt-4">
+            <div className="space-y-1">
+              <Label htmlFor="listTitle" className="text-xs font-bold text-muted-foreground uppercase">List Title</Label>
+              <Input
+                id="listTitle"
+                type="text"
+                placeholder="e.g. Shopping List, Work, Homework..."
+                value={listTitle}
+                onChange={e => setListTitle(e.target.value)}
+                required
+                className="bg-muted/40 border-border/50 h-10"
+              />
             </div>
-          </div>
-          <div className="flex gap-2 items-end sm:ml-auto">
-            <Input 
-              type="time" 
-              value={editDueTime} 
-              onChange={e => setEditDueTime(e.target.value)}
-              className="h-9 w-[100px]"
-            />
-            <Button size="sm" onClick={saveEdit} className="h-9 px-4 font-bold flex-1 sm:flex-none">Save</Button>
-            <Button size="sm" variant="ghost" onClick={() => setEditingTaskId(null)} className="h-9 px-3 flex-1 sm:flex-none">Cancel</Button>
-          </div>
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/50">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setIsListModalOpen(false)}
+                className="rounded-xl h-9"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={listSaving || !listTitle.trim()}
+                className="rounded-xl px-5 h-9 font-bold"
+              >
+                {listSaving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// Subcomponent: Reminder Row
+interface ReminderRowProps {
+  reminder: Reminder
+  onToggle: (reminder: Reminder) => void
+  onEdit: (reminder: Reminder) => void
+  onDelete: (id: string) => void
+  formatDate: (isoStr?: string) => string
+  isOverdue?: boolean
+}
+
+function ReminderRow({
+  reminder,
+  onToggle,
+  onEdit,
+  onDelete,
+  formatDate,
+  isOverdue,
+}: ReminderRowProps) {
+  return (
+    <div className="group flex items-center justify-between px-3 py-3 sm:px-5 sm:py-3.5 hover:bg-muted/40 transition-colors">
+      <div className="flex items-start space-x-2.5 sm:space-x-3.5 flex-1 min-w-0">
+        <button
+          onClick={() => onToggle(reminder)}
+          className="mt-0.5 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
+        >
+          {reminder.completed ? (
+            <CheckCircle className="w-5 h-5 text-primary fill-primary/10" />
+          ) : (
+            <Circle className="w-5 h-5" />
+          )}
+        </button>
+
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onEdit(reminder)}>
+          <p
+            className={`text-sm font-medium truncate text-foreground ${
+              reminder.completed ? "line-through text-muted-foreground" : ""
+            }`}
+          >
+            {reminder.title}
+          </p>
+          
+          {reminder.notes && (
+            <p className="text-xs text-muted-foreground truncate mt-0.5 font-normal">
+              {reminder.notes}
+            </p>
+          )}
+
+          {reminder.due && (
+            <div className="flex items-center space-x-1.5 mt-1.5">
+              {isOverdue ? (
+                <span className="inline-flex items-center text-[10px] font-semibold text-destructive space-x-1">
+                  <Clock className="w-3 h-3" />
+                  <span>{formatDate(reminder.due)} (Overdue)</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center text-[10px] font-medium text-primary space-x-1">
+                  <CalendarIcon className="w-3 h-3" />
+                  <span>{formatDate(reminder.due)}</span>
+                </span>
+              )}
+            </div>
+          )}
         </div>
+      </div>
+
+      <div className="flex items-center space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity pl-2 sm:pl-4">
+        <button
+          onClick={() => onEdit(reminder)}
+          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          title="Edit"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => onDelete(reminder.id)}
+          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          title="Delete"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     </div>
   )
 }
 
-function TaskRow({ 
-  task: t, subjects, profile, editingTaskId, toggleComplete, startEdit, deleteTask,
-  editTitle, setEditTitle, editSubjectId, setEditSubjectId, editPriority, setEditPriority,
-  editDueDate, setEditDueDate, editDueTime, setEditDueTime,
-  editRemindOnDue, setEditRemindOnDue, editRemind1Day, setEditRemind1Day,
-  editRemindCustom, setEditRemindCustom, editCustomHours, setEditCustomHours,
-  isEditDatePickerOpen: _isEditDatePickerOpen, setIsEditDatePickerOpen: _setIsEditDatePickerOpen,
-  saveEdit, setEditingTaskId
-}: Readonly<{
-  task: TaskItem; subjects: DashboardSubject[]; profile: UserProfile | null; editingTaskId: string | null;
-  toggleComplete: (t: TaskItem) => void; startEdit: (t: TaskItem) => void; deleteTask: (id: string) => void;
-  editTitle: string; setEditTitle: (v: string) => void;
-  editSubjectId: string; setEditSubjectId: (v: string) => void;
-  editPriority: string; setEditPriority: (v: string) => void;
-  editDueDate: Date | null; setEditDueDate: React.Dispatch<React.SetStateAction<Date | null>>;
-  editDueTime: string; setEditDueTime: (v: string) => void;
-  editRemindOnDue: boolean; setEditRemindOnDue: (v: boolean) => void;
-  editRemind1Day: boolean; setEditRemind1Day: (v: boolean) => void;
-  editRemindCustom: boolean; setEditRemindCustom: (v: boolean) => void;
-  editCustomHours: number; setEditCustomHours: (v: number) => void;
-  isEditDatePickerOpen?: boolean; setIsEditDatePickerOpen?: (v: boolean) => void;
-  saveEdit: () => void; setEditingTaskId: (v: string | null) => void;
-}>) {
-  const isEditing = editingTaskId === t.id
-  return (
-    <m.div 
-      layout
-      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      className={`flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg hover:border-primary/50 transition-colors shadow-sm gap-4 bg-card`}
-      style={t.subjects?.color_hex ? { borderLeft: `4px solid ${t.subjects.color_hex}` } : undefined}
-    >
-      <div className="flex items-start sm:items-center gap-3 w-full">
-        <button onClick={() => toggleComplete(t)} className={`text-muted-foreground hover:text-green-500 transition mt-1 sm:mt-0 ${t.is_exam ? 'hover:text-primary' : ''}`}>
-          {t.is_exam ? <Target className="w-6 h-6 shrink-0 text-primary/70" /> : <CircleCheck className="w-6 h-6 shrink-0" />}
-        </button>
-        
-        {isEditing ? (
-          <TaskEditForm
-            subjects={subjects} profile={profile} editTitle={editTitle} setEditTitle={setEditTitle}
-            editSubjectId={editSubjectId} setEditSubjectId={setEditSubjectId} editPriority={editPriority} setEditPriority={setEditPriority}
-            editDueDate={editDueDate} setEditDueDate={setEditDueDate} editDueTime={editDueTime} setEditDueTime={setEditDueTime}
-            editRemindOnDue={editRemindOnDue} setEditRemindOnDue={setEditRemindOnDue} editRemind1Day={editRemind1Day} setEditRemind1Day={setEditRemind1Day}
-            editRemindCustom={editRemindCustom} setEditRemindCustom={setEditRemindCustom} editCustomHours={editCustomHours} setEditCustomHours={setEditCustomHours}
-            saveEdit={saveEdit} setEditingTaskId={setEditingTaskId}
-          />
-        ) : (
-          <TaskView t={t} startEdit={startEdit} deleteTask={deleteTask} />
-        )}
-      </div>
-    </m.div>
-  )
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/")
+  const rawData = window.atob(base64)
+  const outputArray = new Uint8Array(rawData.length)
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i)
+  }
+  return outputArray
+}
+
+async function subscribeToPush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    throw new Error("Push notifications are not supported by this browser.")
+  }
+
+  const registration = await navigator.serviceWorker.register("/sw.js")
+  await navigator.serviceWorker.ready
+
+  let subscription = await registration.pushManager.getSubscription()
+
+  if (!subscription) {
+    const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidPublicKey) {
+      throw new Error("VAPID public key is missing in environment.")
+    }
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey)
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey,
+    })
+  }
+
+  const res = await fetch("/api/push", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      subscription: subscription.toJSON(),
+      action: "subscribe",
+    }),
+  })
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}))
+    throw new Error(errData.error || "Failed to save push subscription.")
+  }
+}
+
+async function unsubscribeFromPush() {
+  if (!("serviceWorker" in navigator)) return
+
+  const registration = await navigator.serviceWorker.ready
+  const subscription = await registration.pushManager.getSubscription()
+
+  if (subscription) {
+    await subscription.unsubscribe()
+
+    await fetch("/api/push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subscription: subscription.toJSON(),
+        action: "unsubscribe",
+      }),
+    })
+  }
 }

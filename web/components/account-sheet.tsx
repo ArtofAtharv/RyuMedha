@@ -17,7 +17,7 @@
 import * as React from "react"
 import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSupabaseSession } from "@/lib/supabase-auth"
 import { AnimatePresence, m } from "motion/react"
 import { Check, ChevronRight, Headphones, LogIn, LogOut, Moon, Phone, User, Palette, X } from "lucide-react"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
@@ -182,6 +182,7 @@ function useIsMobile(breakpoint = 640) {
 interface AccountSheetProps {
   open: boolean
   onClose: () => void
+  displayName?: string
 }
 
 /* ─── overlay backdrop ─────────────────────────────────── */
@@ -203,13 +204,15 @@ function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
 
 /* ─── shared sheet content ─────────────────────────────── */
 
-function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
-  const { data: session, status } = useSession()
-  const isAuthenticated = status === "authenticated"
+import { useProfile } from "@/components/dashboard/profile-context"
+
+function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; displayName?: string }>) {
+  const { session, isAuthenticated } = useSupabaseSession()
   const user = session?.user
 
-  const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const name = displayName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
+  const initials = name
+    ? name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
     : null
 
   return (
@@ -245,18 +248,12 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
             {/* Text */}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">
-                {user.name ?? "Student"}
+                {name ?? "Student"}
               </p>
               {user.email && (
                 <p className="truncate text-xs text-muted-foreground mt-0.5">
                   {user.email}
                 </p>
-              )}
-              {user.phone && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Phone className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{user.phone}</span>
-                </div>
               )}
             </div>
 
@@ -329,7 +326,14 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
       <div className="px-2 py-2">
         {isAuthenticated ? (
           <button
-            onClick={() => { haptic(); signOut({ callbackUrl: "/login" }) }}
+            onClick={async () => {
+              haptic()
+              const { getAppClient } = await import("@/lib/supabase-client")
+              const supabase = getAppClient()
+              await supabase.auth.signOut()
+              onClose()
+              window.location.href = "/login"
+            }}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 active:bg-destructive/15"
           >
             <LogOut className="h-4 w-4" />
@@ -337,7 +341,7 @@ function SheetContent({ onClose }: Readonly<{ onClose: () => void }>) {
           </button>
         ) : (
           <button
-            onClick={() => { haptic(); signIn() }}
+            onClick={() => { haptic(); onClose(); window.location.href = "/login" }}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted/70"
           >
             <LogIn className="h-4 w-4" />
@@ -357,7 +361,7 @@ function Divider() {
 
 const SNAP_THRESHOLD = 80 // px downward drag to dismiss
 
-function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
+function BottomSheet({ open, onClose, displayName }: Readonly<AccountSheetProps>) {
   const [dragY, setDragY] = useState(0)
   const startY = useRef(0)
   const isDragging = useRef(false)
@@ -418,7 +422,7 @@ function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
 
             {/* Safe-area padding at the bottom (iOS) */}
             <div className="pb-safe">
-              <SheetContent onClose={onClose} />
+              <SheetContent onClose={onClose} displayName={displayName} />
               <div className="h-6" /> {/* extra breathing room */}
             </div>
           </m.div>
@@ -430,7 +434,7 @@ function BottomSheet({ open, onClose }: Readonly<AccountSheetProps>) {
 
 /* ─── Desktop — Centered Modal ─────────────────────────── */
 
-function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
+function Modal({ open, onClose, displayName }: Readonly<AccountSheetProps>) {
   // Close on Escape
   useEffect(() => {
     if (!open) return
@@ -459,7 +463,7 @@ function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
             aria-modal="true"
             aria-label="Your account"
           >
-            <SheetContent onClose={onClose} />
+            <SheetContent onClose={onClose} displayName={displayName} />
           </m.div>
         </>
       )}
@@ -469,21 +473,40 @@ function Modal({ open, onClose }: Readonly<AccountSheetProps>) {
 
 /* ─── Public export — adaptive wrapper ─────────────────── */
 
+import { getAppClient } from "@/lib/supabase-client"
+
 export function AccountSheet({ open, onClose }: Readonly<AccountSheetProps>) {
   const isMobile = useIsMobile(640)
   const [mounted, setMounted] = useState(false)
+  const [displayName, setDisplayName] = useState("")
+  const { session, isAuthenticated } = useSupabaseSession()
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (open && isAuthenticated) {
+      const supabase = getAppClient()
+      supabase
+        .from("profiles")
+        .select("display_name")
+        .single()
+        .then(({ data }) => {
+          if (data?.display_name) {
+            setDisplayName(data.display_name)
+          }
+        })
+    }
+  }, [open, isAuthenticated])
+
   if (!mounted) return null
 
   return createPortal(
     isMobile
-      ? <BottomSheet open={open} onClose={onClose} />
-      : <Modal open={open} onClose={onClose} />,
+      ? <BottomSheet open={open} onClose={onClose} displayName={displayName} />
+      : <Modal open={open} onClose={onClose} displayName={displayName} />,
     document.body
   )
 }

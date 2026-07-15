@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
 export async function POST(req: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    const cookieStore = await cookies();
+    const accessToken = cookieStore.get('sb-access-token')?.value;
+    if (!accessToken) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -17,14 +17,13 @@ export async function POST(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
-        global: { headers: { Authorization: `Bearer ${session.user.supabaseToken}` } },
+        global: { headers: { Authorization: `Bearer ${accessToken}` } },
       }
     );
 
     const { data: profile } = await supabase
       .from('profiles')
       .select('id')
-      .eq('whatsapp_number', session.user.phone)
       .single();
 
     if (!profile) return NextResponse.json({ error: 'Profile not found' }, { status: 404 });

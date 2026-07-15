@@ -23,7 +23,7 @@ CREATE TYPE grade_type AS ENUM ('mid_sem', 'end_sem', 'viva', 'project', 'presen
 -- Profiles: Core user table
 CREATE TABLE profiles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    whatsapp_number TEXT UNIQUE NOT NULL,
+    whatsapp_number TEXT UNIQUE,
     display_name TEXT NOT NULL,
     email TEXT,
     timezone TEXT NOT NULL DEFAULT 'Asia/Kolkata',
@@ -36,6 +36,9 @@ CREATE TABLE profiles (
     push_notifications_enabled BOOLEAN DEFAULT false,
     is_admin BOOLEAN DEFAULT false,
     last_user_message_at TIMESTAMPTZ,
+    google_access_token TEXT,
+    google_refresh_token TEXT,
+    google_token_expiry BIGINT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -303,15 +306,15 @@ ALTER TABLE semesters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE academic_courses ENABLE ROW LEVEL SECURITY;
 
 -- Owner Access Only Policies
-CREATE POLICY "Owner Access Only" ON profiles FOR ALL USING (id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON subject_categories FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON subjects FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON attendance_logs FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON grades FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON study_timers FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON tasks FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON push_subscriptions FOR ALL USING (profile_id = get_profile_id_from_jwt());
-CREATE POLICY "Owner Access Only" ON task_reminders FOR ALL USING (profile_id = get_profile_id_from_jwt());
+CREATE POLICY "Owner Access Only" ON profiles FOR ALL USING (id = auth.uid());
+CREATE POLICY "Owner Access Only" ON subject_categories FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON subjects FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON attendance_logs FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON grades FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON study_timers FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON tasks FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON push_subscriptions FOR ALL USING (profile_id = auth.uid());
+CREATE POLICY "Owner Access Only" ON task_reminders FOR ALL USING (profile_id = auth.uid());
 
 -- Owner Access Only Policies for phone-number keyed tables
 CREATE POLICY "Owner Access Only" ON otp_codes FOR ALL USING (whatsapp_number = (current_setting('request.jwt.claims', true)::jsonb ->> 'sub'));
@@ -424,4 +427,103 @@ BEGIN
         (user_profile_id, 'Hobbies', true)
     ON CONFLICT (profile_id, name) DO NOTHING;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = public;
+
+-- Automatic Profile Creation on Google Sign Up
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (
+    id, 
+    display_name, 
+    email, 
+    timezone, 
+    academics_enabled, 
+    personal_enabled
+  )
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'Google User'),
+    new.email,
+    'Asia/Kolkata',
+    false,
+    true
+  )
+  ON CONFLICT (id) DO UPDATE
+  SET email = EXCLUDED.email,
+      display_name = COALESCE(EXCLUDED.display_name, public.profiles.display_name);
+  
+  -- Seed default categories for the new user
+  PERFORM public.seed_default_categories(new.id);
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+CREATE OR REPLACE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- Resolve view parameters to use security_invoker (respect RLS)
+ALTER VIEW public.whatsapp_window_status SET (security_invoker = true);
+ALTER VIEW public.active_study_sessions SET (security_invoker = true);
+ALTER VIEW public.attendance_summary SET (security_invoker = true);
+ALTER VIEW public.academic_performance_summary SET (security_invoker = true);
+ALTER VIEW public.study_stats_by_subject SET (security_invoker = true);
+ALTER VIEW public.upcoming_tasks SET (security_invoker = true);
+
+-- SQL function to export all users' database tables as a consolidated JSON
+CREATE OR REPLACE FUNCTION export_all_data()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result JSON;
+  is_caller_admin BOOLEAN;
+  caller_sub TEXT;
+END;
+$$;
+
+-- SQL function implementation to export all users' database tables
+CREATE OR REPLACE FUNCTION export_all_data()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  result JSON;
+  is_caller_admin BOOLEAN;
+  caller_sub TEXT;
+BEGIN
+  -- Get caller sub (phone number or UUID depending on auth system)
+  BEGIN
+    caller_sub := current_setting('request.jwt.claims', true)::jsonb ->> 'sub';
+  EXCEPTION WHEN OTHERS THEN
+    caller_sub := NULL;
+  END;
+
+  -- Determine if the caller is an administrator (check by phone or UUID)
+  SELECT is_admin INTO is_caller_admin 
+  FROM profiles 
+  WHERE whatsapp_number = caller_sub 
+     OR id::text = caller_sub;
+  
+  IF is_caller_admin = true THEN
+    SELECT json_build_object(
+      'exported_at', NOW(),
+      'profiles', (SELECT json_agg(p) FROM profiles p),
+      'subjects', (SELECT json_agg(s) FROM subjects s),
+      'attendance_logs', (SELECT json_agg(a) FROM attendance_logs a),
+      'grades', (SELECT json_agg(g) FROM grades g),
+      'study_timers', (SELECT json_agg(t) FROM study_timers t),
+      'tasks', (SELECT json_agg(tk) FROM tasks tk),
+      'task_reminders', (SELECT json_agg(tr) FROM task_reminders tr),
+      'whatsapp_message_logs', (SELECT json_agg(wl) FROM whatsapp_message_logs wl)
+    ) INTO result;
+    RETURN result;
+  ELSE
+    RAISE EXCEPTION 'Access Denied: Admin privileges required';
+  END IF;
+END;
+$$;

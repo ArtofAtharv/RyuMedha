@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { getSession } from "next-auth/react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -88,18 +87,12 @@ export default function SubjectsPage() {
 
   useEffect(() => {
     async function init() {
-      const sess = await getSession()
-      if (!sess) return
-      
-      const supabase = getAppClient({ global: { headers: { Authorization: `Bearer ${sess.user.supabaseToken}` } } }
-      )
-      
+      const supabase = getAppClient()
       setSupabaseClient(supabase)
       
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id')
-        .eq('whatsapp_number', sess.user.phone)
+        .select('id, current_semester_id')
         .single()
         
       if (profile) {
@@ -107,17 +100,11 @@ export default function SubjectsPage() {
         await fetchSubjects(supabase)
         await fetchCategories(supabase, profile.id)
         
-        const { data: profileFull } = await supabase
-          .from('profiles')
-          .select('current_semester_id')
-          .eq('id', profile.id)
-          .single()
-        
-        if (profileFull?.current_semester_id) {
+        if (profile.current_semester_id) {
           const { data: courses } = await supabase
             .from('academic_courses')
             .select('id, course_name')
-            .eq('semester_id', profileFull.current_semester_id)
+            .eq('semester_id', profile.current_semester_id)
             .order('course_name')
           setAvailableCourses(courses || [])
         }
