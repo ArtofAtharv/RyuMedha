@@ -37,7 +37,6 @@ async function getAuthenticatedClient() {
     throw new Error("Unauthorized")
   }
 
-  // Fetch the user's profile to get Google tokens
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -64,7 +63,6 @@ async function getAuthenticatedClient() {
     expiry_date: profile.google_token_expiry ? Number(profile.google_token_expiry) * 1000 : undefined
   })
 
-  // Listen for refresh tokens and save them back to database
   oauth2Client.on('tokens', async (tokens) => {
     if (tokens.access_token) {
       const updates: any = {
@@ -84,24 +82,31 @@ async function getAuthenticatedClient() {
   return { oauth2Client, profileId: profile.id, supabase }
 }
 
-function stripGoogleMarkers(notes?: string): string {
-  if (!notes) return ""
-  return notes
-    .replace(/\s*\[task_id:\s*[a-f0-9\-]+\]/gi, '')
-    .replace(/\s*\[calendar_event_id:\s*[^\]]+\]/gi, '')
-    .trim()
-}
-
-function extractTaskId(notes?: string): string | null {
-  if (!notes) return null
-  const match = notes.match(/\[task_id:\s*([a-f0-9\-]+)\]/i)
-  return match ? match[1] : null
-}
-
-function extractCalendarEventId(notes?: string): string | null {
-  if (!notes) return null
-  const match = notes.match(/\[calendar_event_id:\s*([^\]]+)\]/i)
-  return match ? match[1] : null
+async function findCalendarEvent(auth: any, title: string, dueStr: string | null | undefined): Promise<string | null> {
+  try {
+    const calendar = google.calendar({ version: "v3", auth })
+    const query = `[Ryu Medha] Task: ${title}`
+    
+    const params: any = {
+      calendarId: 'primary',
+      q: query,
+      maxResults: 10,
+    }
+    if (dueStr) {
+      const date = new Date(dueStr)
+      const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0)
+      const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59)
+      params.timeMin = startOfDay.toISOString()
+      params.timeMax = endOfDay.toISOString()
+    }
+    
+    const res = await calendar.events.list(params)
+    const event = res.data.items?.find(e => e.summary === query)
+    return event?.id || null
+  } catch (error) {
+    console.error("Error finding calendar event:", error)
+    return null
+  }
 }
 
 function calculateCalendarOverrides(settings: any) {
@@ -289,24 +294,15 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
       maxResults: 100,
     })
 
-    // Fetch local tasks to get precise due dates (with times)
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, due_date')
+      .select('id, title, due_date')
       .eq('profile_id', profileId)
 
-    // Fetch local task reminders to map settings
     const { data: localReminders } = await supabase
       .from('task_reminders')
       .select('task_id, reminder_type')
       .eq('profile_id', profileId)
-
-    const localTasksMap = new Map<string, string | null>()
-    if (localTasks) {
-      localTasks.forEach(t => {
-        localTasksMap.set(t.id, t.due_date)
-      })
-    }
 
     const localRemindersMap = new Map<string, any[]>()
     if (localReminders) {
@@ -320,18 +316,27 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
     
     return (
       response.data.items?.map((item) => {
-        const taskId = extractTaskId(item.notes || "")
         let finalDue = item.due || undefined
-        if (taskId && localTasksMap.has(taskId)) {
-          const localDue = localTasksMap.get(taskId)
-          if (localDue) {
-            finalDue = localDue
+        const itemTitleNormalized = item.title?.trim().toLowerCase() || ""
+        const itemDatePart = item.due ? item.due.split("T")[0] : null
+
+        // Match Google task with local task by title & due date-only
+        const matchedLocal = localTasks?.find(t => {
+          if (t.title.trim().toLowerCase() !== itemTitleNormalized) return false
+          if (!t.due_date && !itemDatePart) return true
+          if (t.due_date && itemDatePart) {
+            return t.due_date.split("T")[0] === itemDatePart
           }
+          return false
+        })
+
+        if (matchedLocal?.due_date) {
+          finalDue = matchedLocal.due_date
         }
 
         let reminderSettings = undefined
-        if (taskId) {
-          const types = localRemindersMap.get(taskId) || []
+        if (matchedLocal) {
+          const types = localRemindersMap.get(matchedLocal.id) || []
           const hasCustom = types.some(t => t.startsWith('custom:'))
           let customValue = 3
           let customUnit = 'hours'
@@ -362,7 +367,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
         return {
           id: item.id || "",
           title: item.title || "",
-          notes: stripGoogleMarkers(item.notes || ""),
+          notes: item.notes || "",
           due: finalDue,
           completed: item.status === "completed",
           completedAt: item.completed || undefined,
@@ -398,7 +403,7 @@ export async function createReminder(data: {
     const service = google.tasks({ version: "v1", auth })
     const listId = data.listId || "@default"
     
-    // 1. Create task in local database first
+    // 1. Create task in local database
     const { data: localTask, error: insertErr } = await supabase
       .from('tasks')
       .insert({
@@ -428,52 +433,39 @@ export async function createReminder(data: {
     }
     const finalSettings = data.reminderSettings || defaultSettings
 
-    if (localTask) {
-      // 2. Schedule reminders in local database if due date exists
-      if (data.due) {
-        const scheduledList = calculateReminderTimes(data.due, finalSettings)
-        for (const item of scheduledList) {
-          const { error: reminderErr } = await supabase
-            .from('task_reminders')
-            .insert({
-              task_id: localTask.id,
-              profile_id: profileId,
-              scheduled_for: item.time.toISOString(),
-              reminder_type: item.type,
-              whatsapp_sent: false,
-              push_sent: false
-            })
-          if (reminderErr) {
-            console.error("Local database reminder insert error:", reminderErr)
-          }
-        }
-
-        // 3. Sync to Google Calendar
-        calendarEventId = await syncGoogleCalendarEvent(
-          auth,
-          data.title,
-          data.notes || '',
-          data.due,
-          finalSettings
-        )
+    if (localTask && data.due) {
+      // 2. Schedule reminders in local database
+      const scheduledList = calculateReminderTimes(data.due, finalSettings)
+      for (const item of scheduledList) {
+        await supabase
+          .from('task_reminders')
+          .insert({
+            task_id: localTask.id,
+            profile_id: profileId,
+            scheduled_for: item.time.toISOString(),
+            reminder_type: item.type,
+            whatsapp_sent: false,
+            push_sent: false
+          })
       }
+
+      // 3. Sync to Google Calendar
+      calendarEventId = await syncGoogleCalendarEvent(
+        auth,
+        data.title,
+        data.notes || '',
+        data.due,
+        finalSettings
+      )
     }
 
-    // 4. Create task on Google Tasks with markers in notes
-    let notesWithMarkers = data.notes || ""
-    if (localTask) {
-      notesWithMarkers = `${notesWithMarkers}\n\n[task_id: ${localTask.id}]`.trim()
-    }
-    if (calendarEventId) {
-      notesWithMarkers = `${notesWithMarkers}\n\n[calendar_event_id: ${calendarEventId}]`.trim()
-    }
-    
+    // 4. Create task on Google Tasks (completely clean notes)
     const response = await service.tasks.insert({
       tasklist: listId,
       requestBody: {
         title: data.title,
-        notes: notesWithMarkers,
-        due: data.due ? data.due.split("T")[0] + "T00:00:00.000Z" : undefined, // Google Tasks normalized date
+        notes: data.notes || "",
+        due: data.due ? data.due.split("T")[0] + "T00:00:00.000Z" : undefined,
       },
     })
     
@@ -483,7 +475,7 @@ export async function createReminder(data: {
     return {
       id: item.id || "",
       title: item.title || "",
-      notes: stripGoogleMarkers(item.notes || ""),
+      notes: item.notes || "",
       due: data.due || undefined,
       completed: item.status === "completed",
       completedAt: item.completed || undefined,
@@ -520,31 +512,40 @@ export async function updateReminder(
     const { oauth2Client: auth, profileId, supabase } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })
     
-    // Get the current task state
+    // Get current Google Task state
     const currentTask = await service.tasks.get({
       tasklist: listId,
       task: id,
     })
     
-    const currentNotes = currentTask.data.notes || ""
-    let taskId = extractTaskId(currentNotes)
-    let calendarEventId = extractCalendarEventId(currentNotes)
+    const currentTitle = currentTask.data.title || ""
+    const currentDatePart = currentTask.data.due ? currentTask.data.due.split("T")[0] : null
 
-    let localTask = null
-    if (taskId) {
-      const { data: foundTask } = await supabase
-        .from('tasks')
-        .select('due_date')
-        .eq('id', taskId)
-        .single()
-      localTask = foundTask
-    } else {
+    // Look up local task by old title and date
+    const { data: localTasks } = await supabase
+      .from('tasks')
+      .select('id, title, due_date')
+      .eq('profile_id', profileId)
+
+    const matchedLocal = localTasks?.find(t => {
+      if (t.title.trim().toLowerCase() !== currentTitle.trim().toLowerCase()) return false
+      if (!t.due_date && !currentDatePart) return true
+      if (t.due_date && currentDatePart) {
+        return t.due_date.split("T")[0] === currentDatePart
+      }
+      return false
+    })
+
+    let taskId = matchedLocal?.id || null
+    let localTask = matchedLocal || null
+
+    if (!taskId) {
       const { data: insertedTask } = await supabase
         .from('tasks')
         .insert({
           profile_id: profileId,
           title: data.title !== undefined ? data.title : currentTask.data.title || "",
-          description: data.notes !== undefined ? data.notes : stripGoogleMarkers(currentNotes),
+          description: data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
           due_date: data.due !== undefined ? (data.due || null) : (currentTask.data.due || null),
           is_completed: data.completed !== undefined ? data.completed : (currentTask.data.status === "completed")
         })
@@ -559,7 +560,6 @@ export async function updateReminder(
     const finalCompleted = data.completed !== undefined ? data.completed : (currentTask.data.status === "completed")
     const finalDue = data.due !== undefined ? (data.due || null) : (localTask ? localTask.due_date : null)
     
-    // Get active settings or default
     const existingSettings = {
       dueTime: true,
       oneDayPrior: true,
@@ -573,7 +573,6 @@ export async function updateReminder(
     const finalSettings = data.reminderSettings !== undefined ? data.reminderSettings : existingSettings
 
     if (taskId) {
-      // Update local task
       const updateData: any = {}
       if (data.title !== undefined) updateData.title = data.title
       if (data.notes !== undefined) updateData.description = data.notes
@@ -588,13 +587,11 @@ export async function updateReminder(
         .update(updateData)
         .eq('id', taskId)
 
-      // Delete existing reminders
       await supabase
         .from('task_reminders')
         .delete()
         .eq('task_id', taskId)
 
-      // Re-schedule reminders if not completed and due date exists
       if (!finalCompleted && finalDue) {
         const scheduledList = calculateReminderTimes(finalDue, finalSettings)
         for (const item of scheduledList) {
@@ -612,37 +609,28 @@ export async function updateReminder(
       }
     }
 
-    // Sync to Google Calendar (Update, create or delete the event)
+    // Find the calendar event by old title & date
+    let calendarEventId = await findCalendarEvent(auth, currentTitle, localTask?.due_date)
+
     if (finalCompleted) {
-      // If task is completed, we delete calendar event to clear agenda
       if (calendarEventId) {
         await deleteGoogleCalendarEvent(auth, calendarEventId)
-        calendarEventId = null
       }
     } else {
-      calendarEventId = await syncGoogleCalendarEvent(
+      await syncGoogleCalendarEvent(
         auth,
         data.title !== undefined ? data.title : currentTask.data.title || "",
-        data.notes !== undefined ? data.notes : stripGoogleMarkers(currentNotes),
+        data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
         finalDue,
         finalSettings,
         calendarEventId
       )
     }
 
-    // Prepare updated notes for Google Tasks
-    let cleanNotes = data.notes !== undefined ? data.notes : stripGoogleMarkers(currentNotes)
-    if (taskId) {
-      cleanNotes = `${cleanNotes}\n\n[task_id: ${taskId}]`.trim()
-    }
-    if (calendarEventId) {
-      cleanNotes = `${cleanNotes}\n\n[calendar_event_id: ${calendarEventId}]`.trim()
-    }
-
     const requestBody = {
       ...currentTask.data,
       ...(data.title !== undefined && { title: data.title }),
-      notes: cleanNotes,
+      notes: data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
       ...(data.due !== undefined && { due: data.due ? data.due.split("T")[0] + "T00:00:00.000Z" : null }),
       ...(data.completed !== undefined && {
         status: data.completed ? "completed" : "needsAction",
@@ -662,7 +650,7 @@ export async function updateReminder(
     return {
       id: item.id || "",
       title: item.title || "",
-      notes: stripGoogleMarkers(item.notes || ""),
+      notes: item.notes || "",
       due: finalDue || undefined,
       completed: item.status === "completed",
       completedAt: item.completed || undefined,
@@ -680,23 +668,37 @@ export async function deleteReminder(id: string, listId = "@default"): Promise<b
     const { oauth2Client: auth, supabase } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })
     
-    // Get the task first
     const currentTask = await service.tasks.get({
       tasklist: listId,
       task: id,
     })
     
-    const currentNotes = currentTask.data.notes || ""
-    const taskId = extractTaskId(currentNotes)
-    const calendarEventId = extractCalendarEventId(currentNotes)
+    const currentTitle = currentTask.data.title || ""
+    const currentDatePart = currentTask.data.due ? currentTask.data.due.split("T")[0] : null
 
-    if (taskId) {
+    // Look up local task
+    const { data: localTasks } = await supabase
+      .from('tasks')
+      .select('id, due_date')
+      .eq('title', currentTitle)
+
+    // Narrow down by date
+    const matchedLocal = localTasks?.find(t => {
+      if (!t.due_date && !currentDatePart) return true
+      if (t.due_date && currentDatePart) {
+        return t.due_date.split("T")[0] === currentDatePart
+      }
+      return false
+    })
+
+    if (matchedLocal) {
       await supabase
         .from('tasks')
         .delete()
-        .eq('id', taskId)
+        .eq('id', matchedLocal.id)
     }
 
+    const calendarEventId = await findCalendarEvent(auth, currentTitle, matchedLocal?.due_date)
     if (calendarEventId) {
       await deleteGoogleCalendarEvent(auth, calendarEventId)
     }
