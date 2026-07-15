@@ -623,33 +623,32 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          <ProfileRow
-            icon={<User className="w-4 h-4 text-white" />}
-            iconBg="bg-teal-500"
-            label="Email"
-            value={profile.email ?? "Not Linked"}
-            isEditing={editField === "email"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("email", profile.email || "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => saveField("email", editValue)}
-          />
+          <div className="px-4 py-3 flex items-center justify-between min-h-[44px]">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-medium">Email</p>
+            </div>
+            <p className="text-sm text-muted-foreground mr-4 select-all">{profile.email ?? "Not Linked"}</p>
+          </div>
 
-          <ProfileRow
-            icon={<Phone className="w-4 h-4 text-white" />}
-            iconBg="bg-green-500"
-            label="Link WhatsApp No"
-            value={profile.whatsapp_number ?? "Not Linked"}
-            isEditing={editField === "whatsapp_number"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("whatsapp_number", profile.whatsapp_number || "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => saveField("whatsapp_number", editValue)}
-          />
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+            onClick={() => router.push('/dashboard/whatsapp-bot')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center shrink-0">
+                <Phone className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-medium">WhatsApp Bot Connection</p>
+            </div>
+            <div className="flex items-center gap-2 mr-1">
+              <p className="text-sm text-muted-foreground">{profile.whatsapp_number ?? "Not Linked"}</p>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            </div>
+          </button>
         </div>
       </div>
 

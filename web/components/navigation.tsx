@@ -14,20 +14,26 @@ export default function Navigation() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const pathname = usePathname()
   const [displayName, setDisplayName] = useState("")
+  const [whatsAppNumber, setWhatsAppNumber] = useState<string | null>(null)
+  const [lastUserMessageAt, setLastUserMessageAt] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAuthenticated) {
       setDisplayName("")
+      setWhatsAppNumber(null)
+      setLastUserMessageAt(null)
       return
     }
     const supabase = getAppClient()
     supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, whatsapp_number, last_user_message_at")
       .single()
       .then(({ data }) => {
-        if (data?.display_name) {
-          setDisplayName(data.display_name)
+        if (data) {
+          if (data.display_name) setDisplayName(data.display_name)
+          setWhatsAppNumber(data.whatsapp_number || null)
+          setLastUserMessageAt(data.last_user_message_at || null)
         }
       })
   }, [isAuthenticated, pathname])
@@ -41,6 +47,16 @@ export default function Navigation() {
       .slice(0, 2)
       .toUpperCase()
     : null
+
+  let botStatus: "unlinked" | "active" | "inactive" = "unlinked"
+  if (whatsAppNumber) {
+    if (lastUserMessageAt) {
+      const diff = new Date(lastUserMessageAt).getTime() + 24 * 60 * 60 * 1000 - Date.now()
+      botStatus = diff > 0 ? "active" : "inactive"
+    } else {
+      botStatus = "inactive"
+    }
+  }
 
   return (
     <>
@@ -59,21 +75,60 @@ export default function Navigation() {
             <span className="text-xl tracking-tight font-changa-one">Ryu Medha</span>
           </Link>
 
-          {/* Account avatar — opens AccountSheet */}
-          <button
-            id="account-sheet-trigger"
-            aria-label="Your account"
-            aria-expanded={sheetOpen}
-            aria-haspopup="dialog"
-            onClick={() => setSheetOpen(true)}
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-foreground transition-all hover:bg-muted/70 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {isAuthenticated && initials ? (
-              <span className="text-xs">{initials}</span>
-            ) : (
-              <User className="h-4 w-4" />
+          {/* Right Action Bar */}
+          <div className="flex items-center gap-3">
+            {isAuthenticated && (
+              <Link 
+                href="/dashboard/whatsapp-bot"
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/50 bg-muted/20 text-xs font-semibold hover:bg-muted/40 transition-colors select-none"
+              >
+                {botStatus === "active" && (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-green-500 hidden sm:inline">Bot Active</span>
+                    <span className="text-green-500 sm:hidden">Active</span>
+                  </>
+                )}
+                {botStatus === "inactive" && (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    <span className="text-amber-500 hidden sm:inline">Bot Offline</span>
+                    <span className="text-amber-500 sm:hidden">Offline</span>
+                  </>
+                )}
+                {botStatus === "unlinked" && (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-muted-foreground/60"></span>
+                    </span>
+                    <span className="text-muted-foreground hidden sm:inline">Link Bot</span>
+                    <span className="text-muted-foreground sm:hidden">Link</span>
+                  </>
+                )}
+              </Link>
             )}
-          </button>
+
+            {/* Account avatar — opens AccountSheet */}
+            <button
+              id="account-sheet-trigger"
+              aria-label="Your account"
+              aria-expanded={sheetOpen}
+              aria-haspopup="dialog"
+              onClick={() => setSheetOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-sm font-semibold text-foreground transition-all hover:bg-muted/70 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {isAuthenticated && initials ? (
+                <span className="text-xs">{initials}</span>
+              ) : (
+                <User className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </div>
       </nav>
 

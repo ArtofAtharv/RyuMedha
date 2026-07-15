@@ -493,10 +493,75 @@ async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
   return MESSAGES.attendance.undoSuccess(s.name);
 }
 
+async function handleVerifyCode(phone: string, code: string) {
+  if (!code) return "❌ Please specify the passcode. Example: `/verify 123456`";
+
+  const now = new Date().toISOString();
+  
+  // 1. Find profile matching code that hasn't expired
+  const { data: profile, error: findError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, display_name')
+    .eq('whatsapp_verification_code', code.trim())
+    .gt('whatsapp_verification_expires_at', now)
+    .maybeSingle();
+
+  if (findError || !profile) {
+    return "❌ Invalid or expired passcode. Please generate a new passcode on your dashboard settings page.";
+  }
+
+  // 2. Find if a temporary/placeholder profile exists for this phone number
+  const { data: placeholder } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('whatsapp_number', phone)
+    .neq('id', profile.id)
+    .maybeSingle();
+
+  if (placeholder) {
+    // Delete any dependent rows of the placeholder profile to avoid foreign key violations
+    await supabaseAdmin.from('study_timers').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('tasks').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('grades').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('attendance_logs').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('subjects').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('profiles').delete().eq('id', placeholder.id);
+  }
+
+  // 3. Clear the phone number from any other profiles to be safe
+  await supabaseAdmin
+    .from('profiles')
+    .update({ whatsapp_number: null })
+    .eq('whatsapp_number', phone)
+    .neq('id', profile.id);
+
+  // 4. Link the phone number to the target Google profile
+  const { error: updateError } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      whatsapp_number: phone,
+      whatsapp_verification_code: null,
+      whatsapp_verification_expires_at: null
+    })
+    .eq('id', profile.id);
+
+  if (updateError) {
+    console.error("Error linking WhatsApp:", updateError);
+    return "❌ Failed to link your WhatsApp number. Please try again.";
+  }
+
+  return `✅ Success! Your WhatsApp number has been linked to profile *${profile.display_name}*. You will now receive reminders and logs here!`;
+}
+
 // --- ROUTING ---
 export async function processMessage(phone: string, text: string, metadata: { isInteractive: boolean } = { isInteractive: false }) {
-  const user = await getOrCreateUser(phone);
   const lower = text.trim().toLowerCase();
+  if (lower.startsWith('verify ') || lower.startsWith('/verify ')) {
+    const code = text.replace(/^\/?verify\s+/i, '').trim();
+    return await handleVerifyCode(phone, code);
+  }
+
+  const user = await getOrCreateUser(phone);
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
   const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin, metadata };
