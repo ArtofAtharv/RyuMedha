@@ -63,6 +63,32 @@ async function getAuthenticatedClient() {
     expiry_date: profile.google_token_expiry ? Number(profile.google_token_expiry) * 1000 : undefined
   })
 
+  // Proactively refresh the token if it is expired or close to expiring (within 5 minutes)
+  const now = Math.floor(Date.now() / 1000)
+  const expiry = profile.google_token_expiry ? Number(profile.google_token_expiry) : 0
+  if ((expiry <= now + 300) && profile.google_refresh_token) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken()
+      if (credentials.access_token) {
+        const updates: any = {
+          google_access_token: credentials.access_token
+        }
+        if (credentials.expiry_date) {
+          updates.google_token_expiry = Math.floor(credentials.expiry_date / 1000)
+        }
+        
+        await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', profile.id)
+
+        oauth2Client.setCredentials(credentials)
+      }
+    } catch (refreshError) {
+      console.error("Error proactively refreshing Google token:", refreshError)
+    }
+  }
+
   oauth2Client.on('tokens', async (tokens) => {
     if (tokens.access_token) {
       const updates: any = {
@@ -72,10 +98,14 @@ async function getAuthenticatedClient() {
         updates.google_token_expiry = Math.floor(tokens.expiry_date / 1000)
       }
       
-      await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', profile.id)
+      try {
+        await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', profile.id)
+      } catch (updateErr) {
+        console.error("Error updating tokens in event listener:", updateErr)
+      }
     }
   })
 

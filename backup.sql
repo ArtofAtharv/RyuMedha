@@ -385,8 +385,26 @@ RETURNS SETOF whatsapp_window_status
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  caller_sub TEXT;
+  is_caller_admin BOOLEAN;
 BEGIN
-  IF (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true THEN
+  BEGIN
+    caller_sub := current_setting('request.jwt.claims', true)::jsonb ->> 'sub';
+  EXCEPTION WHEN OTHERS THEN
+    caller_sub := NULL;
+  END;
+
+  IF caller_sub IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT is_admin INTO is_caller_admin
+  FROM profiles
+  WHERE id::text = caller_sub
+     OR whatsapp_number = caller_sub;
+
+  IF is_caller_admin = true THEN
     RETURN QUERY SELECT * FROM whatsapp_window_status;
   ELSE
     RETURN;
