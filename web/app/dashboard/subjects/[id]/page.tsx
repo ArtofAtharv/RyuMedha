@@ -40,12 +40,21 @@ export default async function SubjectDetailPage({ params }: Readonly<{ params: P
     .select('*')
     .single()
 
+  // 4. Fetch Exam Tasks linked to this subject
+  const { data: exams } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('subject_id', id)
+    .eq('is_exam', true)
+    .order('due_date', { ascending: true })
+
   return (
     <div className="min-h-screen bg-background text-foreground pb-20">
       <main className="max-w-6xl mx-auto px-4 py-8">
         <SubjectDetailContent 
           subject={subject} 
           attendanceLogs={attendanceLogs || []} 
+          exams={exams || []}
           profile={profile}
           token={accessToken}
         />

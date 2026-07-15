@@ -466,8 +466,8 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'Google User'),
     new.email,
     'Asia/Kolkata',
-    false,
-    true
+    NULL,
+    NULL
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
@@ -542,8 +542,26 @@ BEGIN
       'whatsapp_message_logs', (SELECT json_agg(wl) FROM whatsapp_message_logs wl)
     ) INTO result;
     RETURN result;
-  ELSE
-    RAISE EXCEPTION 'Access Denied: Admin privileges required';
   END IF;
+END;
+$$;
+
+-- SQL function to allow authenticated users to delete their own account completely from public.profiles and auth.users
+CREATE OR REPLACE FUNCTION delete_current_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- RLS & Security verification: check if auth.uid() is valid
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Access Denied: User is not authenticated';
+  END IF;
+
+  -- Delete from profiles first (cascades to other tables like tasks, study_timers, etc.)
+  DELETE FROM public.profiles WHERE id = auth.uid();
+  
+  -- Delete from auth.users to completely delete user auth details
+  DELETE FROM auth.users WHERE id = auth.uid();
 END;
 $$;

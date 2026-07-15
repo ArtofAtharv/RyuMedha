@@ -13,6 +13,7 @@ export interface Reminder {
   completed: boolean
   completedAt?: string
   listId: string
+  subjectId?: string
   reminderSettings?: {
     dueTime: boolean
     oneDayPrior: boolean
@@ -326,7 +327,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
 
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, title, due_date')
+      .select('id, title, due_date, subject_id, is_exam')
       .eq('profile_id', profileId)
 
     const { data: localReminders } = await supabase
@@ -344,68 +345,130 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
       })
     }
     
-    return (
-      response.data.items?.map((item) => {
-        let finalDue = item.due || undefined
-        const itemTitleNormalized = item.title?.trim().toLowerCase() || ""
-        const itemDatePart = item.due ? item.due.split("T")[0] : null
+    const matchedLocalIds = new Set<string>()
+    
+    const googleReminders = response.data.items?.map((item) => {
+      let finalDue = item.due || undefined
+      const itemTitleNormalized = item.title?.trim().toLowerCase() || ""
+      const itemDatePart = item.due ? item.due.split("T")[0] : null
 
-        // Match Google task with local task by title & due date-only
-        const matchedLocal = localTasks?.find(t => {
-          if (t.title.trim().toLowerCase() !== itemTitleNormalized) return false
-          if (!t.due_date && !itemDatePart) return true
-          if (t.due_date && itemDatePart) {
-            return t.due_date.split("T")[0] === itemDatePart
-          }
-          return false
-        })
+      // Match Google task with local task by title & due date-only (checking clean titles)
+      const matchedLocal = localTasks?.find(t => {
+        const cleanLocalTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
+        const cleanGoogleTitle = item.title?.replace("[Exam] ", "").trim().toLowerCase() || ""
+        if (cleanLocalTitle !== cleanGoogleTitle) return false
+        if (!t.due_date && !itemDatePart) return true
+        if (t.due_date && itemDatePart) {
+          return t.due_date.split("T")[0] === itemDatePart
+        }
+        return false
+      })
 
-        if (matchedLocal?.due_date) {
+      if (matchedLocal) {
+        matchedLocalIds.add(matchedLocal.id)
+        if (matchedLocal.due_date) {
           finalDue = matchedLocal.due_date
         }
+      }
 
-        let reminderSettings = undefined
-        if (matchedLocal) {
-          const types = localRemindersMap.get(matchedLocal.id) || []
-          const hasCustom = types.some(t => t.startsWith('custom:'))
-          let customValue = 3
-          let customUnit = 'hours'
-          
-          if (hasCustom) {
-            const customType = types.find(t => t.startsWith('custom:'))
-            if (customType) {
-              const parts = customType.split(':')
-              if (parts.length === 3) {
-                customValue = parseInt(parts[1]) || 3
-                customUnit = parts[2]
-              }
+      let reminderSettings = undefined
+      if (matchedLocal) {
+        const types = localRemindersMap.get(matchedLocal.id) || []
+        const hasCustom = types.some(t => t.startsWith('custom:'))
+        let customValue = 3
+        let customUnit = 'hours'
+        
+        if (hasCustom) {
+          const customType = types.find(t => t.startsWith('custom:'))
+          if (customType) {
+            const parts = customType.split(':')
+            if (parts.length === 3) {
+              customValue = parseInt(parts[1]) || 3
+              customUnit = parts[2]
             }
           }
+        }
 
-          reminderSettings = {
-            dueTime: types.includes('due_date'),
-            oneDayPrior: types.includes('1_day_prior'),
-            twoDaysPrior: types.includes('2_days_prior'),
-            oneWeekPrior: types.includes('1_week_prior'),
-            twoWeeksPrior: types.includes('2_weeks_prior'),
-            customPrior: hasCustom,
-            customValue,
-            customUnit
+        reminderSettings = {
+          dueTime: types.includes('due_date'),
+          oneDayPrior: types.includes('1_day_prior'),
+          twoDaysPrior: types.includes('2_days_prior'),
+          oneWeekPrior: types.includes('1_week_prior'),
+          twoWeeksPrior: types.includes('2_weeks_prior'),
+          customPrior: hasCustom,
+          customValue,
+          customUnit
+        }
+      }
+      
+      const isExam = item.title?.startsWith("[Exam]") || matchedLocal?.is_exam || matchedLocal?.title.startsWith("[Exam]")
+      const displayTitle = isExam && !item.title?.startsWith("[Exam]") ? `[Exam] ${item.title}` : item.title || ""
+
+      return {
+        id: item.id || "",
+        title: displayTitle,
+        notes: item.notes || "",
+        due: finalDue,
+        completed: item.status === "completed",
+        completedAt: item.completed || undefined,
+        listId,
+        subjectId: matchedLocal?.subject_id || undefined,
+        reminderSettings
+      }
+    }) || []
+
+    const unmatchedLocal = localTasks?.filter(t => !matchedLocalIds.has(t.id)) || []
+    
+    const unmatchedReminders = unmatchedLocal.map(t => {
+      const types = localRemindersMap.get(t.id) || []
+      const hasCustom = types.some(x => x.startsWith('custom:'))
+      let customValue = 3
+      let customUnit = 'hours'
+      
+      if (hasCustom) {
+        const customType = types.find(x => x.startsWith('custom:'))
+        if (customType) {
+          const parts = customType.split(':')
+          if (parts.length === 3) {
+            customValue = parseInt(parts[1]) || 3
+            customUnit = parts[2]
           }
         }
-        
-        return {
-          id: item.id || "",
-          title: item.title || "",
-          notes: item.notes || "",
-          due: finalDue,
-          completed: item.status === "completed",
-          completedAt: item.completed || undefined,
-          listId,
-          reminderSettings
-        }
-      }) || []
-    )
+      }
+
+      const reminderSettings = {
+        dueTime: types.includes('due_date'),
+        oneDayPrior: types.includes('1_day_prior'),
+        twoDaysPrior: types.includes('2_days_prior'),
+        oneWeekPrior: types.includes('1_week_prior'),
+        twoWeeksPrior: types.includes('2_weeks_prior'),
+        customPrior: hasCustom,
+        customValue,
+        customUnit
+      }
+
+      return {
+        id: t.id,
+        title: t.title,
+        notes: t.description || "",
+        due: t.due_date || undefined,
+        completed: t.is_completed || false,
+        completedAt: t.completed_at || undefined,
+        listId,
+        subjectId: t.subject_id || undefined,
+        reminderSettings
+      }
+    })
+
+    try {
+      require('fs').writeFileSync('c:\\Users\\athar\\Documents\\RyuMedha\\web\\scratch_debug.json', JSON.stringify({
+        localTasks: localTasks?.map(t => ({ id: t.id, title: t.title, due_date: t.due_date, subject_id: t.subject_id })),
+        googleTasks: response.data.items?.map(t => ({ id: t.id, title: t.title, due: t.due, status: t.status })),
+        matchedLocalIds: Array.from(matchedLocalIds)
+      }, null, 2))
+    } catch (e) {}
+
+    return [...googleReminders, ...unmatchedReminders]
   } catch (error) {
     console.error("Error fetching reminders:", error)
     return []
@@ -417,6 +480,7 @@ export async function createReminder(data: {
   notes?: string
   due?: string // RFC3339 Timestamp
   listId?: string
+  subjectId?: string
   reminderSettings?: {
     dueTime: boolean
     oneDayPrior: boolean
@@ -441,7 +505,8 @@ export async function createReminder(data: {
         title: data.title,
         description: data.notes || '',
         due_date: data.due || null,
-        is_completed: false
+        is_completed: false,
+        subject_id: data.subjectId || null
       })
       .select()
       .single()
@@ -510,6 +575,7 @@ export async function createReminder(data: {
       completed: item.status === "completed",
       completedAt: item.completed || undefined,
       listId,
+      subjectId: data.subjectId,
       reminderSettings: finalSettings
     }
   } catch (error) {
@@ -525,6 +591,7 @@ export async function updateReminder(
     notes?: string
     due?: string // RFC3339 Timestamp
     completed?: boolean
+    subjectId?: string | null
     reminderSettings?: {
       dueTime: boolean
       oneDayPrior: boolean
@@ -554,7 +621,7 @@ export async function updateReminder(
     // Look up local task by old title and date
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, title, due_date')
+      .select('id, title, due_date, subject_id')
       .eq('profile_id', profileId)
 
     const matchedLocal = localTasks?.find(t => {
@@ -577,7 +644,8 @@ export async function updateReminder(
           title: data.title !== undefined ? data.title : currentTask.data.title || "",
           description: data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
           due_date: data.due !== undefined ? (data.due || null) : (currentTask.data.due || null),
-          is_completed: data.completed !== undefined ? data.completed : (currentTask.data.status === "completed")
+          is_completed: data.completed !== undefined ? data.completed : (currentTask.data.status === "completed"),
+          subject_id: data.subjectId !== undefined ? data.subjectId : null
         })
         .select()
         .single()
@@ -607,6 +675,7 @@ export async function updateReminder(
       if (data.title !== undefined) updateData.title = data.title
       if (data.notes !== undefined) updateData.description = data.notes
       if (data.due !== undefined) updateData.due_date = data.due || null
+      if (data.subjectId !== undefined) updateData.subject_id = data.subjectId
       if (data.completed !== undefined) {
         updateData.is_completed = data.completed
         updateData.completed_at = data.completed ? new Date().toISOString() : null
@@ -685,6 +754,7 @@ export async function updateReminder(
       completed: item.status === "completed",
       completedAt: item.completed || undefined,
       listId,
+      subjectId: data.subjectId !== undefined ? (data.subjectId || undefined) : (localTask?.subject_id || undefined),
       reminderSettings: finalSettings
     }
   } catch (error) {
@@ -696,48 +766,149 @@ export async function updateReminder(
 export async function deleteReminder(id: string, listId = "@default"): Promise<boolean> {
   try {
     const { oauth2Client: auth, supabase } = await getAuthenticatedClient()
-    const service = google.tasks({ version: "v1", auth })
-    
-    const currentTask = await service.tasks.get({
-      tasklist: listId,
-      task: id,
-    })
-    
-    const currentTitle = currentTask.data.title || ""
-    const currentDatePart = currentTask.data.due ? currentTask.data.due.split("T")[0] : null
 
-    // Look up local task
-    const { data: localTasks } = await supabase
+    // 1. Try to delete local task by UUID
+    const { data: deletedLocal } = await supabase
       .from('tasks')
-      .select('id, due_date')
-      .eq('title', currentTitle)
+      .delete()
+      .eq('id', id)
+      .select('title, due_date, subject_id')
+      .single()
 
-    // Narrow down by date
-    const matchedLocal = localTasks?.find(t => {
-      if (!t.due_date && !currentDatePart) return true
-      if (t.due_date && currentDatePart) {
-        return t.due_date.split("T")[0] === currentDatePart
+    let localTitle = deletedLocal?.title || ""
+    let localDueDate = deletedLocal?.due_date || null
+    let subjectId = deletedLocal?.subject_id || null
+
+    if (!deletedLocal) {
+      // 2. If it wasn't matched by UUID, it's a Google Task ID deletion. Retrieve it first to find title/date
+      try {
+        const service = google.tasks({ version: "v1", auth })
+        const currentTask = await service.tasks.get({
+          tasklist: listId,
+          task: id,
+        })
+        localTitle = currentTask.data.title || ""
+        const currentDatePart = currentTask.data.due ? currentTask.data.due.split("T")[0] : null
+
+        // Look up local task by title & date
+        const { data: localTasks } = await supabase
+          .from('tasks')
+          .select('id, due_date, subject_id')
+          .eq('title', localTitle)
+
+        const matchedLocal = localTasks?.find(t => {
+          if (!t.due_date && !currentDatePart) return true
+          if (t.due_date && currentDatePart) {
+            return t.due_date.split("T")[0] === currentDatePart
+          }
+          return false
+        })
+
+        if (matchedLocal) {
+          localDueDate = matchedLocal.due_date
+          subjectId = matchedLocal.subject_id
+          await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', matchedLocal.id)
+        }
+
+        // Delete from Google Tasks
+        await service.tasks.delete({
+          tasklist: listId,
+          task: id,
+        })
+      } catch (googleErr) {
+        console.warn("Google Task lookup/delete failed or not found:", googleErr)
       }
-      return false
-    })
-
-    if (matchedLocal) {
-      await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', matchedLocal.id)
+    } else {
+      // 3. It was a local task deleted by UUID. Try to find and delete matching Google Task if connected
+      try {
+        const service = google.tasks({ version: "v1", auth })
+        const response = await service.tasks.list({
+          tasklist: listId,
+          maxResults: 100,
+        })
+        const matchedGoogleTask = response.data.items?.find(item => {
+          const titleMatch = item.title?.trim().toLowerCase() === localTitle.trim().toLowerCase()
+          if (!titleMatch) return false
+          const itemDatePart = item.due ? item.due.split("T")[0] : null
+          if (!localDueDate && !itemDatePart) return true
+          if (localDueDate && itemDatePart) {
+            return localDueDate.split("T")[0] === itemDatePart
+          }
+          return false
+        })
+        if (matchedGoogleTask?.id) {
+          await service.tasks.delete({
+            tasklist: listId,
+            task: matchedGoogleTask.id
+          })
+        }
+      } catch (googleErr) {
+        console.warn("Google Tasks matching delete skipped or failed:", googleErr)
+      }
     }
 
-    const calendarEventId = await findCalendarEvent(auth, currentTitle, matchedLocal?.due_date)
-    if (calendarEventId) {
-      await deleteGoogleCalendarEvent(auth, calendarEventId)
+    // 4. Clean up shared course exam dates if it was an exam task
+    if (subjectId && localTitle) {
+      try {
+        const { data: subjectData } = await supabase
+          .from('subjects')
+          .select('type, source_course_id')
+          .eq('id', subjectId)
+          .single()
+
+        if (subjectData?.type === 'academic' && subjectData.source_course_id) {
+          const courseId = typeof subjectData.source_course_id === 'object' 
+            ? (subjectData.source_course_id as { id?: string })?.id 
+            : (subjectData.source_course_id as string)
+
+          if (courseId) {
+            const { data: courseData } = await supabase
+              .from('academic_courses')
+              .select('id, exam_dates')
+              .eq('id', courseId)
+              .single()
+
+            if (courseData?.exam_dates) {
+              const cleanTitleLabel = localTitle.startsWith("[Exam] ") 
+                ? localTitle.replace("[Exam] ", "") 
+                : localTitle
+
+              const newDates = { ...courseData.exam_dates }
+              let deletedAny = false
+              for (const key of Object.keys(newDates)) {
+                if (key.trim().toLowerCase() === cleanTitleLabel.trim().toLowerCase()) {
+                  delete newDates[key]
+                  deletedAny = true
+                }
+              }
+
+              if (deletedAny) {
+                await supabase
+                  .from('academic_courses')
+                  .update({ exam_dates: newDates })
+                  .eq('id', courseId)
+              }
+            }
+          }
+        }
+      } catch (courseErr) {
+        console.warn("Failed to delete shared course exam date on delete:", courseErr)
+      }
     }
 
-    await service.tasks.delete({
-      tasklist: listId,
-      task: id,
-    })
-    
+    // 5. Try to delete the linked Google Calendar event
+    try {
+      const calendarEventId = await findCalendarEvent(auth, localTitle, localDueDate)
+      if (calendarEventId) {
+        await deleteGoogleCalendarEvent(auth, calendarEventId)
+      }
+    } catch (calErr) {
+      console.warn("Google Calendar event delete skipped or failed:", calErr)
+    }
+
     revalidatePath("/dashboard/tasks")
     return true
   } catch (error) {

@@ -35,26 +35,28 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
 
   if (error || !profile) {
     console.error("DashboardLayout profile fetch error:", error)
-    redirect("/login")
+    redirect("/setup")
   }
 
-  if (!profile.display_name || profile.display_name.trim() === '') {
+  // Check if account setup is complete
+  const isSetup = (profile.academics_enabled !== null || profile.personal_enabled !== null) && 
+                  (!profile.academics_enabled || !!profile.current_semester_id);
+
+  if (!isSetup) {
     redirect('/setup')
   }
 
   return (
-    <ProfileProvider profile={profile as UserProfile}>
-      <GamificationProvider>
-        <div className="flex flex-col min-h-screen bg-background text-foreground">
-          {/* Animated Dashboard Navigation */}
-          <DashboardNav />
+    <GamificationProvider>
+      <div className="flex flex-col min-h-screen bg-background text-foreground">
+        {/* Animated Dashboard Navigation */}
+        <DashboardNav />
 
-          {/* Main Content Area */}
-          <div className="flex-1 pb-24">
-            {children}
-          </div>
+        {/* Main Content Area */}
+        <div className="flex-1 pb-24">
+          {children}
         </div>
-      </GamificationProvider>
-    </ProfileProvider>
+      </div>
+    </GamificationProvider>
   )
 }

@@ -54,30 +54,44 @@ export async function GET(request: Request) {
       const providerRefreshToken = data.session.provider_refresh_token
       const expiresAt = data.session.expires_at // unix timestamp
 
-      // Save Google credentials to the user's profile
-      if (providerToken || providerRefreshToken) {
-        const authenticatedSupabase = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          {
-            global: {
-              headers: {
-                Authorization: `Bearer ${data.session.access_token}`,
-              },
+      // Save Google credentials to the user's profile and ensure the profile row exists
+      const authenticatedSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${data.session.access_token}`,
             },
-          }
-        )
+          },
+        }
+      )
 
-        const updates: any = {}
-        if (providerToken) updates.google_access_token = providerToken
-        if (providerRefreshToken) updates.google_refresh_token = providerRefreshToken
-        if (expiresAt) updates.google_token_expiry = expiresAt
+      // Fetch existing profile to preserve display name and other settings if present
+      const { data: existingProfile } = await authenticatedSupabase
+        .from('profiles')
+        .select('display_name')
+        .eq('id', data.session.user.id)
+        .maybeSingle()
 
-        await authenticatedSupabase
-          .from('profiles')
-          .update(updates)
-          .eq('id', data.session.user.id)
+      const updates: any = {
+        id: data.session.user.id,
+        email: data.session.user.email,
+        display_name: existingProfile?.display_name || data.session.user.user_metadata?.full_name || data.session.user.email?.split('@')[0] || 'User',
       }
+
+      if (!existingProfile) {
+        updates.academics_enabled = null
+        updates.personal_enabled = null
+      }
+
+      if (providerToken) updates.google_access_token = providerToken
+      if (providerRefreshToken) updates.google_refresh_token = providerRefreshToken
+      if (expiresAt) updates.google_token_expiry = expiresAt
+
+      await authenticatedSupabase
+        .from('profiles')
+        .upsert(updates)
 
       return response
     } else {

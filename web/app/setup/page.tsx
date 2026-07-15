@@ -40,8 +40,8 @@ export default function SetupPage() {
   
   // Step 1: Basics
   const [displayName, setDisplayName] = useState("")
-  const [academicsEnabled, setAcademicsEnabled] = useState(true)
-  const [personalEnabled, setPersonalEnabled] = useState(true)
+  const [academicsEnabled, setAcademicsEnabled] = useState(false)
+  const [personalEnabled, setPersonalEnabled] = useState(false)
   
   const [universities, setUniversities] = useState<IdName[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
@@ -84,7 +84,7 @@ export default function SetupPage() {
         return
       }
       
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .single()
@@ -92,9 +92,35 @@ export default function SetupPage() {
       if (profile) {
         setProfileId(profile.id)
         setDisplayName((prev) => prev || profile.display_name || "")
-        setAcademicsEnabled(profile.academics_enabled ?? true)
-        setPersonalEnabled(profile.personal_enabled ?? true)
+        setAcademicsEnabled(profile.academics_enabled ?? false)
+        setPersonalEnabled(profile.personal_enabled ?? false)
         setTargetAttendance(profile.target_attendance_pct?.toString() || "75")
+      } else {
+        // If profile is missing, auto-create it on the fly
+        const user = activeSession.user
+        const { data: newProfile, error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            email: user.email,
+            display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+            academics_enabled: null,
+            personal_enabled: null,
+            target_attendance_pct: 75
+          })
+          .select()
+          .single()
+
+        if (newProfile) {
+          setProfileId(newProfile.id)
+          setDisplayName(newProfile.display_name || "")
+          setAcademicsEnabled(false)
+          setPersonalEnabled(false)
+          setTargetAttendance("75")
+        } else {
+          console.error("Setup init: failed to auto-create profile", insertError)
+          toast.error("Failed to initialize profile. Please refresh the page.")
+        }
       }
 
       // Pre-fetch universities
@@ -251,8 +277,6 @@ export default function SetupPage() {
     setErrorMsg("")
     if (academicsEnabled) {
       setStep(2)
-    } else if (personalEnabled) {
-      setStep(3)
     } else {
       await saveProfileOnly()
     }

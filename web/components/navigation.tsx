@@ -3,19 +3,24 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useSupabaseSession } from "@/lib/supabase-auth"
-import { User } from "lucide-react"
+import { User, ChevronDown, BookOpen, FolderOpen } from "lucide-react"
 import { AccountSheet } from "@/components/account-sheet"
 import { usePathname } from "next/navigation"
 import { getAppClient } from "@/lib/supabase-client"
 import Image from "next/image"
+import { useProfile } from "@/components/dashboard/profile-context"
+import { haptic } from "@/lib/haptic"
 
 export default function Navigation() {
   const { session, isAuthenticated } = useSupabaseSession()
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [isTrackDropdownOpen, setIsTrackDropdownOpen] = useState(false)
   const pathname = usePathname()
   const [displayName, setDisplayName] = useState("")
   const [whatsAppNumber, setWhatsAppNumber] = useState<string | null>(null)
   const [lastUserMessageAt, setLastUserMessageAt] = useState<string | null>(null)
+
+  const { profile, activeTrack, setActiveTrack } = useProfile()
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -58,6 +63,8 @@ export default function Navigation() {
     }
   }
 
+  const isDashboard = pathname?.startsWith("/dashboard")
+
   return (
     <>
       <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -72,15 +79,76 @@ export default function Navigation() {
               height={32}
               className="rounded-full invert dark:invert-0"
             />
-            <span className="text-xl tracking-tight font-changa-one">Ryu Medha</span>
+            <span className="text-xl tracking-tight font-changa-one hidden sm:inline">Ryu Medha</span>
           </Link>
 
           {/* Right Action Bar */}
           <div className="flex items-center gap-3">
+            {/* Track Switcher Dropdown */}
+            {isAuthenticated && isDashboard && profile && profile.academics_enabled && profile.personal_enabled && (
+              <div className="relative">
+                <button
+                  onClick={() => { haptic(); setIsTrackDropdownOpen(!isTrackDropdownOpen); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/50 bg-muted/20 text-xs font-semibold hover:bg-muted/40 transition-all select-none cursor-pointer text-foreground shadow-sm hover:scale-102 active:scale-98"
+                >
+                  {activeTrack === 'academics' ? (
+                    <>
+                      <BookOpen className="w-3.5 h-3.5 text-primary" />
+                      <span>Academics</span>
+                    </>
+                  ) : (
+                    <>
+                      <FolderOpen className="w-3.5 h-3.5 text-primary" />
+                      <span>Personal</span>
+                    </>
+                  )}
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${isTrackDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isTrackDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsTrackDropdownOpen(false)} />
+                    <div className="absolute right-0 mt-1.5 w-36 bg-card border border-border/50 rounded-2xl shadow-xl p-1 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                      <button
+                        onClick={() => {
+                          setActiveTrack('academics');
+                          setIsTrackDropdownOpen(false);
+                          haptic();
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                          activeTrack === 'academics' 
+                            ? 'bg-primary/10 text-primary' 
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        }`}
+                      >
+                        <BookOpen className="w-3.5 h-3.5" />
+                        Academics
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveTrack('personal');
+                          setIsTrackDropdownOpen(false);
+                          haptic();
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                          activeTrack === 'personal' 
+                            ? 'bg-primary/10 text-primary' 
+                            : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                        }`}
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        Personal
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {isAuthenticated && (
               <Link 
                 href="/dashboard/whatsapp-bot"
-                className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-border/50 bg-muted/20 text-xs font-semibold hover:bg-muted/40 transition-colors select-none"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border/50 bg-muted/20 text-xs font-semibold hover:bg-muted/40 transition-colors select-none"
               >
                 {botStatus === "active" && (
                   <>

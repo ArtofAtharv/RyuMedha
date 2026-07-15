@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +20,7 @@ import { getSourceCourse } from "@/lib/source-course"
 import { SegmentedControl } from '@/components/dashboard/segmented-control'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { useProfile } from '@/components/dashboard/profile-context'
+import { createReminder } from "@/app/actions/google-tasks"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -55,7 +56,7 @@ function formatOutputDate(d: Date) {
 }
 
 export default function SubjectsPage() {
-  const { profile } = useProfile()
+  const { profile, activeTrack } = useProfile()
   const [profileId, setProfileId] = useState<string|null>(null)
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   
@@ -65,11 +66,11 @@ export default function SubjectsPage() {
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
-  // UI Tab state (must be declared unconditionally to preserve Hooks order)
-  const [tab, setTab] = useState<"academics" | "personal">("academics")
+  
+  const tab = activeTrack
+  const type = activeTrack === "academics" ? "academic" : "personal"
   
   const [name, setName] = useState("")
-  const [type, setType] = useState<"academic" | "personal">("academic")
   const [categoryId, setCategoryId] = useState("none")
   
   const [editingSubject, setEditingSubject] = useState<SubjectRecord | null>(null)
@@ -115,13 +116,64 @@ export default function SubjectsPage() {
 
   async function fetchSubjects(supabase: AppSupabaseClient) {
     setLoading(true)
-    const { data } = await supabase
+    const { data: subjectsData } = await supabase
       .from('subjects')
       .select('*, source_course_id(*)')
       .eq('is_active', true)
       .order('name')
+
+    // Fetch active, incomplete tasks (both exam and regular if linked) to match card display
+    const { data: activeTasks } = await supabase
+      .from('tasks')
+      .select('title, subject_id')
+      .eq('is_completed', false)
+
+    const processedSubjects = await Promise.all((subjectsData || []).map(async sub => {
+      const sourceCourse = getSourceCourse(sub.source_course_id)
+      if (sub.type === 'academic' && sourceCourse?.exam_dates) {
+        const filteredDates: Record<string, string> = {}
+        const updatedDatesInDb = { ...sourceCourse.exam_dates }
+        let dbCleanupNeeded = false
+
+        Object.entries(sourceCourse.exam_dates).forEach(([label, date]) => {
+          const cleanLabel = label.trim().toLowerCase()
+          const hasActiveTask = activeTasks?.some(t => {
+            if (t.subject_id !== sub.id) return false
+            const cleanTaskTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
+            return cleanTaskTitle === cleanLabel
+          })
+          if (hasActiveTask) {
+            filteredDates[label] = date as string
+          } else {
+            dbCleanupNeeded = true
+            delete updatedDatesInDb[label]
+          }
+        })
+        
+        if (dbCleanupNeeded) {
+          const courseId = typeof sub.source_course_id === 'object' 
+            ? (sub.source_course_id as { id?: string })?.id 
+            : (sub.source_course_id as string)
+          if (courseId) {
+            await supabase
+              .from('academic_courses')
+              .update({ exam_dates: updatedDatesInDb })
+              .eq('id', courseId)
+          }
+        }
+
+        return {
+          ...sub,
+          source_course_id: {
+            ...sourceCourse,
+            exam_dates: filteredDates
+          }
+        }
+      }
+      return sub
+    }))
     
-    setSubjects(data || [])
+    setSubjects((processedSubjects as SubjectRecord[]) || [])
     setLoading(false)
   }
 
@@ -307,11 +359,9 @@ export default function SubjectsPage() {
         name: editingSubject.name.trim(),
         label: editingSubject.label ?? null,
         color_hex: editingSubject.color_hex ?? null,
-        category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? (editingSubject.category_id ?? null) : null
-    }
-
-    if (editingSubject.type === 'personal') {
-        updates.expected_total_lectures = Number(editingSubject.expected_total_lectures || 0)
+        category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? (editingSubject.category_id ?? null) : null,
+        expected_total_lectures: Number(editingSubject.expected_total_lectures || 0),
+        instructor_name: editingSubject.instructor_name ?? null
     }
 
     await supabase
@@ -322,29 +372,6 @@ export default function SubjectsPage() {
     setEditingSubject(null)
     fetchSubjects(supabase)
   }
-
-  useEffect(() => {
-    if (!profile) return
-    if (profile.academics_enabled && profile.personal_enabled) return
-
-    if (profile.academics_enabled) {
-      queueMicrotask(() => {
-        setTab('academics')
-        setType('academic')
-      })
-    } else if (profile.personal_enabled) {
-      queueMicrotask(() => {
-        setTab('personal')
-        setType('personal')
-      })
-    }
-  }, [profile?.academics_enabled, profile?.personal_enabled, profile])
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      setType(tab === 'academics' ? 'academic' : 'personal')
-    })
-  }, [tab])
 
   /* -------------------------------------------------------------------------- */
   /*                            EXAM DATES (TASKS)                              */
@@ -380,28 +407,116 @@ export default function SubjectsPage() {
       fetchSubjects(supabaseClient)
     }
 
-    // 2. Add to user's personal tasks
-    const { error } = await supabaseClient
-      .from('tasks')
-      .insert([{
-        profile_id: profileId,
-        subject_id: subject_id,
-        title: label,
-        due_date: formatOutputDate(date),
-        priority: 'high',
-        is_completed: false,
-        is_exam: true
-      }])
-    
-    if (error) {
-      setErrorMsg(`Failed to add custom date: ${error.message}`)
-      toast.error("Failed to add exam date", { description: error.message })
-    } else {
-      toast.success("Exam Date Added", { 
-        description: `"${label}" has been added. It is visible on the subject card and in your Tasks tab.` 
+    // 2. Add to user's personal tasks using createReminder so it syncs to Google Tasks + Event
+    let createdTask = null
+    const titleWithPrefix = `[Exam] ${label}`
+    const dateStr = formatOutputDate(date)
+
+    try {
+      createdTask = await createReminder({
+        title: titleWithPrefix,
+        due: new Date(dateStr).toISOString(),
+        subjectId: subject_id,
+        reminderSettings: {
+          dueTime: true,
+          oneDayPrior: true,
+          twoDaysPrior: false,
+          oneWeekPrior: true,
+          twoWeeksPrior: false,
+          customPrior: false
+        }
       })
+    } catch (googleError) {
+      console.warn("Google Tasks sync failed inside subjects tab, falling back to direct db insert:", googleError)
     }
+
+    if (!createdTask) {
+      const { data, error } = await supabaseClient
+        .from('tasks')
+        .insert([{
+          profile_id: profileId,
+          subject_id: subject_id,
+          title: titleWithPrefix,
+          due_date: dateStr,
+          priority: 'high',
+          is_completed: false,
+          is_exam: true
+        }])
+        .select()
+        .single()
+      
+      if (error) {
+        setErrorMsg(`Failed to add custom date: ${error.message}`)
+        toast.error("Failed to add exam date", { description: error.message })
+        return
+      }
+    } else {
+      // Mark as is_exam: true
+      await supabaseClient
+        .from('tasks')
+        .update({ is_exam: true })
+        .eq('title', titleWithPrefix)
+        .eq('profile_id', profileId)
+    }
+
+    toast.success("Exam Date Added", { 
+      description: `"${label}" has been added. It is synced to Google Calendar & Tasks.` 
+    })
   }
+
+  async function handleDeleteExamDate(subject_id: string, label: string) {
+    if (!supabaseClient || !profileId) return
+
+    // 1. Update academic_courses to delete the exam date
+    const { data: subjectData } = await supabaseClient
+      .from('subjects')
+      .select('type, source_course_id(id, exam_dates)')
+      .eq('id', subject_id)
+      .single()
+
+    if (subjectData?.type === 'academic' && subjectData.source_course_id) {
+      const courseId = typeof subjectData.source_course_id === 'object' ? (subjectData.source_course_id as {id?: string})?.id : (subjectData.source_course_id as string);
+      const existingDates: Record<string, string> = typeof subjectData.source_course_id === 'object' && !Array.isArray(subjectData.source_course_id) ? ((subjectData.source_course_id as {exam_dates?: Record<string, string>})?.exam_dates || {}) : {};
+       
+      const updatedDates = { ...existingDates };
+      delete updatedDates[label];
+
+      const { error: courseError } = await supabaseClient
+        .from('academic_courses')
+        .update({ exam_dates: updatedDates })
+        .eq('id', courseId)
+       
+      if (courseError) {
+        toast.error("Failed to delete exam date", { description: courseError.message })
+        return
+      }
+    }
+
+    // 2. Try to find and delete matching task
+    try {
+      const { data: matchedTasks } = await supabaseClient
+        .from('tasks')
+        .select('id, title')
+        .eq('subject_id', subject_id)
+        .eq('profile_id', profileId)
+
+      const match = matchedTasks?.find(t => {
+        const cleanTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
+        return cleanTitle === label.trim().toLowerCase()
+      })
+
+      if (match) {
+        const { deleteReminder } = await import("@/app/actions/google-tasks")
+        await deleteReminder(match.id)
+      }
+    } catch (err) {
+      console.warn("Failed to delete matching task:", err)
+    }
+
+    toast.success("Exam Date Deleted")
+    fetchSubjects(supabaseClient)
+  }
+
 
   /* -------------------------------------------------------------------------- */
   /*                            CATEGORY MANAGEMENT                             */
@@ -518,6 +633,33 @@ export default function SubjectsPage() {
     )
   }
 
+  if (!loading && !profile?.academics_enabled && !profile?.personal_enabled) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+        <PageHeader 
+          title="Subjects" 
+          description="Manage your active academic courses and personal learning tracks." 
+        />
+        <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg rounded-3xl">
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+              <FolderOpen className="w-10 h-10 text-muted-foreground/60" />
+            </div>
+            <div className="space-y-2 max-w-sm">
+              <CardTitle className="text-2xl font-semibold tracking-tight">Tracks Disabled</CardTitle>
+              <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
+                Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to start managing subjects.
+              </CardDescription>
+            </div>
+            <Button onClick={() => window.location.href = '/dashboard/profile'} className="font-semibold h-12 px-8 text-base rounded-2xl">
+              Go to Settings
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
       
@@ -527,20 +669,7 @@ export default function SubjectsPage() {
         description="Manage your active academic courses and personal learning tracks." 
         action={
           <div className="flex items-center gap-2">
-            {profile?.academics_enabled && profile?.personal_enabled && (
-              <SegmentedControl 
-                segments={[
-                  { id: 'academics', label: 'Academics', icon: BookOpen },
-                  { id: 'personal', label: 'Personal', icon: FolderOpen }
-                ]}
-                activeSegment={tab}
-                onChange={(id) => {
-                  setTab(id as 'academics' | 'personal')
-                  setType(id as 'academic' | 'personal')
-                }}
-              />
-            )}
-            <Button onClick={() => setIsAddSubjectModalOpen(true)} className="gap-2 rounded-full font-bold shadow-sm h-9">
+            <Button onClick={() => setIsAddSubjectModalOpen(true)} className="gap-2 rounded-full font-bold shadow-sm h-9 cursor-pointer">
               <Plus className="w-4 h-4" /> Add
             </Button>
           </div>
@@ -573,6 +702,7 @@ export default function SubjectsPage() {
                     }}
                     onDelete={() => setSubjectToDelete(sub)}
                     onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                    onDeleteExamDate={(label) => handleDeleteExamDate(sub.id, label)}
                   />
                 </m.div>
               ))}
@@ -622,9 +752,14 @@ export default function SubjectsPage() {
                       <SubjectGridCard 
                         subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
                         category={subCategory}
-                        onEdit={() => setEditingSubject({...sub})}
+                        onEdit={() => setEditingSubject({
+                          ...sub,
+                          instructor_name: sub.instructor_name || "",
+                          expected_total_lectures: sub.expected_total_lectures || 0
+                        })}
                         onDelete={() => setSubjectToDelete(sub)}
                         onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                        onDeleteExamDate={(label) => handleDeleteExamDate(sub.id, label)}
                       />
                     </m.div>
                   )
@@ -774,42 +909,39 @@ export default function SubjectsPage() {
                 <Input value={editingSubject.name} onChange={e => setEditingSubject({...editingSubject, name: e.target.value})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
               </div>
 
-              {editingSubject.type === 'academic' && (
-                <div className="space-y-1.5">
-                  <Label>Instructor Name (Shared)</Label>
-                  <Input 
-                    value={editingSubject.instructor_name || ""} 
-                    onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} 
-                    placeholder="Shared with everyone in your semester" 
-                    className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl"
-                  />
+              <div className="space-y-1.5">
+                <Label>Instructor Name</Label>
+                <Input 
+                  value={editingSubject.instructor_name || ""} 
+                  onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} 
+                  placeholder={editingSubject.type === 'academic' ? "Shared with everyone in your semester" : "Instructor name"} 
+                  className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl"
+                />
+                {editingSubject.type === 'academic' && (
                   <p className="text-[10px] text-muted-foreground font-medium">Updating this changes it for all students in this semester.</p>
-                </div>
-              )}
+                )}
+              </div>
 
-              {editingSubject.type === 'academic' && (
-                <>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
-                    <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: Number(e.target.value) || 0})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Color Identity</Label>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#a855f7'].map(hex => (
-                        <button
-                          key={hex}
-                          type="button"
-                          onClick={() => setEditingSubject({...editingSubject, color_hex: hex})}
-                          className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 shadow-sm ${editingSubject.color_hex === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-transparent hover:scale-110'}`}
-                          style={hexToGradient(hex)}
-                          title={hex}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
+                <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: Number(e.target.value) || 0})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <Label>Color Identity</Label>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#a855f7'].map(hex => (
+                    <button
+                      key={hex}
+                      type="button"
+                      onClick={() => setEditingSubject({...editingSubject, color_hex: hex})}
+                      className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 shadow-sm ${editingSubject.color_hex === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-transparent hover:scale-110'}`}
+                      style={hexToGradient(hex)}
+                      title={hex}
+                    />
+                  ))}
+                </div>
+              </div>
 
               <div className="pt-4 flex gap-2 w-full">
                 <Button variant="outline" onClick={() => setEditingSubject(null)} className="flex-1">Cancel</Button>

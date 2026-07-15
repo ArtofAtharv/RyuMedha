@@ -287,17 +287,34 @@ export default function ProfilePage() {
     if (doubleConfirm !== "DELETE") return
 
     setDeleting(true)
-    // Delete all user data in order (foreign key constraints)
-    await supabaseClient.from('study_timers').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('tasks').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('grades').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('attendance_logs').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('subjects').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('profiles').delete().eq('id', profile.id)
-    
-    // Sign out and redirect
-    await supabaseClient.auth.signOut()
-    window.location.href = '/login'
+    try {
+      // Call RPC to completely delete the auth user and public profiles row
+      const { error } = await supabaseClient.rpc('delete_current_user')
+      if (error) throw error
+
+      // Sign out and redirect
+      await supabaseClient.auth.signOut()
+      window.location.href = '/login'
+    } catch (err: any) {
+      console.error("Failed to call delete_current_user RPC:", err)
+      
+      // Fallback: Delete all user data in order (foreign key constraints) if RPC fails or isn't installed
+      try {
+        await supabaseClient.from('study_timers').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('tasks').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('grades').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('attendance_logs').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('subjects').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('profiles').delete().eq('id', profile.id)
+        
+        await supabaseClient.auth.signOut()
+        window.location.href = '/login'
+      } catch (fallbackErr: any) {
+        console.error("Deletion fallback failed:", fallbackErr)
+        toast.error("Failed to delete account. Please ensure the 'delete_current_user' SQL function is created in your Supabase SQL Editor.")
+        setDeleting(false)
+      }
+    }
   }
 
   async function handleExportUserData() {
