@@ -1030,7 +1030,7 @@ function DropdownRow({
                   else onChange(val)
                 }}
               >
-                <SelectTrigger className="h-7 border-0 bg-transparent text-sm text-muted-foreground shadow-none px-0 gap-1 focus:ring-0 w-auto justify-end hover:bg-transparent">
+                <SelectTrigger className="h-7 border-0 bg-transparent text-sm text-muted-foreground shadow-none px-4 gap-1 focus:ring-0 w-auto justify-end hover:bg-transparent">
                   <SelectValue placeholder={placeholder || "Select"} />
                 </SelectTrigger>
                 <SelectContent position="popper" align="end" alignOffset={-16} sideOffset={8}>
