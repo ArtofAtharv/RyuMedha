@@ -60,6 +60,16 @@ export default function TasksPage() {
   const [customTime, setCustomTime] = useState("")
   const [saving, setSaving] = useState(false)
 
+  // Reminder settings states
+  const [reminderDueTime, setReminderDueTime] = useState(true)
+  const [reminder1Day, setReminder1Day] = useState(true)
+  const [reminder2Days, setReminder2Days] = useState(true)
+  const [reminder1Week, setReminder1Week] = useState(true)
+  const [reminder2Weeks, setReminder2Weeks] = useState(true)
+  const [reminderCustom, setReminderCustom] = useState(true)
+  const [customReminderValue, setCustomReminderValue] = useState(3)
+  const [customReminderUnit, setCustomReminderUnit] = useState<"minutes" | "hours" | "days" | "weeks">("hours")
+
   // Notifications states
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | "default">("default")
@@ -234,6 +244,14 @@ export default function TasksPage() {
     setTimePreset("all-day")
     setCustomDate("")
     setCustomTime("")
+    setReminderDueTime(true)
+    setReminder1Day(true)
+    setReminder2Days(true)
+    setReminder1Week(true)
+    setReminder2Weeks(true)
+    setReminderCustom(true)
+    setCustomReminderValue(3)
+    setCustomReminderUnit("hours")
     setIsModalOpen(true)
   }
 
@@ -275,6 +293,26 @@ export default function TasksPage() {
     } else {
       setDateType("none")
       setTimePreset("all-day")
+    }
+
+    if (reminder.reminderSettings) {
+      setReminderDueTime(reminder.reminderSettings.dueTime)
+      setReminder1Day(reminder.reminderSettings.oneDayPrior)
+      setReminder2Days(reminder.reminderSettings.twoDaysPrior)
+      setReminder1Week(reminder.reminderSettings.oneWeekPrior)
+      setReminder2Weeks(reminder.reminderSettings.twoWeeksPrior)
+      setReminderCustom(reminder.reminderSettings.customPrior)
+      setCustomReminderValue(reminder.reminderSettings.customValue || 3)
+      setCustomReminderUnit((reminder.reminderSettings.customUnit as any) || "hours")
+    } else {
+      setReminderDueTime(true)
+      setReminder1Day(true)
+      setReminder2Days(true)
+      setReminder1Week(true)
+      setReminder2Weeks(true)
+      setReminderCustom(true)
+      setCustomReminderValue(3)
+      setCustomReminderUnit("hours")
     }
     
     setIsModalOpen(true)
@@ -325,11 +363,22 @@ export default function TasksPage() {
         }
       }
 
+      const reminderSettings = {
+        dueTime: reminderDueTime,
+        oneDayPrior: reminder1Day,
+        twoDaysPrior: reminder2Days,
+        oneWeekPrior: reminder1Week,
+        twoWeeksPrior: reminder2Weeks,
+        customPrior: reminderCustom,
+        customValue: customReminderValue,
+        customUnit: customReminderUnit
+      }
+
       if (editingReminder) {
         // Edit mode
         const updated = await updateReminder(
           editingReminder.id,
-          { title, notes, due: finalDue },
+          { title, notes, due: finalDue, reminderSettings },
           activeListId
         )
         if (updated) {
@@ -343,6 +392,7 @@ export default function TasksPage() {
           notes,
           due: finalDue,
           listId: activeListId,
+          reminderSettings
         })
         if (created) {
           setReminders(prev => [created, ...prev])
@@ -886,6 +936,99 @@ export default function TasksPage() {
                         onChange={e => setCustomTime(e.target.value)}
                         className="bg-card border-border/50"
                       />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {dateType !== "none" && (
+              <div className="space-y-3 pt-3 border-t border-border/50">
+                <Label className="text-xs font-bold text-muted-foreground uppercase block">Reminders</Label>
+                
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminderDueTime}
+                      onChange={e => setReminderDueTime(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>At due time</span>
+                  </label>
+                  
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminder1Day}
+                      onChange={e => setReminder1Day(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>1 day prior</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminder2Days}
+                      onChange={e => setReminder2Days(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>2 days prior</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={reminder1Week}
+                      onChange={e => setReminder1Week(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>1 week prior</span>
+                  </label>
+
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={reminder2Weeks}
+                      onChange={e => setReminder2Weeks(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span>2 weeks prior</span>
+                  </label>
+                </div>
+
+                <div className="pt-2 border-t border-border/30">
+                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none mb-2">
+                    <input
+                      type="checkbox"
+                      checked={reminderCustom}
+                      onChange={e => setReminderCustom(e.target.checked)}
+                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                    />
+                    <span className="font-medium">Custom prior reminder</span>
+                  </label>
+                  
+                  {reminderCustom && (
+                    <div className="flex items-center space-x-2 mt-2 p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+                      <Input
+                        type="number"
+                        min={1}
+                        value={customReminderValue}
+                        onChange={e => setCustomReminderValue(parseInt(e.target.value) || 1)}
+                        className="w-20 bg-card border-border/50 h-8 text-sm"
+                      />
+                      <select
+                        value={customReminderUnit}
+                        onChange={e => setCustomReminderUnit(e.target.value as any)}
+                        className="bg-card border border-border/50 rounded-lg text-sm p-1.5 focus:ring-1 focus:ring-primary outline-none text-foreground h-8"
+                      >
+                        <option value="minutes">Minutes</option>
+                        <option value="hours">Hours</option>
+                        <option value="days">Days</option>
+                        <option value="weeks">Weeks</option>
+                      </select>
+                      <span className="text-xs text-muted-foreground">prior</span>
                     </div>
                   )}
                 </div>
