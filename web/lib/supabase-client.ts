@@ -50,18 +50,13 @@ export function createAppClient(
     return createClient(url, key, mergedOptions) as AppSupabaseClient
   }
 
-  // Extract the auth token from options if it exists
-  const headers = options?.global?.headers as Record<string, string> | undefined;
-  const token = headers?.Authorization || null;
-
-  // If a client already exists and the token matches, reuse it
-  if (globalClient && globalClientToken === token) {
+  // If a client already exists, reuse it in the browser
+  if (globalClient) {
     return globalClient;
   }
-
+ 
   // Otherwise create a new client and cache it
   globalClient = createClient(url, key, mergedOptions) as AppSupabaseClient;
-  globalClientToken = token;
   return globalClient;
 }
 
