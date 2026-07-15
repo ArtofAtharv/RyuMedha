@@ -805,7 +805,7 @@ export default function TasksPage() {
 
       {/* Add / Edit Task Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50">
+        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50 max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b border-border/50">
             <DialogTitle>{editingReminder ? "Edit Task" : "Add Task"}</DialogTitle>
           </DialogHeader>
