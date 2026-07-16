@@ -70,9 +70,13 @@ export async function getValidGoogleToken(profile: any): Promise<string | null> 
  */
 export async function fetchGoogleTasks(accessToken: string, listId = "@default"): Promise<any[]> {
   try {
-    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true&maxResults=100`, {
+    const cb = Date.now();
+    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true&maxResults=100&_cb=${cb}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       },
     });
 

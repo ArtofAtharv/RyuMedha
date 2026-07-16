@@ -4,7 +4,15 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const JWT_SECRET = Deno.env.get('JWT_SECRET');
-/** Admin client for initial profile checks/creation */ export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+/** Admin client for initial profile checks/creation */ export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }
+});
 /** Generates a JWT for a specific user UUID to enforce RLS */ async function generateUserToken(userId) {
   if (!JWT_SECRET) {
     throw new Error("❌ Missing JWT_SECRET environment variable.");
@@ -43,7 +51,10 @@ const JWT_SECRET = Deno.env.get('JWT_SECRET');
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     },
     auth: {

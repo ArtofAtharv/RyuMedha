@@ -552,6 +552,7 @@ async function handleListTasks(user) {
   if (googleToken) {
     const googleTasks = await fetchGoogleTasks(googleToken);
     const matchedLocalIds = new Set<string>();
+    const syncPromises: Promise<any>[] = [];
 
     googleTasks.forEach((g: any) => {
       const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
@@ -569,6 +570,24 @@ async function handleListTasks(user) {
 
       if (matched) {
         matchedLocalIds.add(matched.id);
+        
+        const gCompleted = g.status === "completed";
+        const lCompleted = matched.is_completed;
+        const isCompleted = gCompleted || lCompleted;
+
+        // Reconcile status mismatches on the fly
+        if (gCompleted && !lCompleted) {
+          syncPromises.push(
+            uc.from('tasks')
+              .update({ is_completed: true, completed_at: g.completed || new Date().toISOString() })
+              .eq('id', matched.id)
+          );
+        } else if (lCompleted && !gCompleted) {
+          syncPromises.push(
+            updateGoogleTask(googleToken, g.id, { completed: true })
+          );
+        }
+
         mergedTasks.push({
           title: g.title || matched.title,
           due: matched.due_date || g.due,
@@ -576,7 +595,7 @@ async function handleListTasks(user) {
           source: 'both',
           googleId: g.id,
           localId: matched.id,
-          completed: g.status === "completed" || matched.is_completed,
+          completed: isCompleted,
           completedAt: g.completed || matched.completed_at
         });
       } else {
@@ -591,6 +610,10 @@ async function handleListTasks(user) {
         });
       }
     });
+
+    if (syncPromises.length > 0) {
+      await Promise.allSettled(syncPromises);
+    }
 
     // Append unmatched local tasks
     localTasks.forEach((t: any) => {
