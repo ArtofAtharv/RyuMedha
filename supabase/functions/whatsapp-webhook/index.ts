@@ -1,8 +1,8 @@
-// @ts-nocheck
-// Updated by Antigravity: Added bot processor routing and admin triggers
+// supabase/functions/whatsapp-bot/index.ts
+// Consolidated WhatsApp Bot handler
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
-import { processMessage } from "../whatsapp-bot/processor.ts"
+import { processMessage } from "./processor.ts"
 import webpush from "npm:web-push@3.6.7"
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || ""
@@ -74,12 +74,16 @@ async function handleTasksTrigger(): Promise<Response> {
     let sentCount = 0;
     if (users) {
       for (const user of users) {
+        if (!user.whatsapp_number) continue;
         const phone = `+${user.whatsapp_number.replace(/\D/g, '')}`;
         const reply = await processMessage(phone, 'tasks', { isInteractive: false });
         
-        if (reply && !reply.includes("caught up") && !reply.includes("don't have any pending tasks") && !reply.includes("No pending tasks")) {
+        // Wait, processMessage can return an interactive message object or a string
+        const textReply = typeof reply === 'string' ? reply : (reply?.body?.text || "");
+
+        if (textReply && !textReply.includes("caught up") && !textReply.includes("don't have any pending tasks") && !textReply.includes("No pending tasks")) {
           const cleanTo = user.whatsapp_number.replace(/\D/g, '');
-          await sendWhatsAppMessage(cleanTo, `🔔 *Pending Tasks Reminder*\n\nHere is your current task list:\n\n${reply}`, 'tasks_blast', user.id);
+          await sendWhatsAppMessage(cleanTo, `🔔 *Pending Tasks Reminder*\n\nHere is your current task list:\n\n${textReply}`, 'tasks_blast', user.id);
           sentCount++;
         }
       }
@@ -105,6 +109,7 @@ async function handleDailyTrigger(): Promise<Response> {
     let sentCount = 0;
     if (users) {
       for (const user of users) {
+        if (!user.whatsapp_number) continue;
         const msg = "🏫 *Daily Attendance Guardian*\n\nHey! It's 4 PM. Have you attended your classes today? Don't forget to log your attendance to stay on track!";
         const cleanTo = user.whatsapp_number.replace(/\D/g, '');
         const interactiveMsg = {
@@ -319,7 +324,7 @@ async function handleLogMenuCommand(from: string, profile: any) {
   }
 }
 
-async function sendBotReplies(to: string, reply: string | string[] | null) {
+async function sendBotReplies(to: string, reply: any) {
   if (!reply) return;
   if (Array.isArray(reply)) {
     for (const r of reply) await sendWhatsAppMessage(to, r);

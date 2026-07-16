@@ -317,7 +317,7 @@ export default function WhatsAppBotPage() {
                     To reactivate (respawn) the connection and receive schedules, click below to send a quick message to the bot!
                   </p>
                   <Button asChild className="rounded-xl font-bold bg-amber-500 hover:bg-amber-600 text-white gap-2">
-                    <a href={`${BOT_LINK}?text=Hi`} target="_blank" rel="noopener noreferrer">
+                    <a href={`${BOT_LINK}?text=%2FRyuma%20respawn`} target="_blank" rel="noopener noreferrer">
                       <Zap className="w-4 h-4" /> Respawn Bot Status
                     </a>
                   </Button>

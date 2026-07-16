@@ -227,7 +227,17 @@ async function logAttendance(user, subjectName, status) {
   } else {
     prefix = status === 'present' ? MESSAGES.attendance.presentPrefix(subject.name) : status === 'absent' ? MESSAGES.attendance.absentPrefix(subject.name) : MESSAGES.attendance.deemedPrefix(subject.name);
   }
-  return await buildAttendanceSummary(uc, user, subject, prefix);
+  const summaryText = await buildAttendanceSummary(uc, user, subject, prefix);
+  return {
+    type: 'button',
+    body: { text: summaryText },
+    action: {
+      buttons: [
+        { type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } },
+        { type: 'reply', reply: { id: 'tasks', title: '📋 Show Tasks' } }
+      ]
+    }
+  };
 }
 
 async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetchedLogs = null) {
@@ -235,24 +245,33 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
     const { data } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
     return data;
   })();
+  // Legacy attendance is now ignored (always 0) as requested
   const present = (logs?.filter((l)=>l.status === 'present').length || 0);
   const absent = (logs?.filter((l)=>l.status === 'absent').length || 0);
   const deemed = (logs?.filter((l)=>l.status === 'deemed').length || 0);
   const total = present + absent + deemed;
   if (total === 0) return MESSAGES.attendance.summaryNoData(subject.name);
+  
+  // Percent calculation: (Present + Deemed) / Total
   const pct = (present + deemed) / total * 100;
   const target = user.target_attendance_pct || 75;
   const emoji = pct >= target ? '✅' : pct >= target - 15 ? '⚠️' : '🔴';
   let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present + deemed, total, pct.toFixed(1));
   if (deemed > 0) msg += MESSAGES.attendance.deemedNote(deemed);
+  
   const expectedTotal = subject.expected_total_lectures || subject.source_course_id?.expected_total_lectures || 0;
   if (expectedTotal > 0) {
     const t = target / 100;
     const maxMisses = Math.floor(expectedTotal * (1 - t));
+    
+    // FIX: Bunks calculation should only use ACTUAL absences. 
+    // If a lecture is deemed, it doesn't count as an absence towards the bunk limit.
     const bunks = maxMisses - absent;
+    
     const remaining = Math.max(0, expectedTotal - total);
     const totalPresentsNeededForGoal = Math.ceil(expectedTotal * t);
     const needed = Math.max(0, totalPresentsNeededForGoal - (present + deemed));
+    
     if (bunks >= 0) msg += MESSAGES.attendance.bunksLeft(bunks, bunks !== 1);
     else {
       if (needed > remaining) {
@@ -289,7 +308,7 @@ async function handleDeleteSubject(user, subjectName) {
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', subjectName.trim());
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(subjectName.trim());
   const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
-  if (valid.length === 0) return MESSAGES.subjects.wrongContext(subjectName.trim());
+  if (valid.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
   const { error } = await uc.from('subjects').update({ is_active: false }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.deleteError;
   return MESSAGES.subjects.deleteSuccess(valid[0].name);
@@ -379,7 +398,24 @@ async function handleCompleteTask(user, numberStr) {
 async function handleListTasks(user) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('tasks').select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
-  if (!raw || raw.length === 0) return MESSAGES.tasks.listCaughtUp;
+  
+  const buttons = [];
+  if (user.academics_enabled) {
+    buttons.push({ type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Attendance' } });
+    buttons.push({ type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } });
+  } else {
+    buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
+  }
+
+  if (!raw || raw.length === 0) {
+    return {
+      type: 'button',
+      body: { text: MESSAGES.tasks.listCaughtUp },
+      action: {
+        buttons: buttons.slice(0, 3)
+      }
+    };
+  }
   const tasks = raw.filter((t)=>{
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
     if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
@@ -390,13 +426,29 @@ async function handleListTasks(user) {
     }
     return true;
   });
-  if (tasks.length === 0) return MESSAGES.tasks.empty;
+  if (tasks.length === 0) {
+    return {
+      type: 'button',
+      body: { text: MESSAGES.tasks.empty },
+      action: {
+        buttons: buttons.slice(0, 3)
+      }
+    };
+  }
   let msg = MESSAGES.tasks.listHeader(tasks.length);
   tasks.forEach((t, i)=>{
     const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority] || '🟡';
     msg += `${i + 1}. ${p} ${t.title}${t.due_date ? MESSAGES.tasks.dueNote(new Date(t.due_date).toLocaleDateString('en-IN')) : ''}\n`;
   });
-  return msg + MESSAGES.tasks.listFooter(tasks.length, tasks.length !== 1);
+  
+  const text = msg + MESSAGES.tasks.listFooter(tasks.length, tasks.length !== 1);
+  return {
+    type: 'button',
+    body: { text },
+    action: {
+      buttons: buttons.slice(0, 3)
+    }
+  };
 }
 
 // --- TIMER HANDLERS ---
@@ -443,9 +495,28 @@ async function handleProfile(user: any, uc: any) {
 }
 
 function handleHelp(user: any) {
-  if (user.academics_enabled && user.personal_enabled) return MESSAGES.general.helpBoth;
-  if (user.personal_enabled) return MESSAGES.general.helpPersonal;
-  return MESSAGES.general.help;
+  const text = user.academics_enabled && user.personal_enabled
+    ? MESSAGES.general.helpBoth
+    : user.personal_enabled
+      ? MESSAGES.general.helpPersonal
+      : MESSAGES.general.help;
+
+  const buttons = [];
+  buttons.push({ type: 'reply', reply: { id: 'tasks', title: '📋 Show Tasks' } });
+  if (user.academics_enabled) {
+    buttons.push({ type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Attendance' } });
+    buttons.push({ type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } });
+  } else {
+    buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
+  }
+
+  return {
+    type: 'button',
+    body: { text },
+    action: {
+      buttons: buttons.slice(0, 3)
+    }
+  };
 }
 
 async function handleStats(user: any, uc: any) {
@@ -484,38 +555,148 @@ async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
   return MESSAGES.attendance.undoSuccess(s.name);
 }
 
-async function handleLog(user: any) {
-  const { data: subjects } = await supabaseAdmin.from('subjects').select('id, name').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic').order('name');
-  if (!subjects || subjects.length === 0) return "You don't have any active academic subjects to log attendance for.";
+async function handleVerifyCode(phone: string, code: string) {
+  if (!code) return "❌ Please specify the passcode. Example: `/verify 123456`";
+
+  const now = new Date().toISOString();
+  
+  // 1. Find profile matching code that hasn't expired
+  const { data: profile, error: findError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, display_name')
+    .eq('whatsapp_verification_code', code.trim())
+    .gt('whatsapp_verification_expires_at', now)
+    .maybeSingle();
+
+  if (findError || !profile) {
+    return "❌ Invalid or expired passcode. Please generate a new passcode on your dashboard settings page.";
+  }
+
+  // 2. Find if a temporary/placeholder profile exists for this phone number
+  const { data: placeholder } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('whatsapp_number', phone)
+    .neq('id', profile.id)
+    .maybeSingle();
+
+  if (placeholder) {
+    // Delete any dependent rows of the placeholder profile to avoid foreign key violations
+    await supabaseAdmin.from('study_timers').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('tasks').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('grades').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('attendance_logs').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('subjects').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('profiles').delete().eq('id', placeholder.id);
+  }
+
+  // 3. Clear the phone number from any other profiles to be safe
+  await supabaseAdmin
+    .from('profiles')
+    .update({ whatsapp_number: null })
+    .eq('whatsapp_number', phone)
+    .neq('id', profile.id);
+
+  // 4. Link the phone number to the target Google profile and start the 24h window
+  const { error: updateError } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      whatsapp_number: phone,
+      whatsapp_verification_code: null,
+      whatsapp_verification_expires_at: null,
+      last_user_message_at: now
+    })
+    .eq('id', profile.id);
+
+  if (updateError) {
+    console.error("Error linking WhatsApp:", updateError);
+    return "❌ Failed to link your WhatsApp number. Please try again.";
+  }
+
+  return `✅ Success! Your WhatsApp number has been linked to profile *${profile.display_name}*. You will now receive reminders and logs here!`;
+}
+
+async function handleRespawn(user: any) {
+  const RESPAWN_RESPONSES = [
+    "🔋 *Ryu Medha RESPAWNED!* I'm back and fully charged. Let's conquer those tasks! 🚀",
+    "⚡ *Connection Restored!* Did you miss me? Let's get back to work! 🎯",
+    "🌟 *Rising from the ashes!* Your academic guardian is back online. What are we studying today? 📚",
+    "🎮 *Respawn successful!* +100 Mana. Let's make today productive! 👾",
+    "🔥 *Aaaand we're back!* The 24-hour clock has reset. Let's crush some goals! 💪",
+    "🤖 *System reboot complete!* I've returned to keep you on track. ✨",
+    "🦖 *Rawr!* Like a dinosaur that didn't go extinct, I'm back! Let's get things done. 🦕"
+  ];
+  const greeting = RESPAWN_RESPONSES[Math.floor(Math.random() * RESPAWN_RESPONSES.length)];
+
+  // Fetch pending tasks
+  const uc = await getUserClient(user.whatsapp_number);
+  const { data: raw } = await uc.from('tasks')
+    .select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))')
+    .eq('profile_id', user.id)
+    .eq('is_completed', false)
+    .order('due_date', { ascending: true, nullsFirst: false });
+    
+  const tasks = raw?.filter((t: any) => {
+    if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
+    if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
+    if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
+    if (t.subjects?.type === 'academic') {
+      const semId = Array.isArray(t.subjects.source_course_id) ? t.subjects.source_course_id[0]?.semester_id : t.subjects.source_course_id?.semester_id;
+      return semId === user.current_semester_id;
+    }
+    return true;
+  }) || [];
+
+  let taskSnippet = "";
+  if (tasks.length > 0) {
+    taskSnippet = `\n\n📋 *Your Pending Tasks (${tasks.length}):*\n`;
+    tasks.slice(0, 3).forEach((t: any, i: number) => {
+      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority] || '🟡';
+      taskSnippet += `${i + 1}. ${p} ${t.title}\n`;
+    });
+    if (tasks.length > 3) {
+      taskSnippet += `...and ${tasks.length - 3} more.`;
+    }
+  } else {
+    taskSnippet = "\n\n🎉 You're completely caught up! No pending tasks.";
+  }
+
+  const buttons = [
+    { type: 'reply', reply: { id: 'tasks', title: '📋 Show All Tasks' } }
+  ];
+  if (user.academics_enabled) {
+    buttons.push({ type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Attendance' } });
+    buttons.push({ type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } });
+  } else {
+    buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
+  }
+
   return {
-    type: "list",
-    header: { type: "text", text: "Attendance Logger" },
-    body: { text: "Select a subject below to mark yourself as PRESENT for today." },
-    footer: { text: "Ryu Medha Guardian" },
+    type: 'button',
+    body: { text: `${greeting}${taskSnippet}` },
     action: {
-      button: "Select Subject",
-      sections: [{
-        title: "Your Subjects",
-        rows: subjects.slice(0, 10).map(s => ({ id: `wa_log_present_${s.id}`, title: s.name, description: "Tap to mark Present" }))
-      }]
+      buttons: buttons.slice(0, 3)
     }
   };
 }
 
-async function handleInteractiveLog(user: any, id: string) {
-  const subjectId = id.replace('wa_log_present_', '');
-  const { data: subject } = await supabaseAdmin.from('subjects').select('name').eq('id', subjectId).single();
-  if (!subject) return "Subject not found.";
-  return await logAttendance(user, subject.name, 'present');
-}
-
 // --- ROUTING ---
 export async function processMessage(phone: string, text: string, metadata: { isInteractive: boolean } = { isInteractive: false }) {
-  const user = await getOrCreateUser(phone);
   const lower = text.trim().toLowerCase();
+  if (lower.startsWith('verify ') || lower.startsWith('/verify ')) {
+    const code = text.replace(/^\/?verify\s+/i, '').trim();
+    return await handleVerifyCode(phone, code);
+  }
+
+  const user = await getOrCreateUser(phone);
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
   const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin, metadata };
+  
+  if (lower === 'ryuma respawn' || lower === '/ryuma respawn' || lower === 'respawn') {
+    return await handleRespawn(user);
+  }
+  
   if (lower === 'setup' || lower === 'reset') { await updateProfile(phone, { display_name: PLACEHOLDER_NAME }); await clearSession(phone); return startOnboarding(phone, deps); }
   if (session) {
     if (['cancel', 'stop'].includes(lower)) { await clearSession(phone); return `Onboarding cancelled. Type "setup" to restart!`; }
@@ -538,8 +719,6 @@ export async function processMessage(phone: string, text: string, metadata: { is
   else if (lower.startsWith('start ')) reply = await handleStartTimer(user, text.substring(6).trim());
   else if (lower === 'stop') reply = await handleStopTimer(user);
   else if (lower === 'stats' || lower === 'attendance') reply = await handleStats(user, uc);
-  else if (lower === 'log') reply = await handleLog(user);
-  else if (lower.startsWith('wa_log_present_')) reply = await handleInteractiveLog(user, lower);
   else if (lower.startsWith('attended ')) reply = await handleAttendanceBatch(user, text, 'present');
   else if (lower.startsWith('missed ')) reply = await handleAttendanceBatch(user, text, 'absent');
   else if (lower.startsWith('deemed ')) reply = await handleAttendanceBatch(user, text, 'deemed');
