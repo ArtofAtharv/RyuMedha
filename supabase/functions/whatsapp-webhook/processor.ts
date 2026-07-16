@@ -571,20 +571,21 @@ async function handleListTasks(user) {
       if (matched) {
         matchedLocalIds.add(matched.id);
         
-        const gCompleted = g.status === "completed";
+        const isCompleted = g.status === "completed";
         const lCompleted = matched.is_completed;
-        const isCompleted = gCompleted || lCompleted;
 
-        // Reconcile status mismatches on the fly
-        if (gCompleted && !lCompleted) {
+        // Reconcile status mismatches on the fly using Google Tasks as the authority
+        if (isCompleted && !lCompleted) {
           syncPromises.push(
             uc.from('tasks')
               .update({ is_completed: true, completed_at: g.completed || new Date().toISOString() })
               .eq('id', matched.id)
           );
-        } else if (lCompleted && !gCompleted) {
+        } else if (!isCompleted && lCompleted) {
           syncPromises.push(
-            updateGoogleTask(googleToken, g.id, { completed: true })
+            uc.from('tasks')
+              .update({ is_completed: false, completed_at: null })
+              .eq('id', matched.id)
           );
         }
 
