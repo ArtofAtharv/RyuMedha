@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 
 const BOT_LINK = "https://wa.me/message/P4QSZGK7MV2PL1"
+const BOT_URL = "https://wa.me/+91"
 
 interface ProfileData {
   id: string
@@ -232,7 +233,7 @@ export default function WhatsAppBotPage() {
 
                   <div className="text-center space-y-3 max-w-sm">
                     <p className="text-xs text-muted-foreground leading-relaxed">
-                      1. Copy the code above or click the button below to open a chat with our WhatsApp Bot.
+                      1. Copy the code above and click the button below to open a chat with our WhatsApp Bot.
                     </p>
                     <p className="text-xs text-muted-foreground leading-relaxed">
                       2. Paste and send the message: <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-foreground font-bold">/verify {profile.whatsapp_verification_code}</code>
