@@ -405,6 +405,8 @@ async function handleCompleteTask(user, numberStr) {
     targetTask = lastTasksList[idx];
   }
 
+  let successMsg = "";
+
   if (targetTask) {
     // A. Sync to Google Tasks if Google Task ID exists
     if (targetTask.googleId) {
@@ -441,56 +443,75 @@ async function handleCompleteTask(user, numberStr) {
       lastTasksList: updatedList
     });
 
-    return MESSAGES.tasks.doneSuccess(targetTask.title);
-  }
-
-  // 2. Fallback: query local database tasks directly (legacy flow)
-  const { data: raw } = await uc.from('tasks').select('id, title, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
-  const tasks = raw?.filter((t)=>{
-    if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
-    if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
-    if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
-    if (t.subjects?.type === 'academic') {
-      const semId = Array.isArray(t.subjects.source_course_id) ? t.subjects.source_course_id[0]?.semester_id : t.subjects.source_course_id?.semester_id;
-      return semId === user.current_semester_id;
-    }
-    return true;
-  }) || [];
-
-  if (idx < 0 || idx >= tasks.length) return MESSAGES.tasks.notFound(idx + 1, tasks.length);
-  
-  const selectedLocalTask = tasks[idx];
-  
-  // Try to find and complete on Google Tasks by matching title and due date
-  const googleToken = await getValidGoogleToken(user);
-  if (googleToken) {
-    try {
-      const googleTasks = await fetchGoogleTasks(googleToken);
-      const cleanLocalTitle = selectedLocalTask.title.replace("[Exam] ", "").trim().toLowerCase();
-      const localDatePart = selectedLocalTask.due_date ? selectedLocalTask.due_date.split("T")[0] : null;
-
-      const matchedGoogleTask = googleTasks.find((g: any) => {
-        const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
-        const gDatePart = g.due ? g.due.split("T")[0] : null;
-        if (cleanLocalTitle !== cleanGoogleTitle) return false;
-        if (!localDatePart && !gDatePart) return true;
-        if (localDatePart && gDatePart) {
-          return localDatePart === gDatePart;
-        }
-        return false;
-      });
-
-      if (matchedGoogleTask) {
-        await updateGoogleTask(googleToken, matchedGoogleTask.id, { completed: true });
-        console.log(`Successfully completed matched Google Task: ${matchedGoogleTask.id}`);
+    successMsg = MESSAGES.tasks.doneSuccess(targetTask.title);
+  } else {
+    // 2. Fallback: query local database tasks directly (legacy flow)
+    const { data: raw } = await uc.from('tasks').select('id, title, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
+    const tasks = raw?.filter((t)=>{
+      if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
+      if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
+      if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
+      if (t.subjects?.type === 'academic') {
+        const semId = Array.isArray(t.subjects.source_course_id) ? t.subjects.source_course_id[0]?.semester_id : t.subjects.source_course_id?.semester_id;
+        return semId === user.current_semester_id;
       }
-    } catch (gErr) {
-      console.error("Failed to complete matched Google task in fallback flow:", gErr);
+      return true;
+    }) || [];
+
+    if (idx < 0 || idx >= tasks.length) return MESSAGES.tasks.notFound(idx + 1, tasks.length);
+    
+    const selectedLocalTask = tasks[idx];
+    
+    // Try to find and complete on Google Tasks by matching title and due date
+    const googleToken = await getValidGoogleToken(user);
+    if (googleToken) {
+      try {
+        const googleTasks = await fetchGoogleTasks(googleToken);
+        const cleanLocalTitle = selectedLocalTask.title.replace("[Exam] ", "").trim().toLowerCase();
+        const localDatePart = selectedLocalTask.due_date ? selectedLocalTask.due_date.split("T")[0] : null;
+
+        const matchedGoogleTask = googleTasks.find((g: any) => {
+          const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
+          const gDatePart = g.due ? g.due.split("T")[0] : null;
+          if (cleanLocalTitle !== cleanGoogleTitle) return false;
+          if (!localDatePart && !gDatePart) return true;
+          if (localDatePart && gDatePart) {
+            return localDatePart === gDatePart;
+          }
+          return false;
+        });
+
+        if (matchedGoogleTask) {
+          await updateGoogleTask(googleToken, matchedGoogleTask.id, { completed: true });
+          console.log(`Successfully completed matched Google Task: ${matchedGoogleTask.id}`);
+        }
+      } catch (gErr) {
+        console.error("Failed to complete matched Google task in fallback flow:", gErr);
+      }
     }
+
+    await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', selectedLocalTask.id);
+    successMsg = MESSAGES.tasks.doneSuccess(selectedLocalTask.title);
   }
 
-  await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', selectedLocalTask.id);
-  return MESSAGES.tasks.doneSuccess(selectedLocalTask.title);
+  // 3. Automatically fetch the updated task list to send back to the user
+  try {
+    const listReply = await handleListTasks(user);
+    if (typeof listReply === 'string') {
+      return `${successMsg}\n\n${listReply}`;
+    } else if (listReply && listReply.body?.text) {
+      return {
+        ...listReply,
+        body: {
+          text: `${successMsg}\n\n${listReply.body.text}`
+        }
+      };
+    }
+  } catch (err) {
+    console.error("Failed to append updated task list after complete:", err);
+  }
+
+  return successMsg;
 }
 
 async function handleListTasks(user) {
@@ -620,13 +641,6 @@ async function handleListTasks(user) {
     };
   }
 
-  // 3. Store only incomplete tasks in session state so index complete works correctly
-  const session = await getSession(user.whatsapp_number);
-  await setSession(user.whatsapp_number, session?.step || 'idle', {
-    ...session?.data,
-    lastTasksList: incompleteTasks.map(t => ({ googleId: t.googleId, localId: t.localId, title: t.title, due: t.due }))
-  });
-
   // Get current date string (YYYY-MM-DD) in user's timezone
   const userTimezone = user.timezone || 'Asia/Kolkata';
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -658,6 +672,15 @@ async function handleListTasks(user) {
     } else {
       upcoming.push(t);
     }
+  });
+
+  const orderedIncomplete = [...overdue, ...todayTasks, ...upcoming];
+
+  // 3. Store only incomplete tasks in session state in the display order
+  const session = await getSession(user.whatsapp_number);
+  await setSession(user.whatsapp_number, session?.step || 'idle', {
+    ...session?.data,
+    lastTasksList: orderedIncomplete.map(t => ({ googleId: t.googleId, localId: t.localId, title: t.title, due: t.due }))
   });
 
   let msg = `📋 *Your Tasks* 📋\n`;
