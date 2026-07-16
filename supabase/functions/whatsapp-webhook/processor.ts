@@ -2,6 +2,7 @@ import { MESSAGES, WEBSITE_URL } from './messages.ts';
 import { getUserClient, supabaseAdmin, getSession, setSession, clearSession } from './db.ts';
 import { parseIntent } from './nlp.ts';
 import { startOnboarding, handleOnboarding } from './setup.ts';
+import { getValidGoogleToken, fetchGoogleTasks, createGoogleTask, updateGoogleTask } from './google-tasks.ts';
 
 const PLACEHOLDER_NAME = '';
 
@@ -356,6 +357,7 @@ async function handleUndoAll(user) {
 }
 
 // --- TASK HANDLERS ---
+// --- TASK HANDLERS ---
 async function handleAddTask(user, rawText) {
   if (!rawText) return MESSAGES.tasks.addPrompt;
   let title = rawText.trim(), dueDate = null, subjectId = null;
@@ -370,8 +372,22 @@ async function handleAddTask(user, rawText) {
   if (subs) {
     for (const s of subs){ if (title.toLowerCase().includes(s.name.toLowerCase())) { subjectId = s.id; break; } }
   }
+  
+  // 1. Insert local task
   const { data: task, error } = await uc.from('tasks').insert([{ profile_id: user.id, subject_id: subjectId, title, is_completed: false, priority: 'medium', due_date: dueDate }]).select().single();
   if (error) return MESSAGES.tasks.addError;
+
+  // 2. Sync to Google Tasks if connected
+  const googleToken = await getValidGoogleToken(user);
+  if (googleToken) {
+    try {
+      await createGoogleTask(googleToken, task.title, "", task.due_date || undefined);
+      console.log(`Successfully synced new task to Google Tasks for user: ${user.id}`);
+    } catch (gErr) {
+      console.error("Failed to sync new task to Google Tasks:", gErr);
+    }
+  }
+
   const dueStr = task.due_date ? MESSAGES.tasks.dueNote(new Date(task.due_date).toLocaleDateString('en-IN')) : '';
   return MESSAGES.tasks.addSuccess(task.title, dueStr);
 }
@@ -379,7 +395,57 @@ async function handleAddTask(user, rawText) {
 async function handleCompleteTask(user, numberStr) {
   const idx = parseInt(numberStr, 10) - 1;
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('tasks').select('id, title, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
+  
+  // 1. Try to fetch from the stored tasks list in the session
+  const session = await getSession(user.whatsapp_number);
+  const lastTasksList = session?.data?.lastTasksList || [];
+  
+  let targetTask = null;
+  if (idx >= 0 && idx < lastTasksList.length) {
+    targetTask = lastTasksList[idx];
+  }
+
+  if (targetTask) {
+    // A. Sync to Google Tasks if Google Task ID exists
+    if (targetTask.googleId) {
+      const googleToken = await getValidGoogleToken(user);
+      if (googleToken) {
+        try {
+          await updateGoogleTask(googleToken, targetTask.googleId, { completed: true });
+          console.log(`Successfully completed task on Google Tasks: ${targetTask.googleId}`);
+        } catch (gErr) {
+          console.error("Failed to complete task on Google Tasks:", gErr);
+        }
+      }
+    }
+
+    // B. Sync local database
+    if (targetTask.localId) {
+      await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', targetTask.localId);
+    } else {
+      // If it was google-only, insert it locally as completed so we have a record
+      await uc.from('tasks').insert([{
+        profile_id: user.id,
+        title: targetTask.title,
+        is_completed: true,
+        completed_at: new Date().toISOString(),
+        due_date: targetTask.due || null,
+        priority: 'medium'
+      }]);
+    }
+
+    // Update session state
+    const updatedList = lastTasksList.filter((_: any, i: number) => i !== idx);
+    await setSession(user.whatsapp_number, session?.step || 'idle', {
+      ...session?.data,
+      lastTasksList: updatedList
+    });
+
+    return MESSAGES.tasks.doneSuccess(targetTask.title);
+  }
+
+  // 2. Fallback: query local database tasks directly (legacy flow)
+  const { data: raw } = await uc.from('tasks').select('id, title, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
   const tasks = raw?.filter((t)=>{
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
     if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
@@ -390,14 +456,52 @@ async function handleCompleteTask(user, numberStr) {
     }
     return true;
   }) || [];
+
   if (idx < 0 || idx >= tasks.length) return MESSAGES.tasks.notFound(idx + 1, tasks.length);
-  await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', tasks[idx].id);
-  return MESSAGES.tasks.doneSuccess(tasks[idx].title);
+  
+  const selectedLocalTask = tasks[idx];
+  
+  // Try to find and complete on Google Tasks by matching title and due date
+  const googleToken = await getValidGoogleToken(user);
+  if (googleToken) {
+    try {
+      const googleTasks = await fetchGoogleTasks(googleToken);
+      const cleanLocalTitle = selectedLocalTask.title.replace("[Exam] ", "").trim().toLowerCase();
+      const localDatePart = selectedLocalTask.due_date ? selectedLocalTask.due_date.split("T")[0] : null;
+
+      const matchedGoogleTask = googleTasks.find((g: any) => {
+        const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
+        const gDatePart = g.due ? g.due.split("T")[0] : null;
+        if (cleanLocalTitle !== cleanGoogleTitle) return false;
+        if (!localDatePart && !gDatePart) return true;
+        if (localDatePart && gDatePart) {
+          return localDatePart === gDatePart;
+        }
+        return false;
+      });
+
+      if (matchedGoogleTask) {
+        await updateGoogleTask(googleToken, matchedGoogleTask.id, { completed: true });
+        console.log(`Successfully completed matched Google Task: ${matchedGoogleTask.id}`);
+      }
+    } catch (gErr) {
+      console.error("Failed to complete matched Google task in fallback flow:", gErr);
+    }
+  }
+
+  await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', selectedLocalTask.id);
+  return MESSAGES.tasks.doneSuccess(selectedLocalTask.title);
 }
 
 async function handleListTasks(user) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('tasks').select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
+  
+  // 1. Get local tasks
+  const { data: raw } = await uc.from('tasks')
+    .select('id, title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))')
+    .eq('profile_id', user.id)
+    .eq('is_completed', false)
+    .order('due_date', { ascending: true, nullsFirst: false });
   
   const buttons = [];
   if (user.academics_enabled) {
@@ -407,16 +511,7 @@ async function handleListTasks(user) {
     buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
   }
 
-  if (!raw || raw.length === 0) {
-    return {
-      type: 'button',
-      body: { text: MESSAGES.tasks.listCaughtUp },
-      action: {
-        buttons: buttons.slice(0, 3)
-      }
-    };
-  }
-  const tasks = raw.filter((t)=>{
+  const localTasks = (raw || []).filter((t) => {
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
     if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
     if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
@@ -426,22 +521,98 @@ async function handleListTasks(user) {
     }
     return true;
   });
-  if (tasks.length === 0) {
+
+  // 2. Fetch and merge Google Tasks if connected
+  let mergedTasks: { title: string; due?: string; priority?: string; source: 'google' | 'local' | 'both'; googleId?: string; localId?: string }[] = [];
+  const googleToken = await getValidGoogleToken(user);
+
+  if (googleToken) {
+    const googleTasks = await fetchGoogleTasks(googleToken);
+    const matchedLocalIds = new Set<string>();
+
+    googleTasks.forEach((g: any) => {
+      const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
+      const gDatePart = g.due ? g.due.split("T")[0] : null;
+
+      const matched = localTasks.find((t: any) => {
+        const cleanLocalTitle = t.title.replace("[Exam] ", "").trim().toLowerCase();
+        if (cleanLocalTitle !== cleanGoogleTitle) return false;
+        if (!t.due_date && !gDatePart) return true;
+        if (t.due_date && gDatePart) {
+          return t.due_date.split("T")[0] === gDatePart;
+        }
+        return false;
+      });
+
+      if (matched) {
+        matchedLocalIds.add(matched.id);
+        mergedTasks.push({
+          title: g.title || matched.title,
+          due: matched.due_date || g.due,
+          priority: matched.priority || 'medium',
+          source: 'both',
+          googleId: g.id,
+          localId: matched.id
+        });
+      } else {
+        mergedTasks.push({
+          title: g.title || "",
+          due: g.due,
+          priority: 'medium',
+          source: 'google',
+          googleId: g.id
+        });
+      }
+    });
+
+    // Append unmatched local tasks
+    localTasks.forEach((t: any) => {
+      if (!matchedLocalIds.has(t.id)) {
+        mergedTasks.push({
+          title: t.title,
+          due: t.due_date,
+          priority: t.priority || 'medium',
+          source: 'local',
+          localId: t.id
+        });
+      }
+    });
+  } else {
+    // If not connected to Google, just use local tasks
+    mergedTasks = localTasks.map((t: any) => ({
+      title: t.title,
+      due: t.due_date,
+      priority: t.priority || 'medium',
+      source: 'local',
+      localId: t.id
+    }));
+  }
+
+  if (mergedTasks.length === 0) {
     return {
       type: 'button',
-      body: { text: MESSAGES.tasks.empty },
+      body: { text: MESSAGES.tasks.listCaughtUp },
       action: {
         buttons: buttons.slice(0, 3)
       }
     };
   }
-  let msg = MESSAGES.tasks.listHeader(tasks.length);
-  tasks.forEach((t, i)=>{
-    const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority] || '🟡';
-    msg += `${i + 1}. ${p} ${t.title}${t.due_date ? MESSAGES.tasks.dueNote(new Date(t.due_date).toLocaleDateString('en-IN')) : ''}\n`;
+
+  // 3. Store the current list in session state so we can complete tasks by index
+  const session = await getSession(user.whatsapp_number);
+  await setSession(user.whatsapp_number, session?.step || 'idle', {
+    ...session?.data,
+    lastTasksList: mergedTasks.map(t => ({ googleId: t.googleId, localId: t.localId, title: t.title, due: t.due }))
   });
-  
-  const text = msg + MESSAGES.tasks.listFooter(tasks.length, tasks.length !== 1);
+
+  let msg = MESSAGES.tasks.listHeader(mergedTasks.length);
+  mergedTasks.forEach((t, i) => {
+    const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+    const sourceIcon = t.source === 'google' ? ' (G)' : t.source === 'local' ? ' (L)' : '';
+    msg += `${i + 1}. ${p} ${t.title}${sourceIcon}${t.due ? MESSAGES.tasks.dueNote(new Date(t.due).toLocaleDateString('en-IN')) : ''}\n`;
+  });
+
+  const text = msg + MESSAGES.tasks.listFooter(mergedTasks.length, mergedTasks.length !== 1);
   return {
     type: 'button',
     body: { text },
@@ -710,7 +881,7 @@ export async function processMessage(phone: string, text: string, metadata: { is
   }
   
   if (lower === 'setup' || lower === 'reset') { await updateProfile(phone, { display_name: PLACEHOLDER_NAME }); await clearSession(phone); return startOnboarding(phone, deps); }
-  if (session) {
+  if (session && session.step !== 'idle') {
     if (['cancel', 'stop'].includes(lower)) { await clearSession(phone); return `Onboarding cancelled. Type "setup" to restart!`; }
     const reply = await handleOnboarding(user, session, text.trim(), deps);
     if (reply) return reply;
