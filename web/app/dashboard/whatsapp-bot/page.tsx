@@ -15,7 +15,7 @@ import { toast } from "sonner"
 import Link from "next/link"
 
 const BOT_LINK = "https://wa.me/message/P4QSZGK7MV2PL1"
-const BOT_URL = "https://wa.me/+91"
+const BOT_URL = "https://wa.me/+918976156904"
 
 interface ProfileData {
   id: string
@@ -239,7 +239,7 @@ export default function WhatsAppBotPage() {
                       2. Paste and send the message: <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-foreground font-bold">/verify {profile.whatsapp_verification_code}</code>
                     </p>
                     <Button asChild className="w-full gap-2 rounded-xl mt-2 bg-[#25D366] hover:bg-[#20ba56] text-white">
-                      <a href={`${BOT_LINK}?text=%2Fverify%20${profile.whatsapp_verification_code}`} target="_blank" rel="noopener noreferrer">
+                      <a href={`${BOT_URL}?text=%2Fverify%20${profile.whatsapp_verification_code}`} target="_blank" rel="noopener noreferrer">
                         <MessageSquare className="w-4 h-4" /> Message Bot on WhatsApp
                       </a>
                     </Button>
