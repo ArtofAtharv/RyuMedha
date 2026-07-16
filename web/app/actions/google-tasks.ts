@@ -34,17 +34,70 @@ export interface TaskList {
 async function getAuthenticatedClient() {
   const cookieStore = await cookies()
   const accessToken = cookieStore.get("sb-access-token")?.value
+  const refreshToken = cookieStore.get("sb-refresh-token")?.value
+
   if (!accessToken) {
     throw new Error("Unauthorized")
   }
 
+  // Initialize a clean, non-persisted client to verify/refresh the session
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+    {
+      auth: {
+        persistSession: false,
+        detectSessionInUrl: false
+      }
+    }
   )
 
-  const { data: profile, error } = await supabase
+  // Set the session using cookies. If expired, it will automatically refresh using the refresh token.
+  const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken || ''
+  })
+
+  if (sessionError || !sessionData.session) {
+    console.error("getAuthenticatedClient: setSession failed", sessionError)
+    throw new Error("Unauthorized")
+  }
+
+  const activeSession = sessionData.session
+  const validAccessToken = activeSession.access_token
+
+  // If the session was refreshed, update cookies so the browser gets the new session
+  if (validAccessToken !== accessToken) {
+    try {
+      cookieStore.set('sb-access-token', validAccessToken, {
+        path: '/',
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: activeSession.expires_in,
+      })
+      if (activeSession.refresh_token) {
+        cookieStore.set('sb-refresh-token', activeSession.refresh_token, {
+          path: '/',
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 60 * 60 * 24 * 30,
+        })
+      }
+    } catch (cookieErr) {
+      console.warn("Failed to set refreshed cookies in Server Action:", cookieErr)
+    }
+  }
+
+  // Create an authenticated client to fetch/update profile
+  const authSupabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { headers: { Authorization: `Bearer ${validAccessToken}` } } }
+  )
+
+  const { data: profile, error } = await authSupabase
     .from('profiles')
     .select('id, google_access_token, google_refresh_token, google_token_expiry')
     .single()
@@ -64,7 +117,7 @@ async function getAuthenticatedClient() {
     expiry_date: profile.google_token_expiry ? Number(profile.google_token_expiry) * 1000 : undefined
   })
 
-  // Proactively refresh the token if it is expired or close to expiring (within 5 minutes)
+  // Proactively refresh the Google token if it is expired or close to expiring (within 5 minutes)
   const now = Math.floor(Date.now() / 1000)
   const expiry = profile.google_token_expiry ? Number(profile.google_token_expiry) : 0
   if ((expiry <= now + 300) && profile.google_refresh_token) {
@@ -78,7 +131,7 @@ async function getAuthenticatedClient() {
           updates.google_token_expiry = Math.floor(credentials.expiry_date / 1000)
         }
         
-        await supabase
+        await authSupabase
           .from('profiles')
           .update(updates)
           .eq('id', profile.id)
@@ -100,7 +153,7 @@ async function getAuthenticatedClient() {
       }
       
       try {
-        await supabase
+        await authSupabase
           .from('profiles')
           .update(updates)
           .eq('id', profile.id)
@@ -110,7 +163,7 @@ async function getAuthenticatedClient() {
     }
   })
 
-  return { oauth2Client, profileId: profile.id, supabase }
+  return { oauth2Client, profileId: profile.id, supabase: authSupabase }
 }
 
 async function findCalendarEvent(auth: any, title: string, dueStr: string | null | undefined): Promise<string | null> {
