@@ -496,11 +496,13 @@ async function handleCompleteTask(user, numberStr) {
 async function handleListTasks(user) {
   const uc = await getUserClient(user.whatsapp_number);
   
-  // 1. Get local tasks
+  const threeDaysAgoStr = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  
+  // 1. Get local tasks (both incomplete and recently completed)
   const { data: raw } = await uc.from('tasks')
-    .select('id, title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))')
+    .select('id, title, priority, due_date, is_completed, completed_at, subject_id, subjects(type, source_course_id(semester_id))')
     .eq('profile_id', user.id)
-    .eq('is_completed', false)
+    .or(`is_completed.eq.false,completed_at.gt.${threeDaysAgoStr}`)
     .order('due_date', { ascending: true, nullsFirst: false });
   
   const buttons = [];
@@ -523,7 +525,7 @@ async function handleListTasks(user) {
   });
 
   // 2. Fetch and merge Google Tasks if connected
-  let mergedTasks: { title: string; due?: string; priority?: string; source: 'google' | 'local' | 'both'; googleId?: string; localId?: string }[] = [];
+  let mergedTasks: { title: string; due?: string; priority?: string; source: 'google' | 'local' | 'both'; googleId?: string; localId?: string; completed: boolean; completedAt?: string }[] = [];
   const googleToken = await getValidGoogleToken(user);
 
   if (googleToken) {
@@ -552,7 +554,9 @@ async function handleListTasks(user) {
           priority: matched.priority || 'medium',
           source: 'both',
           googleId: g.id,
-          localId: matched.id
+          localId: matched.id,
+          completed: g.status === "completed" || matched.is_completed,
+          completedAt: g.completed || matched.completed_at
         });
       } else {
         mergedTasks.push({
@@ -560,7 +564,9 @@ async function handleListTasks(user) {
           due: g.due,
           priority: 'medium',
           source: 'google',
-          googleId: g.id
+          googleId: g.id,
+          completed: g.status === "completed",
+          completedAt: g.completed
         });
       }
     });
@@ -573,7 +579,9 @@ async function handleListTasks(user) {
           due: t.due_date,
           priority: t.priority || 'medium',
           source: 'local',
-          localId: t.id
+          localId: t.id,
+          completed: t.is_completed,
+          completedAt: t.completed_at
         });
       }
     });
@@ -584,11 +592,25 @@ async function handleListTasks(user) {
       due: t.due_date,
       priority: t.priority || 'medium',
       source: 'local',
-      localId: t.id
+      localId: t.id,
+      completed: t.is_completed,
+      completedAt: t.completed_at
     }));
   }
 
-  if (mergedTasks.length === 0) {
+  const incompleteTasks = mergedTasks.filter(t => !t.completed);
+  const completedTasks = mergedTasks.filter(t => t.completed);
+
+  // Take up to last 5 completed tasks
+  const activeCompleted = completedTasks
+    .sort((a, b) => {
+      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, 5);
+
+  if (incompleteTasks.length === 0 && activeCompleted.length === 0) {
     return {
       type: 'button',
       body: { text: MESSAGES.tasks.listCaughtUp },
@@ -598,21 +620,84 @@ async function handleListTasks(user) {
     };
   }
 
-  // 3. Store the current list in session state so we can complete tasks by index
+  // 3. Store only incomplete tasks in session state so index complete works correctly
   const session = await getSession(user.whatsapp_number);
   await setSession(user.whatsapp_number, session?.step || 'idle', {
     ...session?.data,
-    lastTasksList: mergedTasks.map(t => ({ googleId: t.googleId, localId: t.localId, title: t.title, due: t.due }))
+    lastTasksList: incompleteTasks.map(t => ({ googleId: t.googleId, localId: t.localId, title: t.title, due: t.due }))
   });
 
-  let msg = MESSAGES.tasks.listHeader(mergedTasks.length);
-  mergedTasks.forEach((t, i) => {
-    const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
-    const sourceIcon = t.source === 'google' ? ' (G)' : t.source === 'local' ? ' (L)' : '';
-    msg += `${i + 1}. ${p} ${t.title}${sourceIcon}${t.due ? MESSAGES.tasks.dueNote(new Date(t.due).toLocaleDateString('en-IN')) : ''}\n`;
+  // Get current date string (YYYY-MM-DD) in user's timezone
+  const userTimezone = user.timezone || 'Asia/Kolkata';
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: userTimezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(new Date());
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+  const todayStr = `${year}-${month}-${day}`;
+
+  const overdue: typeof mergedTasks = [];
+  const todayTasks: typeof mergedTasks = [];
+  const upcoming: typeof mergedTasks = [];
+
+  incompleteTasks.forEach(t => {
+    if (t.due) {
+      const datePart = t.due.split("T")[0];
+      if (datePart < todayStr) {
+        overdue.push(t);
+      } else if (datePart === todayStr) {
+        todayTasks.push(t);
+      } else {
+        upcoming.push(t);
+      }
+    } else {
+      upcoming.push(t);
+    }
   });
 
-  const text = msg + MESSAGES.tasks.listFooter(mergedTasks.length, mergedTasks.length !== 1);
+  let msg = `📋 *Your Tasks* 📋\n`;
+  let itemIndex = 1;
+
+  if (overdue.length > 0) {
+    msg += `\n🚨 *Overdue:*\n`;
+    overdue.forEach(t => {
+      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+      msg += `${itemIndex}. ${p} ${t.title}${t.due ? ` (due ${new Date(t.due).toLocaleDateString('en-IN')})` : ''}\n`;
+      itemIndex++;
+    });
+  }
+
+  if (todayTasks.length > 0) {
+    msg += `\n📅 *Today:*\n`;
+    todayTasks.forEach(t => {
+      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+      msg += `${itemIndex}. ${p} ${t.title}\n`;
+      itemIndex++;
+    });
+  }
+
+  if (upcoming.length > 0) {
+    msg += `\n🗓️ *Upcoming:*\n`;
+    upcoming.forEach(t => {
+      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+      msg += `${itemIndex}. ${p} ${t.title}${t.due ? ` (due ${new Date(t.due).toLocaleDateString('en-IN')})` : ''}\n`;
+      itemIndex++;
+    });
+  }
+
+  if (activeCompleted.length > 0) {
+    msg += `\n✅ *Completed (Recent):*\n`;
+    activeCompleted.forEach(t => {
+      msg += `- ~${t.title}~\n`;
+    });
+  }
+
+  const text = msg + MESSAGES.tasks.listFooter(incompleteTasks.length, incompleteTasks.length !== 1);
   return {
     type: 'button',
     body: { text },

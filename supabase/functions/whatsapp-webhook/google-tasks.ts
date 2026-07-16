@@ -70,7 +70,7 @@ export async function getValidGoogleToken(profile: any): Promise<string | null> 
  */
 export async function fetchGoogleTasks(accessToken: string, listId = "@default"): Promise<any[]> {
   try {
-    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=false&showHidden=false&maxResults=100`, {
+    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true&maxResults=100`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
