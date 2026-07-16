@@ -65,6 +65,12 @@ export default function Navigation() {
 
   const isDashboard = pathname?.startsWith("/dashboard")
 
+  // Only show the track toggle on pages where it actually changes what's displayed
+  const trackToggleRoutes = ["/dashboard", "/dashboard/subjects"]
+  const showTrackToggle = trackToggleRoutes.some(route =>
+    route === "/dashboard" ? pathname === "/dashboard" : pathname?.startsWith(route)
+  )
+
   return (
     <>
       <nav className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -85,8 +91,8 @@ export default function Navigation() {
 
           {/* Right Action Bar */}
           <div className="flex items-center gap-3">
-            {/* Track Switcher Dropdown */}
-            {isAuthenticated && isDashboard && profile && profile.academics_enabled && profile.personal_enabled && (
+            {/* Track Switcher Dropdown — only shown on overview and subjects */}
+            {isAuthenticated && showTrackToggle && profile && profile.academics_enabled && profile.personal_enabled && (
               <div className="relative">
                 <button
                   onClick={() => { haptic(); setIsTrackDropdownOpen(!isTrackDropdownOpen); }}

@@ -504,16 +504,6 @@ export default function TasksPage() {
   const filteredReminders = useMemo(() => {
     let list = reminders
 
-    // Filter based on activeTrack (and allow unlinked tasks on both tracks)
-    list = list.filter(r => {
-      if (!r.subjectId) return true // Show unlinked tasks in both views
-      const sub = subjects.find(s => s.id === r.subjectId)
-      if (!sub) return true // Fallback to show if subject not found
-      if (activeTrack === 'academics' && sub.type === 'academic') return true
-      if (activeTrack === 'personal' && sub.type === 'personal') return true
-      return false
-    })
-
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       list = list.filter(
@@ -523,7 +513,8 @@ export default function TasksPage() {
       )
     }
     return list
-  }, [reminders, searchQuery, activeTrack, subjects])
+  }, [reminders, searchQuery])
+
 
   // Sorting
   const groups = useMemo(() => {
