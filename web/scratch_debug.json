@@ -27,18 +27,6 @@
       "status": "needsAction"
     },
     {
-      "id": "SFYzeFkyNTloY3pNa3M2OQ",
-      "title": "Testing",
-      "due": "2026-07-14T00:00:00.000Z",
-      "status": "completed"
-    },
-    {
-      "id": "a0RQUV9rVEFsVnhzV0I0SQ",
-      "title": "RyuMedha development",
-      "due": "2026-07-14T00:00:00.000Z",
-      "status": "completed"
-    },
-    {
       "id": "UlRNd1JWNWI5SHg2VDVkdg",
       "title": "testing me",
       "due": "2026-07-15T00:00:00.000Z",
@@ -49,12 +37,6 @@
       "title": "Study",
       "due": "2026-07-16T00:00:00.000Z",
       "status": "needsAction"
-    },
-    {
-      "id": "VU9PVDRwM2RWUjJLRjRBcg",
-      "title": "Task ryumedha",
-      "due": "2026-07-14T00:00:00.000Z",
-      "status": "completed"
     }
   ],
   "matchedLocalIds": [

@@ -21,6 +21,7 @@ export default async function DashboardPage() {
     {
       global: {
         headers: { Authorization: `Bearer ${accessToken}` },
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
       },
     }
   )

@@ -24,6 +24,9 @@ export async function GET(request: Request) {
             setItem: (key, value) => {},
             removeItem: (key) => {}
           }
+        },
+        global: {
+          fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
         }
       }
     )
@@ -63,6 +66,7 @@ export async function GET(request: Request) {
             headers: {
               Authorization: `Bearer ${data.session.access_token}`,
             },
+            fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
           },
         }
       )

@@ -23,6 +23,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
       },
     }
   )

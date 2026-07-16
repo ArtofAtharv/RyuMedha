@@ -47,7 +47,13 @@ export function createAppClient(
 
   // If we are on the server, always create a new client to avoid cross-request contamination
   if (typeof window === 'undefined') {
-    return createClient(url, key, mergedOptions) as AppSupabaseClient
+    return createClient(url, key, {
+      ...mergedOptions,
+      global: {
+        ...mergedOptions.global,
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+      }
+    }) as AppSupabaseClient
   }
 
   // If a client already exists, reuse it in the browser

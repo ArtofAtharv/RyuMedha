@@ -94,7 +94,12 @@ async function getAuthenticatedClient() {
   const authSupabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${validAccessToken}` } } }
+    {
+      global: {
+        headers: { Authorization: `Bearer ${validAccessToken}` },
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+      }
+    }
   )
 
   const { data: profile, error } = await authSupabase
@@ -106,9 +111,16 @@ async function getAuthenticatedClient() {
     throw new Error("Google account not linked or authenticated")
   }
 
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+
+  if (!clientId || !clientSecret) {
+    console.warn("WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing in environment variables. Google token refresh will fail when tokens expire.")
+  }
+
   const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
+    clientId,
+    clientSecret
   )
 
   oauth2Client.setCredentials({
