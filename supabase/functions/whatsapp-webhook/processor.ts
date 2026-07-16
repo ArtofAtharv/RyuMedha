@@ -683,12 +683,24 @@ async function handleRespawn(user: any) {
 // --- ROUTING ---
 export async function processMessage(phone: string, text: string, metadata: { isInteractive: boolean } = { isInteractive: false }) {
   const lower = text.trim().toLowerCase();
+  
+  // 1. Allow verification command regardless of registration status
   if (lower.startsWith('verify ') || lower.startsWith('/verify ')) {
     const code = text.replace(/^\/?verify\s+/i, '').trim();
     return await handleVerifyCode(phone, code);
   }
 
-  const user = await getOrCreateUser(phone);
+  // 2. Check if user profile exists with this WhatsApp number
+  const { data: user } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('whatsapp_number', phone)
+    .maybeSingle();
+
+  if (!user) {
+    return `👋 Welcome to *Ryu Medha*!\n\nIt looks like your WhatsApp number is not connected to any account yet. Please connect your WhatsApp first on the website to start using the bot!\n\nLink: ${WEBSITE_URL}/dashboard/whatsapp-bot`;
+  }
+
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
   const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin, metadata };
