@@ -38,6 +38,7 @@ export function createAppClient(
     ...options,
     auth: {
       flowType: 'pkce' as const,
+      autoRefreshToken: false,
       persistSession: true,
       detectSessionInUrl: false,
       storage: cookieStorage,

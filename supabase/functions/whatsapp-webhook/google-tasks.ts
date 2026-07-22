@@ -68,17 +68,23 @@ export async function getValidGoogleToken(profile: any): Promise<string | null> 
 /**
  * Fetches active (needsAction) Google Tasks from the user's default task list.
  */
-export async function fetchGoogleTasks(accessToken: string, listId = "@default"): Promise<any[]> {
+export async function fetchGoogleTasks(accessToken: string, listId = "@default", profile?: any): Promise<any[]> {
   try {
     const cb = Date.now();
-    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true&maxResults=100&_cb=${cb}`, {
+    const doFetch = (token: string) => fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks?showCompleted=true&showHidden=true&maxResults=100&_cb=${cb}`, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
         'Expires': '0'
       },
     });
+
+    let res = await doFetch(accessToken);
+    if (res.status === 401 && profile) {
+      const refreshed = await getValidGoogleToken({ ...profile, google_token_expiry: 0 }); // force refresh regardless of stored value
+      if (refreshed) res = await doFetch(refreshed);
+    }
 
     if (!res.ok) {
       console.error("Google Tasks fetch error:", await res.text());
@@ -96,7 +102,7 @@ export async function fetchGoogleTasks(accessToken: string, listId = "@default")
 /**
  * Creates a new task in the user's default Google Tasks list.
  */
-export async function createGoogleTask(accessToken: string, title: string, notes?: string, due?: string, listId = "@default") {
+export async function createGoogleTask(accessToken: string, title: string, notes?: string, due?: string, listId = "@default", profile?: any) {
   try {
     const body: any = {
       title,
@@ -107,14 +113,20 @@ export async function createGoogleTask(accessToken: string, title: string, notes
       body.due = due.split("T")[0] + "T00:00:00.000Z";
     }
 
-    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks`, {
+    const doPost = (token: string) => fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
+
+    let res = await doPost(accessToken);
+    if (res.status === 401 && profile) {
+      const refreshed = await getValidGoogleToken({ ...profile, google_token_expiry: 0 });
+      if (refreshed) res = await doPost(refreshed);
+    }
 
     if (!res.ok) {
       console.error("Failed to create Google task:", await res.text());
@@ -131,14 +143,27 @@ export async function createGoogleTask(accessToken: string, title: string, notes
 /**
  * Updates an existing Google task's completion status or details.
  */
-export async function updateGoogleTask(accessToken: string, taskId: string, data: { title?: string; notes?: string; due?: string; completed?: boolean }, listId = "@default") {
+export async function updateGoogleTask(accessToken: string, taskId: string, data: { title?: string; notes?: string; due?: string; completed?: boolean }, listId = "@default", profile?: any) {
   try {
-    // Fetch the task first to retrieve/preserve other required properties
-    const getRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`, {
+    let currentToken = accessToken;
+    let getRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`, {
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${currentToken}`,
       },
     });
+
+    if (getRes.status === 401 && profile) {
+      const refreshed = await getValidGoogleToken({ ...profile, google_token_expiry: 0 });
+      if (refreshed) {
+        currentToken = refreshed;
+        getRes = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`, {
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        });
+      }
+    }
+
     if (!getRes.ok) {
       console.error(`Failed to fetch current Google task ${taskId} for update:`, await getRes.text());
       return null;
@@ -156,14 +181,28 @@ export async function updateGoogleTask(accessToken: string, taskId: string, data
       }),
     };
 
-    const res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`, {
+    let res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`, {
       method: 'PUT',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${currentToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
     });
+
+    if (res.status === 401 && profile) {
+      const refreshed = await getValidGoogleToken({ ...profile, google_token_expiry: 0 });
+      if (refreshed) {
+        res = await fetch(`https://tasks.googleapis.com/tasks/v1/lists/${listId}/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${refreshed}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        });
+      }
+    }
 
     if (!res.ok) {
       console.error("Failed to update Google task:", await res.text());

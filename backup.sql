@@ -197,6 +197,8 @@ CREATE TABLE tasks (
     is_exam BOOLEAN DEFAULT false,
     is_completed BOOLEAN DEFAULT false,
     completed_at TIMESTAMPTZ,
+    google_task_id TEXT,
+    google_tasklist_id TEXT DEFAULT '@default',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -266,6 +268,7 @@ CREATE INDEX idx_profiles_whatsapp ON profiles(whatsapp_number);
 CREATE INDEX idx_subjects_profile_active ON subjects(profile_id, is_active);
 CREATE INDEX idx_attendance_date ON attendance_logs(profile_id, lecture_date);
 CREATE INDEX idx_tasks_pending ON tasks(profile_id, is_completed, due_date) WHERE NOT is_completed;
+CREATE UNIQUE INDEX tasks_google_task_id_idx ON tasks(google_task_id) WHERE google_task_id IS NOT NULL;
 CREATE INDEX idx_timers_active ON study_timers(profile_id, ended_at) WHERE ended_at IS NULL;
 CREATE INDEX idx_task_reminders_polling ON task_reminders(scheduled_for) WHERE (whatsapp_sent = false OR push_sent = false);
 

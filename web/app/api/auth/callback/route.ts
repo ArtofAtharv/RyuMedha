@@ -89,9 +89,16 @@ export async function GET(request: Request) {
         updates.personal_enabled = null
       }
 
-      if (providerToken) updates.google_access_token = providerToken
+      if (providerToken) {
+        updates.google_access_token = providerToken
+        const info = await fetch(`https://oauth2.googleapis.com/tokeninfo?access_token=${providerToken}`)
+          .then(r => r.json())
+          .catch(() => null)
+        updates.google_token_expiry = info?.expires_in
+          ? Math.floor(Date.now() / 1000) + Number(info.expires_in)
+          : Math.floor(Date.now() / 1000) + 3500
+      }
       if (providerRefreshToken) updates.google_refresh_token = providerRefreshToken
-      if (expiresAt) updates.google_token_expiry = expiresAt
 
       await authenticatedSupabase
         .from('profiles')

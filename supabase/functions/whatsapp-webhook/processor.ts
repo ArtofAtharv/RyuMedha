@@ -372,20 +372,36 @@ async function handleAddTask(user, rawText) {
   if (subs) {
     for (const s of subs){ if (title.toLowerCase().includes(s.name.toLowerCase())) { subjectId = s.id; break; } }
   }
-  
-  // 1. Insert local task
-  const { data: task, error } = await uc.from('tasks').insert([{ profile_id: user.id, subject_id: subjectId, title, is_completed: false, priority: 'medium', due_date: dueDate }]).select().single();
-  if (error) return MESSAGES.tasks.addError;
 
-  // 2. Sync to Google Tasks if connected
+  let googleTaskId = null;
   const googleToken = await getValidGoogleToken(user);
   if (googleToken) {
     try {
-      await createGoogleTask(googleToken, task.title, "", task.due_date || undefined);
-      console.log(`Successfully synced new task to Google Tasks for user: ${user.id}`);
+      const gRes = await createGoogleTask(googleToken, title, "", dueDate || undefined, "@default", user);
+      if (gRes?.id) {
+        googleTaskId = gRes.id;
+        console.log(`Successfully created task on Google Tasks: ${googleTaskId}`);
+      }
     } catch (gErr) {
-      console.error("Failed to sync new task to Google Tasks:", gErr);
+      console.error("Failed to create task on Google Tasks:", gErr);
     }
+  }
+
+  // Insert local task with google_task_id link attached
+  const { data: task, error } = await uc.from('tasks').insert([{
+    profile_id: user.id,
+    subject_id: subjectId,
+    title,
+    is_completed: false,
+    priority: 'medium',
+    due_date: dueDate,
+    google_task_id: googleTaskId,
+    google_tasklist_id: '@default'
+  }]).select().single();
+
+  if (error) {
+    console.error("Failed to insert task locally:", error);
+    return MESSAGES.tasks.addError;
   }
 
   const dueStr = task.due_date ? MESSAGES.tasks.dueNote(new Date(task.due_date).toLocaleDateString('en-IN')) : '';
@@ -413,7 +429,7 @@ async function handleCompleteTask(user, numberStr) {
       const googleToken = await getValidGoogleToken(user);
       if (googleToken) {
         try {
-          await updateGoogleTask(googleToken, targetTask.googleId, { completed: true });
+          await updateGoogleTask(googleToken, targetTask.googleId, { completed: true }, "@default", user);
           console.log(`Successfully completed task on Google Tasks: ${targetTask.googleId}`);
         } catch (gErr) {
           console.error("Failed to complete task on Google Tasks:", gErr);
@@ -466,7 +482,7 @@ async function handleCompleteTask(user, numberStr) {
     const googleToken = await getValidGoogleToken(user);
     if (googleToken) {
       try {
-        const googleTasks = await fetchGoogleTasks(googleToken);
+        const googleTasks = await fetchGoogleTasks(googleToken, "@default", user);
         const cleanLocalTitle = selectedLocalTask.title.replace("[Exam] ", "").trim().toLowerCase();
         const localDatePart = selectedLocalTask.due_date ? selectedLocalTask.due_date.split("T")[0] : null;
 
@@ -482,7 +498,7 @@ async function handleCompleteTask(user, numberStr) {
         });
 
         if (matchedGoogleTask) {
-          await updateGoogleTask(googleToken, matchedGoogleTask.id, { completed: true });
+          await updateGoogleTask(googleToken, matchedGoogleTask.id, { completed: true }, "@default", user);
           console.log(`Successfully completed matched Google Task: ${matchedGoogleTask.id}`);
         }
       } catch (gErr) {
@@ -550,7 +566,7 @@ async function handleListTasks(user) {
   const googleToken = await getValidGoogleToken(user);
 
   if (googleToken) {
-    const googleTasks = await fetchGoogleTasks(googleToken);
+    const googleTasks = await fetchGoogleTasks(googleToken, "@default", user);
     const matchedLocalIds = new Set<string>();
     const syncPromises: Promise<any>[] = [];
 
