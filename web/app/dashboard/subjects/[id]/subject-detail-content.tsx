@@ -31,7 +31,7 @@ import {
   Pencil,
   Plus
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
@@ -72,7 +72,7 @@ interface ProfileData {
   target_attendance_pct: number
 }
 
-export function SubjectDetailContent({ subject, attendanceLogs, exams = [], profile, token }: Readonly<{ subject: SubjectData, attendanceLogs: AttendanceLog[], exams: any[], profile: ProfileData, token: string }>) {
+export function SubjectDetailContent({ subject, attendanceLogs, exams = [], profile, token }: Readonly<{ subject: SubjectData, attendanceLogs: AttendanceLog[], exams: Record<string, unknown>[], profile: ProfileData, token: string }>) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -83,10 +83,10 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editName, setEditName] = useState(subject.name)
   const [editInstructor, setEditInstructor] = useState(
-    (subject as any).source_course_id?.instructor_name || (subject as any).instructor_name || ""
+    (subject as any   ).source_course_id?.instructor_name || (subject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).instructor_name || ""
   )
   const [editExpectedLectures, setEditExpectedLectures] = useState(
-    (subject as any).source_course_id?.expected_total_lectures || (subject as any).expected_total_lectures || 0
+    (subject as any   ).source_course_id?.expected_total_lectures || (subject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).expected_total_lectures || 0
   )
   const [editColorHex, setEditColorHex] = useState(subject.color_hex || "#8b5cf6")
 
@@ -104,10 +104,10 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
     if (!editName.trim() || isUpdating) return
     setIsUpdating(true)
     try {
-      const isAcademic = (localSubject as any).type === 'academic'
+      const isAcademic = (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).type === 'academic'
       
-      if (isAcademic && (localSubject as any).source_course_id) {
-        const courseId = (localSubject as any).source_course_id.id || (localSubject as any).source_course_id
+      if (isAcademic && (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).source_course_id) {
+        const courseId = (localSubject as any   ).source_course_id.id || (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).source_course_id
         await supabase
           .from('academic_courses')
           .update({
@@ -117,7 +117,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
           .eq('id', courseId)
       }
 
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         name: editName.trim(),
         color_hex: editColorHex,
         expected_total_lectures: Number(editExpectedLectures),
@@ -137,7 +137,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
         name: editName.trim(),
         color_hex: editColorHex,
         source_course_id: isAcademic ? {
-          ...(localSubject as any).source_course_id,
+          ...(localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).source_course_id,
           instructor_name: editInstructor,
           expected_total_lectures: Number(editExpectedLectures)
         } : undefined,
@@ -146,8 +146,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
       })
       toast.success("Subject details updated")
       setIsEditModalOpen(false)
-    } catch (e: any) {
-      toast.error(e.message || "Failed to update subject")
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Failed to update subject")
     } finally {
       setIsUpdating(false)
     }
@@ -202,10 +202,10 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
           .eq('profile_id', profile.id)
       }
 
-      const isAcademic = (localSubject as any).type === 'academic'
-      if (isAcademic && (localSubject as any).source_course_id) {
-        const courseId = (localSubject as any).source_course_id.id || (localSubject as any).source_course_id
-        const existingDates = (localSubject as any).source_course_id.exam_dates || {}
+      const isAcademic = (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).type === 'academic'
+      if (isAcademic && (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).source_course_id) {
+        const courseId = (localSubject as any   ).source_course_id.id || (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).source_course_id
+        const existingDates = (localSubject as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ).source_course_id.exam_dates || {}
         const updatedDates = { ...existingDates, [examLabel.trim()]: dateStr }
         await supabase
           .from('academic_courses')
@@ -218,8 +218,8 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
       setIsAddExamModalOpen(false)
       setExamLabel("")
       setExamDate(null)
-    } catch (e: any) {
-      toast.error(e.message || "Failed to add exam")
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Failed to add exam")
     } finally {
       setIsUpdating(false)
     }
@@ -229,14 +229,13 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
     if (isUpdating) return
     setIsUpdating(true)
     try {
-      const exam = localExams.find(ex => ex.id === taskId)
-      if (exam) {
+      if (localExams.some(ex => ex.id === taskId)) {
         await deleteReminder(taskId)
       }
       setLocalExams(prev => prev.filter(ex => ex.id !== taskId))
       toast.success("Exam deleted successfully")
-    } catch (e: any) {
-      toast.error(e.message || "Failed to delete exam")
+    } catch (e: unknown) {
+      toast.error((e as Error).message || "Failed to delete exam")
     } finally {
       setIsUpdating(false)
     }
@@ -294,7 +293,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
       setLogs(prev => [...prev, newLog])
       toast.success(`Added ${status} lecture`)
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : String(e))
+      toast.error(e instanceof Error ? (e as Error).message : String(e))
     } finally {
       setIsUpdating(false)
     }
@@ -314,7 +313,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
       setLogs(prev => prev.filter(l => l.id !== id))
       toast.info("Lecture record removed")
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : String(e))
+      toast.error(e instanceof Error ? (e as Error).message : String(e))
     } finally {
       setIsUpdating(false)
     }
@@ -454,14 +453,14 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
               ) : (
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                   {localExams.map(ex => (
-                    <div key={ex.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
+                    <div key={ex.id as string} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
                       <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-sm truncate">{ex.title.replace("[Exam] ", "")}</span>
+                        <span className="font-bold text-sm truncate">{String(ex.title).replace("[Exam] ", "")}</span>
                         <span className="text-[10px] text-muted-foreground font-bold">
-                          {ex.due_date ? format(new Date(ex.due_date), 'MMM do, yyyy') : 'No date'}
+                          {ex.due_date ? format(new Date(ex.due_date as string), 'MMM do, yyyy') : 'No date'}
                         </span>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(ex.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-lg cursor-pointer shrink-0">
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(ex.id as string)} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-lg cursor-pointer shrink-0">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -554,8 +553,6 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
                     return (
                       <m.button
                         key={dateStr}
-                       
-                       
                         onClick={() => { haptic(); setSelectedDay(day); }}
                         className={`
                           relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
@@ -625,7 +622,6 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
                   return (
                     <m.button
                       key={dateStr}
-                     
                       onClick={() => { haptic(); setSelectedDay(day); }}
                       className={`
                         relative aspect-square rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border
@@ -685,7 +681,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
             <div className="space-y-4">
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
                 {dayLogs.length === 0 ? (
-                  <div className="text-center py-8 bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl rounded-2xl border-none bg-card/60 backdrop-blur-2xl shadow-sm border-border/50">
+                  <div className="text-center py-8 bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl border-border/50">
                     <p className="text-sm font-bold text-muted-foreground">No lectures logged yet.</p>
                   </div>
                 ) : (

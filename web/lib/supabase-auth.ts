@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { getAppClient } from '@/lib/supabase-client'
+import { type Session } from '@supabase/supabase-js'
 
 export function useSupabaseSession() {
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = getAppClient()
 
@@ -95,7 +96,7 @@ export function useSupabaseSession() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase.auth])
 
   return { session, loading, isAuthenticated: !!session }
 }

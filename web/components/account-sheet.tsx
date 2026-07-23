@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { useSupabaseSession } from "@/lib/supabase-auth"
 import { AnimatePresence, m } from "motion/react"
-import { Check, ChevronRight, Headphones, LogIn, LogOut, Moon, Phone, User, Palette, X } from "lucide-react"
+import { Check, ChevronRight, Headphones, LogIn, LogOut, Moon, User, Palette, X } from "lucide-react"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/haptic"
@@ -204,11 +204,11 @@ function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
 
 /* ─── shared sheet content ─────────────────────────────── */
 
-import { useProfile } from "@/components/dashboard/profile-context"
+// import { useProfile } from "@/components/dashboard/profile-context"
 
 function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; displayName?: string }>) {
   const { session, isAuthenticated } = useSupabaseSession()
-  const user = session?.user
+  const user = session?.user as any /* eslint-disable-line @typescript-eslint/no-explicit-any */
 
   const name = displayName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const initials = name
@@ -479,7 +479,7 @@ export function AccountSheet({ open, onClose }: Readonly<AccountSheetProps>) {
   const isMobile = useIsMobile(640)
   const [mounted, setMounted] = useState(false)
   const [displayName, setDisplayName] = useState("")
-  const { session, isAuthenticated } = useSupabaseSession()
+  const { session: _session, isAuthenticated } = useSupabaseSession()
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

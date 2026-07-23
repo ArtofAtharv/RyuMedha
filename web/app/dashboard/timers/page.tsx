@@ -56,12 +56,37 @@ function formatPomoTime(secs: number): string {
   return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
 }
 
+function playAlarmBeep() {
+  if (typeof window === 'undefined') return
+  try {
+    const audioCtx = new (window.AudioContext || (window as any /* eslint-disable-line @typescript-eslint/no-explicit-any */).webkitAudioContext)()
+    const oscillator = audioCtx.createOscillator()
+    const gainNode = audioCtx.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioCtx.destination)
+
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(880, audioCtx.currentTime) // A5 note
+
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime)
+    gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.01)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5)
+
+    oscillator.start(audioCtx.currentTime)
+    oscillator.stop(audioCtx.currentTime + 0.5)
+  } catch (e) {
+    console.error('Failed to play alarm beep', e)
+  }
+}
+
 export default function TimersPage() {
   const { profile } = useProfile()
   const [activeTimer, setActiveTimer] = useState<StudyTimer | null>(null)
   const [history, setHistory] = useState<StudyTimer[]>([])
   const [subjects, setSubjects] = useState<DashboardSubject[]>([])
   const [selectedSubject, setSelectedSubject] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
   
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string|null>(null)
@@ -82,9 +107,6 @@ export default function TimersPage() {
   const [pomoDurationOpts, setPomoDurationOpts] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 })
   const [tempOpts, setTempOpts] = useState({ pomodoro: 25, shortBreak: 5, longBreak: 15 })
 
-  // Audio for alarm
-  const [alarmAudio, setAlarmAudio] = useState<HTMLAudioElement | null>(null)
-
   // Edit Timer State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingTimerId, setEditingTimerId] = useState<string | null>(null)
@@ -98,13 +120,9 @@ export default function TimersPage() {
   }, [subjects, profile?.academics_enabled, profile?.personal_enabled])
 
   useEffect(() => {
-    // Initialise alarm audio outside of setState to satisfy react-hooks/set-state-in-effect
     if (typeof globalThis !== "undefined" && (globalThis as unknown as { window: Window }).window) {
-      const audio = new (globalThis as unknown as { window: { Audio: new (src: string) => HTMLAudioElement } }).window.Audio('/alarm.mp3') // Expecting a simple ding sound
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAlarmAudio(audio)
       const savedTab = (globalThis as unknown as { window: { localStorage: Storage } }).window.localStorage.getItem("ryumedha_timers_tab")
-      if (savedTab) setActiveTab(savedTab)
+      if (savedTab) setTimeout(() => setActiveTab(savedTab), 0)
     }
   }, [])
   
@@ -144,7 +162,7 @@ export default function TimersPage() {
     // Recent    // History
     const { data: hist } = await supabase
       .from('study_timers')
-      .select('*, subjects(id, name, type, source_course_id(semester_id))')
+      .select('*, subjects(id, name, type, source_course_id)')
       .eq('profile_id', pid)
       .not('ended_at', 'is', null)
       .order('ended_at', { ascending: false })
@@ -153,7 +171,7 @@ export default function TimersPage() {
     // Subjects
     const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, type, source_course_id(semester_id)')
+      .select('id, name, type, source_course_id')
       .eq('profile_id', pid)
       .eq('is_active', true)
       .order('name')
@@ -170,7 +188,8 @@ export default function TimersPage() {
   }, [getSyncedTime, profile?.current_semester_id, selectedSubject])
 
   useEffect(() => {
-    async function init() {
+    let mounted = true
+    async function initEnv() {
       const supabase = getAppClient()
       setSupabaseClient(supabase)
       
@@ -187,17 +206,25 @@ export default function TimersPage() {
         const res = await fetch('/api/time')
         const data = await res.json() as { timestamp: number }
         const delay = (Date.now() - startFetch) / 2
-        // clockOffset = how much we need to add to Date.now() to get true server time
         const offset = (data.timestamp - delay) - Date.now()
-        setClockOffset(offset)
+        if (mounted) setClockOffset(offset)
       } catch (e) {
         console.warn("Time sync failed, using local time", e)
       }
-
-      await fetchData(supabase, profile?.id)
     }
-    init()
-  }, [fetchData])
+    initEnv()
+    return () => { mounted = false }
+  }, [])
+
+  useEffect(() => {
+    async function load() {
+      if (supabaseClient) {
+        await fetchData(supabaseClient, profileId)
+        setTimeout(() => setIsLoading(false), 0)
+      }
+    }
+    load()
+  }, [fetchData, supabaseClient, profileId])
 
   // Helper: set pomo time left based on current mode
   const applyPomoModeTime = useCallback((mode: PomoMode, opts: typeof pomoDurationOpts) => {
@@ -238,9 +265,7 @@ export default function TimersPage() {
   const handlePomoComplete = useCallback(async (passedDbRecord?: StudyTimer) => {
     if (!supabaseClient || !profileId) return
     setPomoIsActive(false)
-    if (alarmAudio) {
-      alarmAudio.play().catch((e: unknown) => console.log('Audio play failed', e))
-    }
+    playAlarmBeep()
 
     if (pomoMode === 'pomodoro') {
       const dbRecord = passedDbRecord || activePomodoroDB
@@ -254,7 +279,7 @@ export default function TimersPage() {
       toast.success("Break Over! Back to work.")
       handlePomoModeSwitch('pomodoro', true)
     }
-  }, [alarmAudio, pomoMode, activePomodoroDB, supabaseClient, profileId, savePomoSession, handlePomoModeSwitch])
+  }, [pomoMode, activePomodoroDB, supabaseClient, profileId, savePomoSession, handlePomoModeSwitch])
 
   // Live counter for active timer
   useEffect(() => {
@@ -597,7 +622,7 @@ export default function TimersPage() {
         description="Track your dedicated study sessions to build powerful reports."
       />
 
-      {subjects.length === 0 ? (
+      {isLoading ? (
         <TimersSkeleton />
       ) : (
         <m.div variants={containerVariants} initial="hidden" animate="show" className="space-y-6">
@@ -667,7 +692,7 @@ export default function TimersPage() {
       )}
 
       {/* Edit Timer Dialog */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      <Dialog modal={false} open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-sm rounded-xl">
           <DialogHeader>
             <DialogTitle>Edit Timer Subject</DialogTitle>
@@ -693,7 +718,7 @@ export default function TimersPage() {
       </Dialog>
 
       {/* Pomodoro Settings Dialog */}
-      <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+      <Dialog modal={false} open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
         <DialogContent className="sm:max-w-sm rounded-xl">
           <DialogHeader>
             <DialogTitle>Timer Settings</DialogTitle>

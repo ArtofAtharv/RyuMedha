@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, FolderOpen } from 'lucide-react'
-import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-context'
+import { UserProfile } from '@/components/dashboard/profile-context'
 import { OverviewContent } from "./overview-content"
 
 export default async function DashboardPage() {

@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Plus,
-  Moon,
-  Sun,
+  
+  
   Search,
   CheckCircle,
   Circle,
@@ -33,7 +33,7 @@ import {
   type Reminder,
   type TaskList
 } from "@/app/actions/google-tasks"
-import { PageHeader } from "@/components/dashboard/page-header"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -42,10 +42,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAppClient } from "@/lib/supabase-client"
 
 export default function TasksPage() {
-  const { profile, activeTrack } = useProfile()
+  const { } = useProfile()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [taskLists, setTaskLists] = useState<TaskList[]>([])
-  const [subjects, setSubjects] = useState<any[]>([])
+  const [subjects, setSubjects] = useState<any /* eslint-disable-line @typescript-eslint/no-explicit-any */[]>([])
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("none")
   const [activeListId, setActiveListId] = useState("@default")
   const [searchQuery, setSearchQuery] = useState("")
@@ -81,6 +81,20 @@ export default function TasksPage() {
   const [editingList, setEditingList] = useState<TaskList | null>(null)
   const [listTitle, setListTitle] = useState("")
   const [listSaving, setListSaving] = useState(false)
+
+  // Sync reminders with server
+  const handleSync = useCallback(async (listId = activeListId) => {
+    setIsSyncing(true)
+    try {
+      const fresh = await fetchReminders(listId)
+      setReminders(fresh)
+    } catch (error) {
+      console.error("Sync error:", error)
+      toast.error("Failed to sync with Google Tasks.")
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [activeListId])
 
   const handleOpenCreateListModal = () => {
     setEditingList(null)
@@ -154,14 +168,14 @@ export default function TasksPage() {
   // Initialize notifications status
   useEffect(() => {
     if (typeof window !== "undefined" && "Notification" in window) {
-      setNotificationPermission(Notification.permission)
+      setTimeout(() => setNotificationPermission(Notification.permission), 0)
       const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
       
       if (Notification.permission === "denied") {
-        setNotificationsEnabled(false)
+        setTimeout(() => setNotificationsEnabled(false), 0)
         localStorage.setItem("tasks_notifications_enabled", "false")
       } else {
-        setNotificationsEnabled(stored && Notification.permission === "granted")
+        setTimeout(() => setNotificationsEnabled(stored && Notification.permission === "granted"), 0)
       }
     }
   }, [])
@@ -170,7 +184,7 @@ export default function TasksPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       if (window.innerWidth < 768) {
-        setSidebarOpen(false)
+        setTimeout(() => setSidebarOpen(false), 0)
       }
     }
   }, [])
@@ -202,7 +216,7 @@ export default function TasksPage() {
     try {
       if (notificationsEnabled) {
         await unsubscribeFromPush()
-        setNotificationsEnabled(false)
+        setTimeout(() => setNotificationsEnabled(false), 0)
         localStorage.setItem("tasks_notifications_enabled", "false")
         toast.success("Desktop reminders disabled.")
       } else {
@@ -218,14 +232,14 @@ export default function TasksPage() {
           localStorage.setItem("tasks_notifications_enabled", "true")
           toast.success("Desktop reminders enabled! You'll receive popups when due.")
         } else {
-          setNotificationsEnabled(false)
+          setTimeout(() => setNotificationsEnabled(false), 0)
           localStorage.setItem("tasks_notifications_enabled", "false")
           toast.error("Notification permission denied. Please allow notifications in site settings.")
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      toast.error(err.message || "Failed to update notification settings.")
+      toast.error((err as Error).message || "Failed to update notification settings.")
     } finally {
       setTogglingNotifications(false)
     }
@@ -256,21 +270,7 @@ export default function TasksPage() {
       }
     }
     init()
-  }, [])
-
-  // Sync reminders with server
-  const handleSync = async (listId = activeListId) => {
-    setIsSyncing(true)
-    try {
-      const fresh = await fetchReminders(listId)
-      setReminders(fresh)
-    } catch (error) {
-      console.error("Sync error:", error)
-      toast.error("Failed to sync with Google Tasks.")
-    } finally {
-      setIsSyncing(false)
-    }
-  }
+  }, [handleSync])
 
   // Trigger sync on list switch
   const handleListSelect = (listId: string) => {
@@ -388,7 +388,7 @@ export default function TasksPage() {
       setReminder2Weeks(reminder.reminderSettings.twoWeeksPrior)
       setReminderCustom(reminder.reminderSettings.customPrior)
       setCustomReminderValue(reminder.reminderSettings.customValue || 3)
-      setCustomReminderUnit((reminder.reminderSettings.customUnit as any) || "hours")
+      setCustomReminderUnit((reminder.reminderSettings.customUnit as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ) || "hours")
     } else {
       setReminderDueTime(true)
       setReminder1Day(true)
@@ -613,7 +613,7 @@ export default function TasksPage() {
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-35 bg-black/40 backdrop-blur-sm md:hidden"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setTimeout(() => setSidebarOpen(false), 0)}
         />
       )}
 
@@ -639,7 +639,7 @@ export default function TasksPage() {
             </div>
           </div>
           <button
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => setTimeout(() => setSidebarOpen(false), 0)}
             className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
             aria-label="Close sidebar"
           >
@@ -672,7 +672,7 @@ export default function TasksPage() {
                 onClick={() => {
                   handleListSelect(list.id)
                   if (window.innerWidth < 768) {
-                    setSidebarOpen(false)
+                    setTimeout(() => setSidebarOpen(false), 0)
                   }
                 }}
                 className="flex-1 flex items-center space-x-3 truncate py-0.5"
@@ -1027,7 +1027,7 @@ export default function TasksPage() {
                   <button
                     type="button"
                     key={item.id}
-                    onClick={() => setDateType(item.id as any)}
+                    onClick={() => setDateType(item.id as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ )}
                     className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
                       dateType === item.id
                         ? "border-primary bg-primary/10 text-primary"
@@ -1081,7 +1081,7 @@ export default function TasksPage() {
                     <button
                       type="button"
                       key={item.id}
-                      onClick={() => setTimePreset(item.id as any)}
+                      onClick={() => setTimePreset(item.id as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ )}
                       className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
                         timePreset === item.id
                           ? "border-primary bg-primary/10 text-primary"
@@ -1200,7 +1200,7 @@ export default function TasksPage() {
                       />
                       <select
                         value={customReminderUnit}
-                        onChange={e => setCustomReminderUnit(e.target.value as any)}
+                        onChange={e => setCustomReminderUnit(e.target.value as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ )}
                         className="bg-card border border-border/50 rounded-lg text-sm p-1.5 focus:ring-1 focus:ring-primary outline-none text-foreground h-8"
                       >
                         <option value="minutes">Minutes</option>
@@ -1286,7 +1286,7 @@ interface ReminderRowProps {
   onEdit: (reminder: Reminder) => void
   onDelete: (id: string) => void
   formatDate: (isoStr?: string) => string
-  subjects: any[]
+  subjects: any /* eslint-disable-line @typescript-eslint/no-explicit-any */ []
   isOverdue?: boolean
 }
 

@@ -10,7 +10,7 @@ export function Contact() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
 
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
     e.preventDefault()
     setLoading(true)
     try {

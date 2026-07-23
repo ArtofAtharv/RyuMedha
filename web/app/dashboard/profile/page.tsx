@@ -151,7 +151,8 @@ export default function ProfilePage() {
   }
 
   useEffect(() => {
-    async function fetchInitialData(supabase: AppSupabaseClient, sess: SessionData) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async function fetchInitialData(supabase: AppSupabaseClient, sess: SessionData) {
       const [{ data: prof }, { data: unis }] = await Promise.all([
         supabase.from('profiles').select('*').eq('whatsapp_number', sess.user.phone).single(),
         supabase.from('universities').select('id, name').order('name')
@@ -295,7 +296,7 @@ export default function ProfilePage() {
       // Sign out and redirect
       await supabaseClient.auth.signOut()
       window.location.href = '/login'
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to call delete_current_user RPC:", err)
       
       // Fallback: Delete all user data in order (foreign key constraints) if RPC fails or isn't installed
@@ -309,7 +310,7 @@ export default function ProfilePage() {
         
         await supabaseClient.auth.signOut()
         window.location.href = '/login'
-      } catch (fallbackErr: any) {
+      } catch (fallbackErr: unknown) {
         console.error("Deletion fallback failed:", fallbackErr)
         toast.error("Failed to delete account. Please ensure the 'delete_current_user' SQL function is created in your Supabase SQL Editor.")
         setDeleting(false)

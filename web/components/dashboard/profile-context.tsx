@@ -63,17 +63,17 @@ export function ProfileProvider({
 
   useEffect(() => {
     if (initialProfile) {
-      setProfile(initialProfile);
+      setTimeout(() => setProfile(initialProfile), 0);
     } else {
-      fetchProfile();
+      setTimeout(() => fetchProfile(), 0);
     }
   }, [initialProfile]);
 
   useEffect(() => {
     const supabase = getAppClient();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, _session) => {
       if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-        fetchProfile();
+        setTimeout(() => fetchProfile(), 0);
       } else if (event === 'SIGNED_OUT') {
         setProfile(null);
       }
@@ -87,12 +87,12 @@ export function ProfileProvider({
   useEffect(() => {
     if (profile) {
       if (profile.academics_enabled && !profile.personal_enabled) {
-        setActiveTrack('academics');
+        setTimeout(() => setActiveTrack("academics"), 0);
       } else if (!profile.academics_enabled && profile.personal_enabled) {
-        setActiveTrack('personal');
+        setTimeout(() => setActiveTrack("personal"), 0);
       }
     }
-  }, [profile?.academics_enabled, profile?.personal_enabled]);
+  }, [profile, profile?.academics_enabled, profile?.personal_enabled]);
 
   return (
     <ProfileContext.Provider value={{ profile, activeTrack, setActiveTrack, refreshProfile: fetchProfile }}>

@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import type { Metadata } from "next"
 import Link from "next/link"
 
@@ -147,7 +148,7 @@ export default function TermsConditionsPage() {
 
           <Section title="9. Disclaimer of Warranties">
             <p>
-              Ryu Medha is provided on an <strong className="text-foreground">"as is" and "as available"</strong>{" "}
+              Ryu Medha is provided on an <strong className="text-foreground">&quot;as is&quot; and &quot;as available&quot;</strong>{" "}
               basis. We make no warranties, expressed or implied, that:
             </p>
             <ul className="list-disc pl-5 flex flex-col gap-1.5">

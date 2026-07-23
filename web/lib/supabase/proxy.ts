@@ -20,7 +20,7 @@ export async function updateSession(request: NextRequest) {
             request,
           })
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, { ...options, httpOnly: false })
           )
         },
       },
@@ -62,6 +62,20 @@ export async function updateSession(request: NextRequest) {
         maxAge: 60 * 60 * 24 * 30,
       })
     }
+    
+    // Force all sb-*-auth-token* cookies to be httpOnly: false so the browser can read them.
+    // This fixes the issue where they were previously set as httpOnly: true.
+    request.cookies.getAll().forEach(cookie => {
+      if (cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')) {
+        response.cookies.set(cookie.name, cookie.value, {
+          path: '/',
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: session.expires_in,
+        })
+      }
+    })
   }
 
   const { pathname } = request.nextUrl

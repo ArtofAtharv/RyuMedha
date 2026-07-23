@@ -83,6 +83,7 @@ export default function GradesPage() {
   const { profile } = useProfile()
   const [grades, setGrades] = useState<GradeRecord[]>([])
   const [subjects, setSubjects] = useState<SubjectRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
@@ -121,7 +122,7 @@ export default function GradesPage() {
 
     const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type, label, is_active, source_course_id(semester_id, credits)')
+      .select('id, name, color_hex, type, label, is_active, source_course_id')
       .eq('profile_id', pid)
       
     const acadSubsAll = rawSubs?.filter((s: SubjectRecord) => s.type === 'academic') || []
@@ -159,6 +160,7 @@ export default function GradesPage() {
       }
 
       await fetchData(supabase, profile?.id)
+      setIsLoading(false)
     }
     init()
   }, [fetchData])
@@ -299,7 +301,7 @@ export default function GradesPage() {
         description="Track your scores and calculate overall percentages."
       />
 
-      {subjects.length === 0 ? (
+      {isLoading ? (
         <div className="space-y-10 animate-in fade-in duration-500">
           <section className="space-y-4">
             <div className="h-6 w-48 bg-muted animate-pulse rounded-md" />

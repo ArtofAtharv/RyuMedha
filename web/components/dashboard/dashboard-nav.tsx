@@ -4,13 +4,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { m } from "motion/react"
 
-import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare, FolderOpen } from "lucide-react"
+import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare } from "lucide-react"
 import { useProfile } from './profile-context'
 import { haptic } from "@/lib/haptic"
 
 export function DashboardNav() {
   const pathname = usePathname()
-  const { profile, activeTrack, setActiveTrack } = useProfile()
+  const { profile } = useProfile()
   const isAdmin = profile?.is_admin === true
 
   const tabs = [
