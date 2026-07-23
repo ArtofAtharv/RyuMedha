@@ -2,7 +2,7 @@
 
 import { google } from "googleapis"
 import { cookies } from "next/headers"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 import { revalidatePath } from "next/cache"
 
 export interface Reminder {
@@ -33,29 +33,35 @@ export interface TaskList {
 
 async function getAuthenticatedClient() {
   const cookieStore = await cookies()
-  const accessToken = cookieStore.get("sb-access-token")?.value
 
-  if (!accessToken) {
-    throw new Error("Unauthorized")
-  }
-
-  const validAccessToken = accessToken
-
-  // Create an authenticated client to fetch/update profile
-  const authSupabase = createClient(
+  // Use the proper SSR client that handles all Supabase cookie chunking
+  const authSupabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: {
-        headers: { Authorization: `Bearer ${validAccessToken}` },
-        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
-      }
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+          })
+        },
+      },
     }
   )
+
+  const { data: { user }, error: authError } = await authSupabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error("Unauthorized")
+  }
 
   const { data: profile, error } = await authSupabase
     .from('profiles')
     .select('id, google_access_token, google_refresh_token, google_token_expiry')
+    .eq('id', user.id)
     .single()
 
   if (error || !profile?.google_access_token) {
@@ -128,6 +134,7 @@ async function getAuthenticatedClient() {
 
   return { oauth2Client, profileId: profile.id, supabase: authSupabase }
 }
+
 
 async function findCalendarEvent(auth: any /* eslint-disable-line @typescript-eslint/no-explicit-any */, title: string, dueStr: string | null | undefined): Promise<string | null> {
   try {
