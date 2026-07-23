@@ -417,15 +417,18 @@ async function handlePostRequest(req: Request): Promise<Response> {
         return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401, headers: { 'Content-Type': 'application/json' } })
       }
 
-      // Create a temporary Supabase client with the caller's JWT to verify their role
-      const userSupabase = createClient(supabaseUrl, supabaseServiceKey, {
-        global: { headers: { Authorization: authHeader } }
-      })
+      const token = authHeader.replace(/^Bearer\s+/i, '').trim()
+      const { data: { user }, error: userErr } = await supabase.auth.getUser(token)
 
-      const { data: profile, error: profileErr } = await userSupabase
+      if (userErr || !user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+      }
+
+      const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('is_admin')
-        .single()
+        .eq('id', user.id)
+        .maybeSingle()
 
       if (profileErr || !profile || !profile.is_admin) {
         return new Response(JSON.stringify({ error: "Forbidden: Admin privileges required" }), { status: 403, headers: { 'Content-Type': 'application/json' } })

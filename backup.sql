@@ -423,7 +423,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  IF (SELECT is_admin FROM profiles WHERE whatsapp_number = (auth.jwt() ->> 'sub')) = true THEN
+  IF (SELECT is_admin FROM profiles WHERE id = auth.uid() OR whatsapp_number = (auth.jwt() ->> 'sub')) = true THEN
     DELETE FROM whatsapp_message_logs;
   END IF;
 END;
