@@ -157,10 +157,10 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
         )}
 
         {/* Bottom Button */}
-        <Link href={`/dashboard/grades?subject=${subject.id}`} passHref className="mt-auto" onClick={(e) => e.stopPropagation()}>
+        <Link href={`/dashboard/subjects/${subject.id}`} passHref className="mt-auto" onClick={(e) => e.stopPropagation()}>
           <Button variant="secondary" className="w-full flex items-center justify-center gap-2 h-10 bg-muted/40 hover:bg-muted text-sm font-bold transition-all group/btn rounded-xl">
-            <Target className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
-            View Performance
+            <CalIcon className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
+            Open Calendar
           </Button>
         </Link>
         </CardContent>

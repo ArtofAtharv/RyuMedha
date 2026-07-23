@@ -287,17 +287,34 @@ export default function ProfilePage() {
     if (doubleConfirm !== "DELETE") return
 
     setDeleting(true)
-    // Delete all user data in order (foreign key constraints)
-    await supabaseClient.from('study_timers').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('tasks').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('grades').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('attendance_logs').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('subjects').delete().eq('profile_id', profile.id)
-    await supabaseClient.from('profiles').delete().eq('id', profile.id)
-    
-    // Sign out and redirect
-    await supabaseClient.auth.signOut()
-    window.location.href = '/login'
+    try {
+      // Call RPC to completely delete the auth user and public profiles row
+      const { error } = await supabaseClient.rpc('delete_current_user')
+      if (error) throw error
+
+      // Sign out and redirect
+      await supabaseClient.auth.signOut()
+      window.location.href = '/login'
+    } catch (err: any) {
+      console.error("Failed to call delete_current_user RPC:", err)
+      
+      // Fallback: Delete all user data in order (foreign key constraints) if RPC fails or isn't installed
+      try {
+        await supabaseClient.from('study_timers').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('tasks').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('grades').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('attendance_logs').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('subjects').delete().eq('profile_id', profile.id)
+        await supabaseClient.from('profiles').delete().eq('id', profile.id)
+        
+        await supabaseClient.auth.signOut()
+        window.location.href = '/login'
+      } catch (fallbackErr: any) {
+        console.error("Deletion fallback failed:", fallbackErr)
+        toast.error("Failed to delete account. Please ensure the 'delete_current_user' SQL function is created in your Supabase SQL Editor.")
+        setDeleting(false)
+      }
+    }
   }
 
   async function handleExportUserData() {
@@ -623,33 +640,32 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          <ProfileRow
-            icon={<User className="w-4 h-4 text-white" />}
-            iconBg="bg-teal-500"
-            label="Email"
-            value={profile.email ?? "Not Linked"}
-            isEditing={editField === "email"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("email", profile.email || "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => saveField("email", editValue)}
-          />
+          <div className="px-4 py-3 flex items-center justify-between min-h-[44px]">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-medium">Email</p>
+            </div>
+            <p className="text-sm text-muted-foreground mr-4 select-all">{profile.email ?? "Not Linked"}</p>
+          </div>
 
-          <ProfileRow
-            icon={<Phone className="w-4 h-4 text-white" />}
-            iconBg="bg-green-500"
-            label="Link WhatsApp No"
-            value={profile.whatsapp_number ?? "Not Linked"}
-            isEditing={editField === "whatsapp_number"}
-            editValue={editValue}
-            saving={saving}
-            onEdit={() => startEdit("whatsapp_number", profile.whatsapp_number || "")}
-            onCancel={cancelEdit}
-            onChange={setEditValue}
-            onSave={() => saveField("whatsapp_number", editValue)}
-          />
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+            onClick={() => router.push('/dashboard/whatsapp-bot')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center shrink-0">
+                <Phone className="w-4 h-4 text-white" />
+              </div>
+              <p className="text-sm font-medium">WhatsApp Bot Connection</p>
+            </div>
+            <div className="flex items-center gap-2 mr-1">
+              <p className="text-sm text-muted-foreground">{profile.whatsapp_number ?? "Not Linked"}</p>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            </div>
+          </button>
         </div>
       </div>
 
@@ -1031,7 +1047,7 @@ function DropdownRow({
                   else onChange(val)
                 }}
               >
-                <SelectTrigger className="h-7 border-0 bg-transparent text-sm text-muted-foreground shadow-none px-0 gap-1 focus:ring-0 w-auto justify-end hover:bg-transparent">
+                <SelectTrigger className="h-7 border-0 bg-transparent text-sm text-muted-foreground shadow-none px-4 gap-1 focus:ring-0 w-auto justify-end hover:bg-transparent">
                   <SelectValue placeholder={placeholder || "Select"} />
                 </SelectTrigger>
                 <SelectContent position="popper" align="end" alignOffset={-16} sideOffset={8}>

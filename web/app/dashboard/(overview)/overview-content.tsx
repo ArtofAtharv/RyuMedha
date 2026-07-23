@@ -54,6 +54,7 @@ export interface AcademicOverviewData {
 export interface PersonalOverviewData {
   personalScorePct: number | null
   personalPendingTasks: number
+  personalPendingTasksToday: number
   personalStudyTimeFormatted: string | null
   personalSubjects: SubjectInfo[]
   timersSessionData: TimerEntry[]
@@ -69,25 +70,9 @@ export function OverviewContent({
   academicOverviewData: AcademicOverviewData,
   personalOverviewData: PersonalOverviewData
 }>) {
-  const { profile: contextProfile } = useProfile()
+  const { profile: contextProfile, activeTrack } = useProfile()
   const { xp, level, progress, combo } = useGamification()
   const activeProfile = contextProfile || profile
-
-  const [tab, setTab] = useState<'academics' | 'personal'>('academics')
-
-  useEffect(() => {
-    if (!activeProfile) return
-    if (activeProfile.academics_enabled && activeProfile.personal_enabled) return
-
-    const t = setTimeout(() => {
-      if (activeProfile.academics_enabled) {
-        setTab('academics')
-      } else if (activeProfile.personal_enabled) {
-        setTab('personal')
-      }
-    }, 0)
-    return () => clearTimeout(t)
-  }, [activeProfile])
 
   const unmarkedWord = academicOverviewData?.unmarkedSubjectsToday === 1 ? 'subject' : 'subjects'
   const unmarkedSubjectsText = academicOverviewData?.unmarkedSubjectsToday === 0
@@ -152,27 +137,15 @@ export function OverviewContent({
           </CardContent>
         </Card>
       </m.section>
-      {/* ─── HEADER & TABS ─── */}
+      {/* ─── HEADER ─── */}
       <PageHeader
         title="Overview"
         description="Your activity and progress across all tracks."
-        action={
-          activeProfile?.academics_enabled && activeProfile?.personal_enabled && (
-            <SegmentedControl
-              segments={[
-                { id: 'academics', label: 'Academics', icon: BookOpen },
-                { id: 'personal', label: 'Personal', icon: FolderOpen }
-              ]}
-              activeSegment={tab}
-              onChange={(id) => setTab(id as 'academics' | 'personal')}
-            />
-          )
-        }
       />
 
       {/* ─── ACADEMIC OVERVIEW ─── */}
       <AnimatePresence initial={false} mode="sync">
-        {activeProfile?.academics_enabled && tab === "academics" && (
+        {activeProfile?.academics_enabled && activeTrack === "academics" && (
           <AcademicOverviewSection 
             data={academicOverviewData} 
             unmarkedSubjectsText={unmarkedSubjectsText} 
@@ -183,7 +156,7 @@ export function OverviewContent({
 
       {/* ─── PERSONAL OVERVIEW ─── */}
       <AnimatePresence initial={false} mode="sync">
-        {activeProfile?.personal_enabled && tab === "personal" && (
+        {activeProfile?.personal_enabled && activeTrack === "personal" && (
           <PersonalOverviewSection data={personalOverviewData} />
         )}
       </AnimatePresence>

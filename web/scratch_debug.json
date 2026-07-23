@@ -1,0 +1,46 @@
+{
+  "localTasks": [
+    {
+      "id": "e4acfa5c-a544-4c0c-90c1-bc258c5eb162",
+      "title": "[Exam] a",
+      "due_date": "2026-07-30T00:00:00+00:00",
+      "subject_id": "959c75a1-c076-4b86-b40b-73481e0a3202"
+    },
+    {
+      "id": "6c7c4711-7786-4958-831e-a9378c6ab973",
+      "title": "Reminder for me",
+      "due_date": "2026-07-16T00:00:00+00:00",
+      "subject_id": "959c75a1-c076-4b86-b40b-73481e0a3202"
+    }
+  ],
+  "googleTasks": [
+    {
+      "id": "ZFFGQ1g0OEp5RGd3ZlM2bw",
+      "title": "[Exam] a",
+      "due": "2026-07-30T00:00:00.000Z",
+      "status": "needsAction"
+    },
+    {
+      "id": "UlJIV2kwcEpDZXNVLXRzdg",
+      "title": "Reminder for me",
+      "due": "2026-07-16T00:00:00.000Z",
+      "status": "needsAction"
+    },
+    {
+      "id": "UlRNd1JWNWI5SHg2VDVkdg",
+      "title": "testing me",
+      "due": "2026-07-15T00:00:00.000Z",
+      "status": "needsAction"
+    },
+    {
+      "id": "ZUR5S3RpOU5QcWo5bEdyMA",
+      "title": "Study",
+      "due": "2026-07-16T00:00:00.000Z",
+      "status": "needsAction"
+    }
+  ],
+  "matchedLocalIds": [
+    "e4acfa5c-a544-4c0c-90c1-bc258c5eb162",
+    "6c7c4711-7786-4958-831e-a9378c6ab973"
+  ]
+}

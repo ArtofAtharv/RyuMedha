@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { PlusCircle } from 'lucide-react'
+import { PlusCircle, FolderOpen } from 'lucide-react'
 import { ProfileProvider, UserProfile } from '@/components/dashboard/profile-context'
 import { OverviewContent } from "./overview-content"
 
@@ -21,17 +21,26 @@ export default async function DashboardPage() {
     {
       global: {
         headers: { Authorization: `Bearer ${accessToken}` },
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
       },
     }
   )
 
   // Fetch fresh profile data
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from('profiles')
     .select('*')
     .single()
 
-  if (!profile?.display_name) {
+  if (error || !profile) {
+    redirect('/setup')
+  }
+
+  // Check if account setup is complete
+  const isSetup = (profile.academics_enabled !== null || profile.personal_enabled !== null) && 
+                  (!profile.academics_enabled || !!profile.current_semester_id);
+
+  if (!isSetup) {
     redirect('/setup')
   }
 
@@ -87,45 +96,77 @@ export default async function DashboardPage() {
   }) || []
 
   const categories = categoriesData || []
+  const hasNoTracks = !profile?.academics_enabled && !profile?.personal_enabled
   const hasSubjects = (subjectsData.length || 0) > 0
+
+  if (hasNoTracks) {
+    return (
+      <div className="min-h-screen bg-background text-foreground pb-20">
+        <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+          <div className="flex items-center justify-between space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Namaste, <span className="text-primary">{displayName}</span>
+            </h2>
+          </div>
+          
+          <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg rounded-3xl">
+            <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+                <FolderOpen className="w-10 h-10 text-muted-foreground/60" />
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <CardTitle className="text-2xl font-semibold tracking-tight">Tracks Disabled</CardTitle>
+                <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
+                  Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to start tracking your progress.
+                </CardDescription>
+              </div>
+              <Link href="/dashboard/profile">
+                <Button size="lg" className="font-semibold h-12 px-8 text-base rounded-2xl bg-primary text-primary-foreground hover:opacity-90 active:opacity-70 transition-opacity">
+                  Go to Settings
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    )
+  }
 
   if (!hasSubjects) {
     return (
-      <ProfileProvider profile={fullProfile}>
-        <div className="min-h-screen bg-background text-foreground pb-20">
-          <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-            <div className="flex items-center justify-between space-y-2">
-              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Namaste, <span className="text-primary">{displayName}</span>
-              </h2>
-            </div>
-            
-            <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg shadow-black/5 dark:shadow-black/20 rounded-3xl overflow-hidden">
-              <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-                <div className="relative">
-                  <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center shadow-inner">
-                    <PlusCircle className="w-10 h-10 text-muted-foreground/60" />
-                  </div>
+      <div className="min-h-screen bg-background text-foreground pb-20">
+        <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+          <div className="flex items-center justify-between space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Namaste, <span className="text-primary">{displayName}</span>
+            </h2>
+          </div>
+          
+          <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg shadow-black/5 dark:shadow-black/20 rounded-3xl overflow-hidden">
+            <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+              <div className="relative">
+                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center shadow-inner">
+                  <PlusCircle className="w-10 h-10 text-muted-foreground/60" />
                 </div>
-                <div className="space-y-2 max-w-sm">
-                  <CardTitle className="text-2xl font-semibold tracking-tight">Your journey starts here</CardTitle>
-                  <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
-                    You haven&apos;t added any subjects yet. Add your first subject to start tracking your attendance, tasks, and progress.
-                  </CardDescription>
-                </div>
-                <Link href="/dashboard/subjects">
-                  <Button size="lg" className="font-semibold h-12 px-8 text-base rounded-2xl bg-primary text-primary-foreground hover:opacity-90 active:opacity-70 transition-opacity">
-                    <PlusCircle className="mr-2 h-5 w-5" /> Add First Subject
-                  </Button>
-                </Link>
-                <p className="text-xs text-muted-foreground/60 font-medium pt-4">
-                  Tip: Use the bot or Subjects tab to populate your dashboard.
-                </p>
-              </CardContent>
-            </Card>
-          </main>
-        </div>
-      </ProfileProvider>
+              </div>
+              <div className="space-y-2 max-w-sm">
+                <CardTitle className="text-2xl font-semibold tracking-tight">Your journey starts here</CardTitle>
+                <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
+                  You haven&apos;t added any subjects yet. Add your first subject to start tracking your attendance, tasks, and progress.
+                </CardDescription>
+              </div>
+              <Link href="/dashboard/subjects">
+                <Button size="lg" className="font-semibold h-12 px-8 text-base rounded-2xl bg-primary text-primary-foreground hover:opacity-90 active:opacity-70 transition-opacity">
+                  <PlusCircle className="mr-2 h-5 w-5" /> Add First Subject
+                </Button>
+              </Link>
+              <p className="text-xs text-muted-foreground/60 font-medium pt-4">
+                Tip: Use the bot or Subjects tab to populate your dashboard.
+              </p>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
     )
   }
 
@@ -150,17 +191,39 @@ export default async function DashboardPage() {
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: profile?.timezone || 'Asia/Kolkata' })
   let academicPendingTasks = 0
   let personalPendingTasks = 0
-  let pendingTasksToday = 0
+  let academicPendingTasksToday = 0
+  let personalPendingTasksToday = 0
   
   pendingTasks?.forEach(t => {
-    // @ts-expect-error — Supabase join returns subjects as object
-    const type = t.subjects?.type
-    if (type === 'academic') academicPendingTasks++
-    else if (type === 'personal') personalPendingTasks++
+    const subjectsObj = t.subjects
+    const type = Array.isArray(subjectsObj) 
+      ? subjectsObj[0]?.type 
+      : (subjectsObj as {type?: string})?.type
+
+    const subId = t.subject_id
+    const isUnlinked = !subId || !type
+
+    if (isUnlinked) {
+      academicPendingTasks++
+      personalPendingTasks++
+    } else if (type === 'academic') {
+      academicPendingTasks++
+    } else if (type === 'personal') {
+      personalPendingTasks++
+    }
 
     if (t.due_date) {
       const taskDueStr = new Date(t.due_date).toLocaleDateString('en-CA', { timeZone: profile?.timezone || 'Asia/Kolkata' })
-      if (taskDueStr === todayStr) pendingTasksToday++
+      if (taskDueStr === todayStr) {
+        if (isUnlinked) {
+          academicPendingTasksToday++
+          personalPendingTasksToday++
+        } else if (type === 'academic') {
+          academicPendingTasksToday++
+        } else if (type === 'personal') {
+          personalPendingTasksToday++
+        }
+      }
     }
   })
 
@@ -232,40 +295,39 @@ export default async function DashboardPage() {
 
 
   return (
-    <ProfileProvider profile={fullProfile}>
-      <div className="min-h-screen bg-background text-foreground pb-20">
-        <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-          <OverviewContent 
-            profile={fullProfile}
-            academicOverviewData={{
-              overallAttendancePct,
-              totalPresent,
-              totalAbsent,
-              totalDeemed,
-              academicGradePct,
-              academicPendingTasks,
-              academicStudyTimeFormatted,
-              attendanceData,
-              academicSubjects,
-              unmarkedAcademicSubjects,
-              unmarkedSubjectsToday,
-              pendingTasksToday,
-              timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'academic') || [],
-              token: accessToken,
-              profileId: profile?.id,
-              targetPct
-            }}
-            personalOverviewData={{
-              personalScorePct,
-              personalPendingTasks,
-              personalStudyTimeFormatted,
-              personalSubjects,
-              timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'personal') || [],
-              categories
-            }}
-          />
-        </main>
-      </div>
-    </ProfileProvider>
+    <div className="min-h-screen bg-background text-foreground pb-20">
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+        <OverviewContent 
+          profile={fullProfile}
+          academicOverviewData={{
+            overallAttendancePct,
+            totalPresent,
+            totalAbsent,
+            totalDeemed,
+            academicGradePct,
+            academicPendingTasks,
+            academicStudyTimeFormatted,
+            attendanceData,
+            academicSubjects,
+            unmarkedAcademicSubjects,
+            unmarkedSubjectsToday,
+            pendingTasksToday: academicPendingTasksToday,
+            timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'academic') || [],
+            token: accessToken,
+            profileId: profile?.id,
+            targetPct
+          }}
+          personalOverviewData={{
+            personalScorePct,
+            personalPendingTasks,
+            personalPendingTasksToday,
+            personalStudyTimeFormatted,
+            personalSubjects,
+            timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'personal') || [],
+            categories
+          }}
+        />
+      </main>
+    </div>
   )
 }

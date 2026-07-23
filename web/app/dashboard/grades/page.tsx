@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
 import { PageHeader } from '@/components/dashboard/page-header'
 import { BookOpen, FolderOpen, Pencil, Check, Target } from "lucide-react"
@@ -120,7 +121,7 @@ export default function GradesPage() {
 
     const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type, label, source_course_id(semester_id, credits)')
+      .select('id, name, color_hex, type, label, is_active, source_course_id(semester_id, credits)')
       .eq('profile_id', pid)
       
     const acadSubsAll = rawSubs?.filter((s: SubjectRecord) => s.type === 'academic') || []
@@ -260,6 +261,35 @@ export default function GradesPage() {
   const sgpaValue = sumCreditsCurrent > 0 ? truncateDecimals(sumCPCurrent / sumCreditsCurrent) : "0"
   const cgpaValue = sumCreditsAll > 0 ? truncateDecimals(sumCPAll / sumCreditsAll) : "0"
   const persPct = persMax > 0 ? truncateDecimals((persScore / persMax) * 100) : "0"
+
+  const hasNoTracks = !profile?.academics_enabled && !profile?.personal_enabled
+
+  if (hasNoTracks) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <PageHeader 
+          title="Grades & Scores"
+          description="Track your scores and calculate overall percentages."
+        />
+        <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg rounded-3xl">
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+              <FolderOpen className="w-10 h-10 text-muted-foreground/60" />
+            </div>
+            <div className="space-y-2 max-w-sm">
+              <CardTitle className="text-2xl font-semibold tracking-tight">Tracks Disabled</CardTitle>
+              <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
+                Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to start tracking grades.
+              </CardDescription>
+            </div>
+            <Button onClick={() => window.location.href = '/dashboard/profile'} className="font-semibold h-12 px-8 text-base rounded-2xl cursor-pointer">
+              Go to Settings
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">

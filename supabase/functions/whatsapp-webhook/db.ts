@@ -4,8 +4,16 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const JWT_SECRET = Deno.env.get('JWT_SECRET');
-/** Admin client for initial profile checks/creation */ export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-/** Generates a JWT for a specific user to enforce RLS */ async function generateUserToken(phone) {
+/** Admin client for initial profile checks/creation */ export const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  global: {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }
+  }
+});
+/** Generates a JWT for a specific user UUID to enforce RLS */ async function generateUserToken(userId) {
   if (!JWT_SECRET) {
     throw new Error("❌ Missing JWT_SECRET environment variable.");
   }
@@ -18,7 +26,7 @@ const JWT_SECRET = Deno.env.get('JWT_SECRET');
     "sign"
   ]);
   const payload = {
-    sub: phone,
+    sub: userId,
     role: "authenticated",
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + 60 * 60
@@ -29,11 +37,24 @@ const JWT_SECRET = Deno.env.get('JWT_SECRET');
   }, payload, key);
 }
 /** Returns a Supabase client scoped to a user's phone number */ export async function getUserClient(phone) {
-  const token = await generateUserToken(phone);
+  const { data: profile, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('whatsapp_number', phone)
+    .maybeSingle();
+
+  if (error || !profile) {
+    throw new Error(`Profile not found for phone number: ${phone}`);
+  }
+
+  const token = await generateUserToken(profile.id);
   return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     },
     auth: {

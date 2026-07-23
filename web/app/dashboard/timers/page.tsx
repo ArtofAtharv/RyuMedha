@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Clock, Play, Square, Pause, History, Trash2, Timer, Pencil, Settings2 } from "lucide-react"
+import { Clock, Play, Square, Pause, History, Trash2, Timer, Pencil, Settings2, FolderOpen } from "lucide-react"
 import { useProfile, type UserProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
 import { m, AnimatePresence, Variants } from "motion/react"
@@ -559,6 +559,35 @@ export default function TimersPage() {
   }
 
   // -------------------------
+
+  const hasNoTracks = !profile?.academics_enabled && !profile?.personal_enabled
+
+  if (hasNoTracks) {
+    return (
+      <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <PageHeader 
+          title="Study Timers"
+          description="Track your dedicated study sessions to build powerful reports."
+        />
+        <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg rounded-3xl">
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
+              <FolderOpen className="w-10 h-10 text-muted-foreground/60" />
+            </div>
+            <div className="space-y-2 max-w-sm">
+              <CardTitle className="text-2xl font-semibold tracking-tight">Tracks Disabled</CardTitle>
+              <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
+                Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to start tracking study sessions.
+              </CardDescription>
+            </div>
+            <Button onClick={() => window.location.href = '/dashboard/profile'} className="font-semibold h-12 px-8 text-base rounded-2xl cursor-pointer">
+              Go to Settings
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">

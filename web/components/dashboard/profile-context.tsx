@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, ReactNode } from "react";
+import React, { createContext, useContext, ReactNode, useState, useEffect } from "react";
+import { getAppClient } from "@/lib/supabase-client";
 
 export interface UserProfile {
   id: string;
@@ -20,30 +21,86 @@ export interface UserProfile {
 
 interface ProfileContextProps {
   profile: UserProfile | null;
+  activeTrack: 'academics' | 'personal';
+  setActiveTrack: (track: 'academics' | 'personal') => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const ProfileContext = createContext<ProfileContextProps>({
   profile: null,
+  activeTrack: 'academics',
+  setActiveTrack: () => {},
+  refreshProfile: async () => {},
 });
 
 export function ProfileProvider({
   children,
-  profile,
+  profile: initialProfile = null,
 }: {
   children: ReactNode;
-  profile: UserProfile | null;
+  profile?: UserProfile | null;
 }) {
+  const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
+  const [activeTrack, setActiveTrack] = useState<'academics' | 'personal'>('academics');
+
+  const fetchProfile = async () => {
+    try {
+      const supabase = getAppClient();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .single();
+      if (!error && data) {
+        setProfile(data as UserProfile);
+      } else {
+        setProfile(null);
+      }
+    } catch (err) {
+      console.error("Error fetching profile in context:", err);
+      setProfile(null);
+    }
+  };
+
+  useEffect(() => {
+    if (initialProfile) {
+      setProfile(initialProfile);
+    } else {
+      fetchProfile();
+    }
+  }, [initialProfile]);
+
+  useEffect(() => {
+    const supabase = getAppClient();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        fetchProfile();
+      } else if (event === 'SIGNED_OUT') {
+        setProfile(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.academics_enabled && !profile.personal_enabled) {
+        setActiveTrack('academics');
+      } else if (!profile.academics_enabled && profile.personal_enabled) {
+        setActiveTrack('personal');
+      }
+    }
+  }, [profile?.academics_enabled, profile?.personal_enabled]);
+
   return (
-    <ProfileContext.Provider value={{ profile }}>
+    <ProfileContext.Provider value={{ profile, activeTrack, setActiveTrack, refreshProfile: fetchProfile }}>
       {children}
     </ProfileContext.Provider>
   );
 }
 
 export function useProfile() {
-  const context = useContext(ProfileContext);
-  if (context === undefined) {
-    throw new Error("useProfile must be used within a ProfileProvider");
-  }
-  return context;
+  return useContext(ProfileContext);
 }

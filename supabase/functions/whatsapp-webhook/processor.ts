@@ -2,6 +2,7 @@ import { MESSAGES, WEBSITE_URL } from './messages.ts';
 import { getUserClient, supabaseAdmin, getSession, setSession, clearSession } from './db.ts';
 import { parseIntent } from './nlp.ts';
 import { startOnboarding, handleOnboarding } from './setup.ts';
+import { getValidGoogleToken, fetchGoogleTasks, createGoogleTask, updateGoogleTask } from './google-tasks.ts';
 
 const PLACEHOLDER_NAME = '';
 
@@ -51,7 +52,7 @@ export async function seedDefaultCategories(phone: string) {
 }
 
 // --- CATEGORY HANDLERS ---
-async function handleAddCategory(user, categoryName) {
+async function handleAddCategory(user: any, categoryName: string) {
   if (!categoryName) return MESSAGES.categories.prompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: dup } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).ilike('name', categoryName).maybeSingle();
@@ -63,16 +64,16 @@ async function handleAddCategory(user, categoryName) {
   return MESSAGES.categories.success(created.name);
 }
 
-async function handleListCategories(user) {
+async function handleListCategories(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: cats } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).order('created_at', { ascending: true });
   if (!cats || cats.length === 0) return MESSAGES.categories.empty;
   let msg = MESSAGES.categories.listHeader(cats.length);
-  cats.forEach((c, i)=>{ msg += `${i + 1}. ${c.name}\n`; });
+  cats.forEach((c: any, i: number)=>{ msg += `${i + 1}. ${c.name}\n`; });
   return msg;
 }
 
-async function handleDeleteCategory(user, categoryName) {
+async function handleDeleteCategory(user: any, categoryName: string) {
   if (!categoryName) return MESSAGES.categories.deletePrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: cat } = await uc.from('subject_categories').select('id, name').eq('profile_id', user.id).ilike('name', categoryName).maybeSingle();
@@ -126,7 +127,7 @@ async function createSubject(user: any, subjectName: string, type: string, total
   return MESSAGES.subjects.personalSuccess(subject.name);
 }
 
-async function handleAddSubject(user, phone, rawText) {
+async function handleAddSubject(user: any, phone: string, rawText: string) {
   if (!rawText) return MESSAGES.subjects.addPrompt;
   const catMatch = rawText.match(/(?:to|in|under|into)\s+(?:the\s+)?(?:category|cat)\s+(.+)$/i);
   let manualCategory = null;
@@ -135,7 +136,7 @@ async function handleAddSubject(user, phone, rawText) {
     manualCategory = catMatch[1].trim();
     textToProcess = rawText.replace(/(?:to|in|under|into)\s+(?:the\s+)?(?:category|cat)\s+(.+)$/i, '').trim();
   }
-  const parts = textToProcess.split(',').map((s)=>s.trim()).filter(Boolean);
+  const parts = textToProcess.split(',').map((s: string)=>s.trim()).filter(Boolean);
   if (parts.length === 1) {
     const type = user.personal_enabled && !user.academics_enabled ? 'personal' : 'academic';
     return await createSubject(user, parts[0], type, null, 0, 0, manualCategory);
@@ -154,21 +155,21 @@ async function handleAddSubject(user, phone, rawText) {
     let category = manualCategory;
     if (type === 'personal' && !category) {
       const nextPart = parts[i + consumed];
-      if (nextPart && isNaN(nextPart)) { category = nextPart; consumed++; }
+      if (nextPart && isNaN(Number(nextPart))) { category = nextPart; consumed++; }
     }
     let total = null;
-    if (i + consumed < parts.length && !isNaN(parts[i + consumed])) { total = parseInt(parts[i + consumed], 10); consumed++; }
+    if (i + consumed < parts.length && !isNaN(Number(parts[i + consumed]))) { total = parseInt(parts[i + consumed], 10); consumed++; }
     responses.push(await createSubject(user, name, type, total, 0, 0, category));
     i += consumed;
   }
   return responses.join('\n\n');
 }
 
-async function handleListSubjects(user) {
+async function handleListSubjects(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: subjects } = await uc.from('subjects').select('name, type, category_id, subject_categories(name), source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).order('created_at', { ascending: true });
   if (!subjects || subjects.length === 0) return MESSAGES.subjects.empty;
-  const filtered = subjects.filter((s)=>{
+  const filtered = subjects.filter((s: any)=>{
     if (s.type === 'academic' && !user.academics_enabled) return false;
     if (s.type === 'personal' && !user.personal_enabled) return false;
     if (s.type === 'academic') {
@@ -178,24 +179,24 @@ async function handleListSubjects(user) {
     return true;
   });
   if (filtered.length === 0) return MESSAGES.subjects.emptySemester;
-  const academic = filtered.filter((s)=>s.type === 'academic');
-  const personal = filtered.filter((s)=>s.type === 'personal');
+  const academic = filtered.filter((s: any)=>s.type === 'academic');
+  const personal = filtered.filter((s: any)=>s.type === 'personal');
   let msg = MESSAGES.subjects.listHeader;
   if (academic.length) {
     msg += MESSAGES.subjects.listAcademic;
-    academic.forEach((s, i)=>{ msg += `  ${i + 1}. ${s.name} \n`; });
+    academic.forEach((s: any, i: number)=>{ msg += `  ${i + 1}. ${s.name} \n`; });
   }
   if (personal.length) {
     msg += MESSAGES.subjects.listPersonal;
-    const grouped = {};
-    personal.forEach((s)=>{
+    const grouped: Record<string, string[]> = {};
+    personal.forEach((s: any)=>{
       const cat = s.subject_categories?.name || 'Uncategorized';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(s.name);
     });
     for (const [cat, items] of Object.entries(grouped)){
       msg += `\n📂 *${cat}*\n`;
-      items.forEach((name)=>{ msg += `  - ${name}\n`; });
+      (items as string[]).forEach((name: string)=>{ msg += `  - ${name}\n`; });
     }
   }
   msg += MESSAGES.subjects.listFooter(filtered.length, filtered.length !== 1);
@@ -203,17 +204,17 @@ async function handleListSubjects(user) {
 }
 
 // --- ATTENDANCE HANDLERS ---
-async function logAttendance(user, subjectName, status) {
+async function logAttendance(user: any, subjectName: string, status: 'present' | 'absent' | 'deemed') {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, expected_total_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
   if (!raw || raw.length === 0) return null;
-  const subjects = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const subjects = raw.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (subjects.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
   let subject = subjects[0];
   if (subjects.length > 1) {
-    const exact = subjects.find((s)=>s.name.toLowerCase() === subjectName.trim().toLowerCase());
+    const exact = subjects.find((s: any)=>s.name.toLowerCase() === subjectName.trim().toLowerCase());
     if (exact) subject = exact;
-    else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s, i)=>`${i + 1}. ${s.name}`).join('\n'));
+    else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s: any, i: number)=>`${i + 1}. ${s.name}`).join('\n'));
   }
   if (subject.type !== 'academic') return MESSAGES.attendance.academicOnly(subject.name);
   const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
@@ -227,32 +228,51 @@ async function logAttendance(user, subjectName, status) {
   } else {
     prefix = status === 'present' ? MESSAGES.attendance.presentPrefix(subject.name) : status === 'absent' ? MESSAGES.attendance.absentPrefix(subject.name) : MESSAGES.attendance.deemedPrefix(subject.name);
   }
-  return await buildAttendanceSummary(uc, user, subject, prefix);
+  const summaryText = await buildAttendanceSummary(uc, user, subject, prefix);
+  return {
+    type: 'button',
+    body: { text: summaryText },
+    action: {
+      buttons: [
+        { type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } },
+        { type: 'reply', reply: { id: 'tasks', title: '📋 Show Tasks' } }
+      ]
+    }
+  };
 }
 
-async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetchedLogs = null) {
+async function buildAttendanceSummary(uc: any, user: any, subject: any, prefix = '', preFetchedLogs: any = null) {
   const logs = preFetchedLogs || await (async () => {
     const { data } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
     return data;
   })();
-  const present = (logs?.filter((l)=>l.status === 'present').length || 0);
-  const absent = (logs?.filter((l)=>l.status === 'absent').length || 0);
-  const deemed = (logs?.filter((l)=>l.status === 'deemed').length || 0);
+  // Legacy attendance is now ignored (always 0) as requested
+  const present = (logs?.filter((l: any)=>l.status === 'present').length || 0);
+  const absent = (logs?.filter((l: any)=>l.status === 'absent').length || 0);
+  const deemed = (logs?.filter((l: any)=>l.status === 'deemed').length || 0);
   const total = present + absent + deemed;
   if (total === 0) return MESSAGES.attendance.summaryNoData(subject.name);
+  
+  // Percent calculation: (Present + Deemed) / Total
   const pct = (present + deemed) / total * 100;
   const target = user.target_attendance_pct || 75;
   const emoji = pct >= target ? '✅' : pct >= target - 15 ? '⚠️' : '🔴';
   let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present + deemed, total, pct.toFixed(1));
   if (deemed > 0) msg += MESSAGES.attendance.deemedNote(deemed);
+  
   const expectedTotal = subject.expected_total_lectures || subject.source_course_id?.expected_total_lectures || 0;
   if (expectedTotal > 0) {
     const t = target / 100;
     const maxMisses = Math.floor(expectedTotal * (1 - t));
+    
+    // FIX: Bunks calculation should only use ACTUAL absences. 
+    // If a lecture is deemed, it doesn't count as an absence towards the bunk limit.
     const bunks = maxMisses - absent;
+    
     const remaining = Math.max(0, expectedTotal - total);
     const totalPresentsNeededForGoal = Math.ceil(expectedTotal * t);
     const needed = Math.max(0, totalPresentsNeededForGoal - (present + deemed));
+    
     if (bunks >= 0) msg += MESSAGES.attendance.bunksLeft(bunks, bunks !== 1);
     else {
       if (needed > remaining) {
@@ -269,33 +289,33 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
 }
 
 // --- SUBJECT MANAGEMENT ---
-async function handleRenameSubject(user, text) {
-  const parts = text.split(',').map((s)=>s.trim());
+async function handleRenameSubject(user: any, text: string) {
+  const parts = text.split(',').map((s: string)=>s.trim());
   if (parts.length < 2) return MESSAGES.subjects.renamePrompt;
   const [oldName, newName] = parts;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', oldName);
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(oldName);
-  const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const valid = raw.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return `❌ Subject exists but is not in your current context.`;
   const { error } = await uc.from('subjects').update({ name: newName }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.renameError;
   return MESSAGES.subjects.renameSuccess(valid[0].name, newName);
 }
 
-async function handleDeleteSubject(user, subjectName) {
+async function handleDeleteSubject(user: any, subjectName: string) {
   if (!subjectName) return MESSAGES.subjects.deletePrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', subjectName.trim());
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(subjectName.trim());
-  const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
-  if (valid.length === 0) return MESSAGES.subjects.wrongContext(subjectName.trim());
+  const valid = raw.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  if (valid.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
   const { error } = await uc.from('subjects').update({ is_active: false }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.deleteError;
   return MESSAGES.subjects.deleteSuccess(valid[0].name);
 }
 
-async function handleSetupLectures(user, text) {
+async function handleSetupLectures(user: any, text: string) {
   const type = text.startsWith('total') ? 'total' : 'missed';
   const parts = text.replace(/^(total|missed)\s+/i, '').split(',');
   if (parts.length < 2) return MESSAGES.general.unknown;
@@ -311,10 +331,10 @@ async function handleSetupLectures(user, text) {
   return MESSAGES.subjects.setupLecturesSuccess(subjects[0].name, type, val);
 }
 
-async function handleMarkAll(user, status) {
+async function handleMarkAll(user: any, status: 'present' | 'absent' | 'deemed') {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
-  const filtered = raw?.filter((s)=>Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
+  const filtered = raw?.filter((s: any)=>Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
   if (filtered.length === 0) return MESSAGES.stats.noSubjects;
   const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   let count = 0;
@@ -328,7 +348,7 @@ async function handleMarkAll(user, status) {
   return MESSAGES.attendance.allSuccess(status, count);
 }
 
-async function handleUndoAll(user) {
+async function handleUndoAll(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   const { error } = await uc.from('attendance_logs').delete().eq('profile_id', user.id).eq('lecture_date', today);
@@ -337,7 +357,8 @@ async function handleUndoAll(user) {
 }
 
 // --- TASK HANDLERS ---
-async function handleAddTask(user, rawText) {
+// --- TASK HANDLERS ---
+async function handleAddTask(user: any, rawText: string) {
   if (!rawText) return MESSAGES.tasks.addPrompt;
   let title = rawText.trim(), dueDate = null, subjectId = null;
   const dueMatch = title.match(/due\s+(on\s+)?([\w\s,]+)/i);
@@ -351,36 +372,185 @@ async function handleAddTask(user, rawText) {
   if (subs) {
     for (const s of subs){ if (title.toLowerCase().includes(s.name.toLowerCase())) { subjectId = s.id; break; } }
   }
-  const { data: task, error } = await uc.from('tasks').insert([{ profile_id: user.id, subject_id: subjectId, title, is_completed: false, priority: 'medium', due_date: dueDate }]).select().single();
-  if (error) return MESSAGES.tasks.addError;
+
+  let googleTaskId = null;
+  const googleToken = await getValidGoogleToken(user);
+  if (googleToken) {
+    try {
+      const gRes = await createGoogleTask(googleToken, title, "", dueDate || undefined, "@default", user);
+      if (gRes?.id) {
+        googleTaskId = gRes.id;
+        console.log(`Successfully created task on Google Tasks: ${googleTaskId}`);
+      }
+    } catch (gErr) {
+      console.error("Failed to create task on Google Tasks:", gErr);
+    }
+  }
+
+  // Insert local task with google_task_id link attached
+  const { data: task, error } = await uc.from('tasks').insert([{
+    profile_id: user.id,
+    subject_id: subjectId,
+    title,
+    is_completed: false,
+    priority: 'medium',
+    due_date: dueDate,
+    google_task_id: googleTaskId,
+    google_tasklist_id: '@default'
+  }]).select().single();
+
+  if (error) {
+    console.error("Failed to insert task locally:", error);
+    return MESSAGES.tasks.addError;
+  }
+
   const dueStr = task.due_date ? MESSAGES.tasks.dueNote(new Date(task.due_date).toLocaleDateString('en-IN')) : '';
   return MESSAGES.tasks.addSuccess(task.title, dueStr);
 }
 
-async function handleCompleteTask(user, numberStr) {
+async function handleCompleteTask(user: any, numberStr: string) {
   const idx = parseInt(numberStr, 10) - 1;
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('tasks').select('id, title, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
-  const tasks = raw?.filter((t)=>{
-    if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
-    if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
-    if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
-    if (t.subjects?.type === 'academic') {
-      const semId = Array.isArray(t.subjects.source_course_id) ? t.subjects.source_course_id[0]?.semester_id : t.subjects.source_course_id?.semester_id;
-      return semId === user.current_semester_id;
+  
+  // 1. Try to fetch from the stored tasks list in the session
+  const session = await getSession(user.whatsapp_number);
+  const lastTasksList = session?.data?.lastTasksList || [];
+  
+  let targetTask = null;
+  if (idx >= 0 && idx < lastTasksList.length) {
+    targetTask = lastTasksList[idx];
+  }
+
+  let successMsg = "";
+
+  if (targetTask) {
+    // A. Sync to Google Tasks if Google Task ID exists
+    if (targetTask.googleId) {
+      const googleToken = await getValidGoogleToken(user);
+      if (googleToken) {
+        try {
+          await updateGoogleTask(googleToken, targetTask.googleId, { completed: true }, "@default", user);
+          console.log(`Successfully completed task on Google Tasks: ${targetTask.googleId}`);
+        } catch (gErr) {
+          console.error("Failed to complete task on Google Tasks:", gErr);
+        }
+      }
     }
-    return true;
-  }) || [];
-  if (idx < 0 || idx >= tasks.length) return MESSAGES.tasks.notFound(idx + 1, tasks.length);
-  await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', tasks[idx].id);
-  return MESSAGES.tasks.doneSuccess(tasks[idx].title);
+
+    // B. Sync local database
+    if (targetTask.localId) {
+      await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', targetTask.localId);
+    } else {
+      // If it was google-only, insert it locally as completed so we have a record
+      await uc.from('tasks').insert([{
+        profile_id: user.id,
+        title: targetTask.title,
+        is_completed: true,
+        completed_at: new Date().toISOString(),
+        due_date: targetTask.due || null,
+        priority: 'medium'
+      }]);
+    }
+
+    // Update session state
+    const updatedList = lastTasksList.filter((_: any, i: number) => i !== idx);
+    await setSession(user.whatsapp_number, session?.step || 'idle', {
+      ...session?.data,
+      lastTasksList: updatedList
+    });
+
+    successMsg = MESSAGES.tasks.doneSuccess(targetTask.title);
+  } else {
+    // 2. Fallback: query local database tasks directly (legacy flow)
+    const { data: raw } = await uc.from('tasks').select('id, title, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
+    const tasks = raw?.filter((t: any)=>{
+      if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
+      if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
+      if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
+      if (t.subjects?.type === 'academic') {
+        const semId = Array.isArray(t.subjects.source_course_id) ? t.subjects.source_course_id[0]?.semester_id : t.subjects.source_course_id?.semester_id;
+        return semId === user.current_semester_id;
+      }
+      return true;
+    }) || [];
+
+    if (idx < 0 || idx >= tasks.length) return MESSAGES.tasks.notFound(idx + 1, tasks.length);
+    
+    const selectedLocalTask = tasks[idx];
+    
+    // Try to find and complete on Google Tasks by matching title and due date
+    const googleToken = await getValidGoogleToken(user);
+    if (googleToken) {
+      try {
+        const googleTasks = await fetchGoogleTasks(googleToken, "@default", user);
+        const cleanLocalTitle = selectedLocalTask.title.replace("[Exam] ", "").trim().toLowerCase();
+        const localDatePart = selectedLocalTask.due_date ? selectedLocalTask.due_date.split("T")[0] : null;
+
+        const matchedGoogleTask = googleTasks.find((g: any) => {
+          const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
+          const gDatePart = g.due ? g.due.split("T")[0] : null;
+          if (cleanLocalTitle !== cleanGoogleTitle) return false;
+          if (!localDatePart && !gDatePart) return true;
+          if (localDatePart && gDatePart) {
+            return localDatePart === gDatePart;
+          }
+          return false;
+        });
+
+        if (matchedGoogleTask) {
+          await updateGoogleTask(googleToken, matchedGoogleTask.id, { completed: true }, "@default", user);
+          console.log(`Successfully completed matched Google Task: ${matchedGoogleTask.id}`);
+        }
+      } catch (gErr) {
+        console.error("Failed to complete matched Google task in fallback flow:", gErr);
+      }
+    }
+
+    await uc.from('tasks').update({ is_completed: true, completed_at: new Date().toISOString() }).eq('id', selectedLocalTask.id);
+    successMsg = MESSAGES.tasks.doneSuccess(selectedLocalTask.title);
+  }
+
+  // 3. Automatically fetch the updated task list to send back to the user
+  try {
+    const listReply = await handleListTasks(user);
+    if (typeof listReply === 'string') {
+      return `${successMsg}\n\n${listReply}`;
+    } else if (listReply && listReply.body?.text) {
+      return {
+        ...listReply,
+        body: {
+          text: `${successMsg}\n\n${listReply.body.text}`
+        }
+      };
+    }
+  } catch (err) {
+    console.error("Failed to append updated task list after complete:", err);
+  }
+
+  return successMsg;
 }
 
-async function handleListTasks(user) {
+async function handleListTasks(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
-  const { data: raw } = await uc.from('tasks').select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
-  if (!raw || raw.length === 0) return MESSAGES.tasks.listCaughtUp;
-  const tasks = raw.filter((t)=>{
+  
+  const threeDaysAgoStr = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  
+  // 1. Get local tasks (both incomplete and recently completed)
+  const { data: raw } = await uc.from('tasks')
+    .select('id, title, priority, due_date, is_completed, completed_at, subject_id, subjects(type, source_course_id(semester_id))')
+    .eq('profile_id', user.id)
+    .or(`is_completed.eq.false,completed_at.gt.${threeDaysAgoStr}`)
+    .order('due_date', { ascending: true, nullsFirst: false });
+  
+  const buttons = [];
+  if (user.academics_enabled) {
+    buttons.push({ type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Attendance' } });
+    buttons.push({ type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } });
+  } else {
+    buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
+  }
+
+  const localTasks = (raw || []).filter((t: any) => {
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
     if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
     if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
@@ -390,30 +560,233 @@ async function handleListTasks(user) {
     }
     return true;
   });
-  if (tasks.length === 0) return MESSAGES.tasks.empty;
-  let msg = MESSAGES.tasks.listHeader(tasks.length);
-  tasks.forEach((t, i)=>{
-    const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority] || '🟡';
-    msg += `${i + 1}. ${p} ${t.title}${t.due_date ? MESSAGES.tasks.dueNote(new Date(t.due_date).toLocaleDateString('en-IN')) : ''}\n`;
+
+  // 2. Fetch and merge Google Tasks if connected
+  let mergedTasks: { title: string; due?: string; priority?: string; source: 'google' | 'local' | 'both'; googleId?: string; localId?: string; completed: boolean; completedAt?: string }[] = [];
+  const googleToken = await getValidGoogleToken(user);
+
+  if (googleToken) {
+    const googleTasks = await fetchGoogleTasks(googleToken, "@default", user);
+    const matchedLocalIds = new Set<string>();
+    const syncPromises: Promise<any>[] = [];
+
+    googleTasks.forEach((g: any) => {
+      const cleanGoogleTitle = g.title?.replace("[Exam] ", "").trim().toLowerCase() || "";
+      const gDatePart = g.due ? g.due.split("T")[0] : null;
+
+      const matched = localTasks.find((t: any) => {
+        const cleanLocalTitle = t.title.replace("[Exam] ", "").trim().toLowerCase();
+        if (cleanLocalTitle !== cleanGoogleTitle) return false;
+        if (!t.due_date && !gDatePart) return true;
+        if (t.due_date && gDatePart) {
+          return t.due_date.split("T")[0] === gDatePart;
+        }
+        return false;
+      });
+
+      if (matched) {
+        matchedLocalIds.add(matched.id);
+        
+        const isCompleted = g.status === "completed";
+        const lCompleted = matched.is_completed;
+
+        // Reconcile status mismatches on the fly using Google Tasks as the authority
+        if (isCompleted && !lCompleted) {
+          syncPromises.push(
+            uc.from('tasks')
+              .update({ is_completed: true, completed_at: g.completed || new Date().toISOString() })
+              .eq('id', matched.id)
+          );
+        } else if (!isCompleted && lCompleted) {
+          syncPromises.push(
+            uc.from('tasks')
+              .update({ is_completed: false, completed_at: null })
+              .eq('id', matched.id)
+          );
+        }
+
+        mergedTasks.push({
+          title: g.title || matched.title,
+          due: matched.due_date || g.due,
+          priority: matched.priority || 'medium',
+          source: 'both',
+          googleId: g.id,
+          localId: matched.id,
+          completed: isCompleted,
+          completedAt: g.completed || matched.completed_at
+        });
+      } else {
+        mergedTasks.push({
+          title: g.title || "",
+          due: g.due,
+          priority: 'medium',
+          source: 'google',
+          googleId: g.id,
+          completed: g.status === "completed",
+          completedAt: g.completed
+        });
+      }
+    });
+
+    if (syncPromises.length > 0) {
+      await Promise.allSettled(syncPromises);
+    }
+
+    // Append unmatched local tasks
+    localTasks.forEach((t: any) => {
+      if (!matchedLocalIds.has(t.id)) {
+        mergedTasks.push({
+          title: t.title,
+          due: t.due_date,
+          priority: t.priority || 'medium',
+          source: 'local',
+          localId: t.id,
+          completed: t.is_completed,
+          completedAt: t.completed_at
+        });
+      }
+    });
+  } else {
+    // If not connected to Google, just use local tasks
+    mergedTasks = localTasks.map((t: any) => ({
+      title: t.title,
+      due: t.due_date,
+      priority: t.priority || 'medium',
+      source: 'local',
+      localId: t.id,
+      completed: t.is_completed,
+      completedAt: t.completed_at
+    }));
+  }
+
+  const incompleteTasks = mergedTasks.filter(t => !t.completed);
+  const completedTasks = mergedTasks.filter(t => t.completed);
+
+  // Take up to last 5 completed tasks
+  const activeCompleted = completedTasks
+    .sort((a, b) => {
+      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : 0;
+      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, 5);
+
+  if (incompleteTasks.length === 0 && activeCompleted.length === 0) {
+    return {
+      type: 'button',
+      body: { text: MESSAGES.tasks.listCaughtUp },
+      action: {
+        buttons: buttons.slice(0, 3)
+      }
+    };
+  }
+
+  // Get current date string (YYYY-MM-DD) in user's timezone
+  const userTimezone = user.timezone || 'Asia/Kolkata';
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: userTimezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
   });
-  return msg + MESSAGES.tasks.listFooter(tasks.length, tasks.length !== 1);
+  const parts = formatter.formatToParts(new Date());
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  const year = parts.find(p => p.type === 'year')?.value;
+  const todayStr = `${year}-${month}-${day}`;
+
+  const overdue: typeof mergedTasks = [];
+  const todayTasks: typeof mergedTasks = [];
+  const upcoming: typeof mergedTasks = [];
+
+  incompleteTasks.forEach(t => {
+    if (t.due) {
+      const datePart = t.due.split("T")[0];
+      if (datePart < todayStr) {
+        overdue.push(t);
+      } else if (datePart === todayStr) {
+        todayTasks.push(t);
+      } else {
+        upcoming.push(t);
+      }
+    } else {
+      upcoming.push(t);
+    }
+  });
+
+  const orderedIncomplete = [...overdue, ...todayTasks, ...upcoming];
+
+  // 3. Store only incomplete tasks in session state in the display order
+  const session = await getSession(user.whatsapp_number);
+  await setSession(user.whatsapp_number, session?.step || 'idle', {
+    ...session?.data,
+    lastTasksList: orderedIncomplete.map(t => ({ googleId: t.googleId, localId: t.localId, title: t.title, due: t.due }))
+  });
+
+  let msg = `📋 *Your Tasks* 📋\n`;
+  let itemIndex = 1;
+
+  const priorityIcons: Record<string, string> = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
+
+  if (overdue.length > 0) {
+    msg += `\n🚨 *Overdue:*\n`;
+    overdue.forEach(t => {
+      const p = priorityIcons[t.priority || 'medium'] || '🟡';
+      msg += `${itemIndex}. ${p} ${t.title}${t.due ? ` (due ${new Date(t.due).toLocaleDateString('en-IN')})` : ''}\n`;
+      itemIndex++;
+    });
+  }
+
+  if (todayTasks.length > 0) {
+    msg += `\n📅 *Today:*\n`;
+    todayTasks.forEach(t => {
+      const p = priorityIcons[t.priority || 'medium'] || '🟡';
+      msg += `${itemIndex}. ${p} ${t.title}\n`;
+      itemIndex++;
+    });
+  }
+
+  if (upcoming.length > 0) {
+    msg += `\n🗓️ *Upcoming:*\n`;
+    upcoming.forEach(t => {
+      const p = priorityIcons[t.priority || 'medium'] || '🟡';
+      msg += `${itemIndex}. ${p} ${t.title}${t.due ? ` (due ${new Date(t.due).toLocaleDateString('en-IN')})` : ''}\n`;
+      itemIndex++;
+    });
+  }
+
+  if (activeCompleted.length > 0) {
+    msg += `\n✅ *Completed (Recent):*\n`;
+    activeCompleted.forEach(t => {
+      msg += `- ~${t.title}~\n`;
+    });
+  }
+
+  const text = msg + MESSAGES.tasks.listFooter(incompleteTasks.length, incompleteTasks.length !== 1);
+  return {
+    type: 'button',
+    body: { text },
+    action: {
+      buttons: buttons.slice(0, 3)
+    }
+  };
 }
 
 // --- TIMER HANDLERS ---
-async function handleStartTimer(user, subjectName) {
+async function handleStartTimer(user: any, subjectName: string) {
   if (!subjectName) return MESSAGES.timers.startPrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: running } = await uc.from('study_timers').select('id, subjects(name)').eq('profile_id', user.id).is('ended_at', null).maybeSingle();
   if (running) return MESSAGES.timers.alreadyRunning(running.subjects?.name);
   const { data: subs } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
   if (!subs || subs.length === 0) return MESSAGES.timers.notFound(subjectName.trim());
-  const valid = subs.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const valid = subs.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return MESSAGES.timers.wrongContext(subjectName.trim());
   await uc.from('study_timers').insert([{ profile_id: user.id, subject_id: valid[0].id, started_at: new Date().toISOString() }]);
   return MESSAGES.timers.started(valid[0].name);
 }
 
-async function handleStopTimer(user) {
+async function handleStopTimer(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: running } = await uc.from('study_timers').select('id, started_at, subjects(name)').eq('profile_id', user.id).is('ended_at', null).maybeSingle();
   if (!running) return MESSAGES.timers.noActive;
@@ -443,9 +816,28 @@ async function handleProfile(user: any, uc: any) {
 }
 
 function handleHelp(user: any) {
-  if (user.academics_enabled && user.personal_enabled) return MESSAGES.general.helpBoth;
-  if (user.personal_enabled) return MESSAGES.general.helpPersonal;
-  return MESSAGES.general.help;
+  const text = user.academics_enabled && user.personal_enabled
+    ? MESSAGES.general.helpBoth
+    : user.personal_enabled
+      ? MESSAGES.general.helpPersonal
+      : MESSAGES.general.help;
+
+  const buttons = [];
+  buttons.push({ type: 'reply', reply: { id: 'tasks', title: '📋 Show Tasks' } });
+  if (user.academics_enabled) {
+    buttons.push({ type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Attendance' } });
+    buttons.push({ type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } });
+  } else {
+    buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
+  }
+
+  return {
+    type: 'button',
+    body: { text },
+    action: {
+      buttons: buttons.slice(0, 3)
+    }
+  };
 }
 
 async function handleStats(user: any, uc: any) {
@@ -484,40 +876,163 @@ async function handleUndoAttendanceOne(user: any, uc: any, text: string) {
   return MESSAGES.attendance.undoSuccess(s.name);
 }
 
-async function handleLog(user: any) {
-  const { data: subjects } = await supabaseAdmin.from('subjects').select('id, name').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic').order('name');
-  if (!subjects || subjects.length === 0) return "You don't have any active academic subjects to log attendance for.";
+async function handleVerifyCode(phone: string, code: string) {
+  if (!code) return "❌ Please specify the passcode. Example: `/verify 123456`";
+
+  const now = new Date().toISOString();
+  
+  // 1. Find profile matching code that hasn't expired
+  const { data: profile, error: findError } = await supabaseAdmin
+    .from('profiles')
+    .select('id, display_name')
+    .eq('whatsapp_verification_code', code.trim())
+    .gt('whatsapp_verification_expires_at', now)
+    .maybeSingle();
+
+  if (findError || !profile) {
+    return "❌ Invalid or expired passcode. Please generate a new passcode on your dashboard settings page.";
+  }
+
+  // 2. Find if a temporary/placeholder profile exists for this phone number
+  const { data: placeholder } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('whatsapp_number', phone)
+    .neq('id', profile.id)
+    .maybeSingle();
+
+  if (placeholder) {
+    // Delete any dependent rows of the placeholder profile to avoid foreign key violations
+    await supabaseAdmin.from('study_timers').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('tasks').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('grades').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('attendance_logs').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('subjects').delete().eq('profile_id', placeholder.id);
+    await supabaseAdmin.from('profiles').delete().eq('id', placeholder.id);
+  }
+
+  // 3. Clear the phone number from any other profiles to be safe
+  await supabaseAdmin
+    .from('profiles')
+    .update({ whatsapp_number: null })
+    .eq('whatsapp_number', phone)
+    .neq('id', profile.id);
+
+  // 4. Link the phone number to the target Google profile and start the 24h window
+  const { error: updateError } = await supabaseAdmin
+    .from('profiles')
+    .update({
+      whatsapp_number: phone,
+      whatsapp_verification_code: null,
+      whatsapp_verification_expires_at: null,
+      last_user_message_at: now
+    })
+    .eq('id', profile.id);
+
+  if (updateError) {
+    console.error("Error linking WhatsApp:", updateError);
+    return "❌ Failed to link your WhatsApp number. Please try again.";
+  }
+
+  return `✅ Success! Your WhatsApp number has been linked to profile *${profile.display_name}*. You will now receive reminders and logs here!`;
+}
+
+async function handleRespawn(user: any) {
+  const RESPAWN_RESPONSES = [
+    "🔋 *Ryu Medha RESPAWNED!* I'm back and fully charged. Let's conquer those tasks! 🚀",
+    "⚡ *Connection Restored!* Did you miss me? Let's get back to work! 🎯",
+    "🌟 *Rising from the ashes!* Your academic guardian is back online. What are we studying today? 📚",
+    "🎮 *Respawn successful!* +100 Mana. Let's make today productive! 👾",
+    "🔥 *Aaaand we're back!* The 24-hour clock has reset. Let's crush some goals! 💪",
+    "🤖 *System reboot complete!* I've returned to keep you on track. ✨",
+    "🦖 *Rawr!* Like a dinosaur that didn't go extinct, I'm back! Let's get things done. 🦕"
+  ];
+  const greeting = RESPAWN_RESPONSES[Math.floor(Math.random() * RESPAWN_RESPONSES.length)];
+
+  // Fetch pending tasks
+  const uc = await getUserClient(user.whatsapp_number);
+  const { data: raw } = await uc.from('tasks')
+    .select('title, priority, due_date, subject_id, subjects(type, source_course_id(semester_id))')
+    .eq('profile_id', user.id)
+    .eq('is_completed', false)
+    .order('due_date', { ascending: true, nullsFirst: false });
+    
+  const tasks = raw?.filter((t: any) => {
+    if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
+    if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
+    if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
+    if (t.subjects?.type === 'academic') {
+      const semId = Array.isArray(t.subjects.source_course_id) ? t.subjects.source_course_id[0]?.semester_id : t.subjects.source_course_id?.semester_id;
+      return semId === user.current_semester_id;
+    }
+    return true;
+  }) || [];
+
+  let taskSnippet = "";
+  if (tasks.length > 0) {
+    taskSnippet = `\n\n📋 *Your Pending Tasks (${tasks.length}):*\n`;
+    const priorityIcons: Record<string, string> = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
+    tasks.slice(0, 3).forEach((t: any, i: number) => {
+      const p = priorityIcons[t.priority] || '🟡';
+      taskSnippet += `${i + 1}. ${p} ${t.title}\n`;
+    });
+    if (tasks.length > 3) {
+      taskSnippet += `...and ${tasks.length - 3} more.`;
+    }
+  } else {
+    taskSnippet = "\n\n🎉 You're completely caught up! No pending tasks.";
+  }
+
+  const buttons = [
+    { type: 'reply', reply: { id: 'tasks', title: '📋 Show All Tasks' } }
+  ];
+  if (user.academics_enabled) {
+    buttons.push({ type: 'reply', reply: { id: 'log_menu', title: '✍️ Log Attendance' } });
+    buttons.push({ type: 'reply', reply: { id: 'stats', title: '📊 Show Stats' } });
+  } else {
+    buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
+  }
+
   return {
-    type: "list",
-    header: { type: "text", text: "Attendance Logger" },
-    body: { text: "Select a subject below to mark yourself as PRESENT for today." },
-    footer: { text: "Ryu Medha Guardian" },
+    type: 'button',
+    body: { text: `${greeting}${taskSnippet}` },
     action: {
-      button: "Select Subject",
-      sections: [{
-        title: "Your Subjects",
-        rows: subjects.slice(0, 10).map(s => ({ id: `wa_log_present_${s.id}`, title: s.name, description: "Tap to mark Present" }))
-      }]
+      buttons: buttons.slice(0, 3)
     }
   };
 }
 
-async function handleInteractiveLog(user: any, id: string) {
-  const subjectId = id.replace('wa_log_present_', '');
-  const { data: subject } = await supabaseAdmin.from('subjects').select('name').eq('id', subjectId).single();
-  if (!subject) return "Subject not found.";
-  return await logAttendance(user, subject.name, 'present');
-}
-
 // --- ROUTING ---
 export async function processMessage(phone: string, text: string, metadata: { isInteractive: boolean } = { isInteractive: false }) {
-  const user = await getOrCreateUser(phone);
   const lower = text.trim().toLowerCase();
+  
+  // 1. Allow verification command regardless of registration status
+  if (lower.startsWith('verify ') || lower.startsWith('/verify ')) {
+    const code = text.replace(/^\/?verify\s+/i, '').trim();
+    return await handleVerifyCode(phone, code);
+  }
+
+  // 2. Check if user profile exists with this WhatsApp number
+  const { data: user } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .eq('whatsapp_number', phone)
+    .maybeSingle();
+
+  if (!user) {
+    return `👋 Welcome to *Ryu Medha*!\n\nIt looks like your WhatsApp number is not connected to any account yet. Please connect your WhatsApp first on the website to start using the bot!\n\nLink: ${WEBSITE_URL}/dashboard/whatsapp-bot`;
+  }
+
   const uc = await getUserClient(phone);
   const session = await getSession(phone);
   const deps = { getUserClient, getOrCreateUser, updateProfile, createSubject, seedDefaultCategories, setSession, clearSession, WEBSITE_URL, supabaseAdmin, metadata };
+  
+  if (lower === 'ryuma respawn' || lower === '/ryuma respawn' || lower === 'respawn') {
+    return await handleRespawn(user);
+  }
+  
   if (lower === 'setup' || lower === 'reset') { await updateProfile(phone, { display_name: PLACEHOLDER_NAME }); await clearSession(phone); return startOnboarding(phone, deps); }
-  if (session) {
+  if (session && session.step !== 'idle') {
     if (['cancel', 'stop'].includes(lower)) { await clearSession(phone); return `Onboarding cancelled. Type "setup" to restart!`; }
     const reply = await handleOnboarding(user, session, text.trim(), deps);
     if (reply) return reply;
@@ -538,8 +1053,6 @@ export async function processMessage(phone: string, text: string, metadata: { is
   else if (lower.startsWith('start ')) reply = await handleStartTimer(user, text.substring(6).trim());
   else if (lower === 'stop') reply = await handleStopTimer(user);
   else if (lower === 'stats' || lower === 'attendance') reply = await handleStats(user, uc);
-  else if (lower === 'log') reply = await handleLog(user);
-  else if (lower.startsWith('wa_log_present_')) reply = await handleInteractiveLog(user, lower);
   else if (lower.startsWith('attended ')) reply = await handleAttendanceBatch(user, text, 'present');
   else if (lower.startsWith('missed ')) reply = await handleAttendanceBatch(user, text, 'absent');
   else if (lower.startsWith('deemed ')) reply = await handleAttendanceBatch(user, text, 'deemed');

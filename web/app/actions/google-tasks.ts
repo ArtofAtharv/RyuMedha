@@ -13,6 +13,7 @@ export interface Reminder {
   completed: boolean
   completedAt?: string
   listId: string
+  subjectId?: string
   reminderSettings?: {
     dueTime: boolean
     oneDayPrior: boolean
@@ -33,17 +34,26 @@ export interface TaskList {
 async function getAuthenticatedClient() {
   const cookieStore = await cookies()
   const accessToken = cookieStore.get("sb-access-token")?.value
+
   if (!accessToken) {
     throw new Error("Unauthorized")
   }
 
-  const supabase = createClient(
+  const validAccessToken = accessToken
+
+  // Create an authenticated client to fetch/update profile
+  const authSupabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { headers: { Authorization: `Bearer ${accessToken}` } } }
+    {
+      global: {
+        headers: { Authorization: `Bearer ${validAccessToken}` },
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+      }
+    }
   )
 
-  const { data: profile, error } = await supabase
+  const { data: profile, error } = await authSupabase
     .from('profiles')
     .select('id, google_access_token, google_refresh_token, google_token_expiry')
     .single()
@@ -52,9 +62,16 @@ async function getAuthenticatedClient() {
     throw new Error("Google account not linked or authenticated")
   }
 
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+
+  if (!clientId || !clientSecret) {
+    console.warn("WARNING: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing in environment variables. Google token refresh will fail when tokens expire.")
+  }
+
   const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET
+    clientId,
+    clientSecret
   )
 
   oauth2Client.setCredentials({
@@ -62,6 +79,32 @@ async function getAuthenticatedClient() {
     refresh_token: profile.google_refresh_token || undefined,
     expiry_date: profile.google_token_expiry ? Number(profile.google_token_expiry) * 1000 : undefined
   })
+
+  // Proactively refresh the Google token if it is expired or close to expiring (within 5 minutes)
+  const now = Math.floor(Date.now() / 1000)
+  const expiry = profile.google_token_expiry ? Number(profile.google_token_expiry) : 0
+  if ((expiry <= now + 300) && profile.google_refresh_token) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken()
+      if (credentials.access_token) {
+        const updates: any = {
+          google_access_token: credentials.access_token
+        }
+        if (credentials.expiry_date) {
+          updates.google_token_expiry = Math.floor(credentials.expiry_date / 1000)
+        }
+        
+        await authSupabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', profile.id)
+
+        oauth2Client.setCredentials(credentials)
+      }
+    } catch (refreshError) {
+      console.error("Error proactively refreshing Google token:", refreshError)
+    }
+  }
 
   oauth2Client.on('tokens', async (tokens) => {
     if (tokens.access_token) {
@@ -72,14 +115,18 @@ async function getAuthenticatedClient() {
         updates.google_token_expiry = Math.floor(tokens.expiry_date / 1000)
       }
       
-      await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', profile.id)
+      try {
+        await authSupabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', profile.id)
+      } catch (updateErr) {
+        console.error("Error updating tokens in event listener:", updateErr)
+      }
     }
   })
 
-  return { oauth2Client, profileId: profile.id, supabase }
+  return { oauth2Client, profileId: profile.id, supabase: authSupabase }
 }
 
 async function findCalendarEvent(auth: any, title: string, dueStr: string | null | undefined): Promise<string | null> {
@@ -296,7 +343,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
 
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, title, due_date')
+      .select('id, title, due_date, subject_id, is_exam, description, is_completed, completed_at, google_task_id, google_tasklist_id')
       .eq('profile_id', profileId)
 
     const { data: localReminders } = await supabase
@@ -314,68 +361,136 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
       })
     }
     
-    return (
-      response.data.items?.map((item) => {
-        let finalDue = item.due || undefined
-        const itemTitleNormalized = item.title?.trim().toLowerCase() || ""
-        const itemDatePart = item.due ? item.due.split("T")[0] : null
+    const matchedLocalIds = new Set<string>()
+    
+    const googleReminders = response.data.items?.map((item) => {
+      let finalDue = item.due || undefined
+      const itemTitleNormalized = item.title?.trim().toLowerCase() || ""
+      const itemDatePart = item.due ? item.due.split("T")[0] : null
 
-        // Match Google task with local task by title & due date-only
-        const matchedLocal = localTasks?.find(t => {
-          if (t.title.trim().toLowerCase() !== itemTitleNormalized) return false
+      // Match Google task with local task by google_task_id first, then fallback to title & date
+      const matchedLocal = localTasks?.find(t => {
+        if (t.google_task_id && item.id && t.google_task_id === item.id) return true
+        if (!t.google_task_id) {
+          const cleanLocalTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
+          const cleanGoogleTitle = item.title?.replace("[Exam] ", "").trim().toLowerCase() || ""
+          if (cleanLocalTitle !== cleanGoogleTitle) return false
           if (!t.due_date && !itemDatePart) return true
           if (t.due_date && itemDatePart) {
             return t.due_date.split("T")[0] === itemDatePart
           }
-          return false
-        })
+        }
+        return false
+      })
 
-        if (matchedLocal?.due_date) {
+      if (matchedLocal) {
+        matchedLocalIds.add(matchedLocal.id)
+        if (matchedLocal.due_date) {
           finalDue = matchedLocal.due_date
         }
 
-        let reminderSettings = undefined
-        if (matchedLocal) {
-          const types = localRemindersMap.get(matchedLocal.id) || []
-          const hasCustom = types.some(t => t.startsWith('custom:'))
-          let customValue = 3
-          let customUnit = 'hours'
-          
-          if (hasCustom) {
-            const customType = types.find(t => t.startsWith('custom:'))
-            if (customType) {
-              const parts = customType.split(':')
-              if (parts.length === 3) {
-                customValue = parseInt(parts[1]) || 3
-                customUnit = parts[2]
-              }
+        // Backfill google_task_id if matched via legacy fallback
+        if (!matchedLocal.google_task_id && item.id) {
+          supabase
+            .from('tasks')
+            .update({ google_task_id: item.id, google_tasklist_id: listId })
+            .eq('id', matchedLocal.id)
+            .then(({ error: backfillErr }) => {
+              if (backfillErr) console.warn("Failed to backfill google_task_id:", backfillErr)
+            })
+        }
+      }
+
+      let reminderSettings = undefined
+      if (matchedLocal) {
+        const types = localRemindersMap.get(matchedLocal.id) || []
+        const hasCustom = types.some(t => t.startsWith('custom:'))
+        let customValue = 3
+        let customUnit = 'hours'
+        
+        if (hasCustom) {
+          const customType = types.find(t => t.startsWith('custom:'))
+          if (customType) {
+            const parts = customType.split(':')
+            if (parts.length === 3) {
+              customValue = parseInt(parts[1]) || 3
+              customUnit = parts[2]
             }
           }
+        }
 
-          reminderSettings = {
-            dueTime: types.includes('due_date'),
-            oneDayPrior: types.includes('1_day_prior'),
-            twoDaysPrior: types.includes('2_days_prior'),
-            oneWeekPrior: types.includes('1_week_prior'),
-            twoWeeksPrior: types.includes('2_weeks_prior'),
-            customPrior: hasCustom,
-            customValue,
-            customUnit
+        reminderSettings = {
+          dueTime: types.includes('due_date'),
+          oneDayPrior: types.includes('1_day_prior'),
+          twoDaysPrior: types.includes('2_days_prior'),
+          oneWeekPrior: types.includes('1_week_prior'),
+          twoWeeksPrior: types.includes('2_weeks_prior'),
+          customPrior: hasCustom,
+          customValue,
+          customUnit
+        }
+      }
+      
+      const isExam = item.title?.startsWith("[Exam]") || matchedLocal?.is_exam || matchedLocal?.title.startsWith("[Exam]")
+      const displayTitle = isExam && !item.title?.startsWith("[Exam]") ? `[Exam] ${item.title}` : item.title || ""
+
+      return {
+        id: item.id || "",
+        title: displayTitle,
+        notes: item.notes || "",
+        due: finalDue,
+        completed: item.status === "completed",
+        completedAt: item.completed || undefined,
+        listId,
+        subjectId: matchedLocal?.subject_id || undefined,
+        reminderSettings
+      }
+    }) || []
+
+    const unmatchedLocal = localTasks?.filter(t => !matchedLocalIds.has(t.id)) || []
+    
+    const unmatchedReminders = unmatchedLocal.map(t => {
+      const types = localRemindersMap.get(t.id) || []
+      const hasCustom = types.some(x => x.startsWith('custom:'))
+      let customValue = 3
+      let customUnit = 'hours'
+      
+      if (hasCustom) {
+        const customType = types.find(x => x.startsWith('custom:'))
+        if (customType) {
+          const parts = customType.split(':')
+          if (parts.length === 3) {
+            customValue = parseInt(parts[1]) || 3
+            customUnit = parts[2]
           }
         }
-        
-        return {
-          id: item.id || "",
-          title: item.title || "",
-          notes: item.notes || "",
-          due: finalDue,
-          completed: item.status === "completed",
-          completedAt: item.completed || undefined,
-          listId,
-          reminderSettings
-        }
-      }) || []
-    )
+      }
+
+      const reminderSettings = {
+        dueTime: types.includes('due_date'),
+        oneDayPrior: types.includes('1_day_prior'),
+        twoDaysPrior: types.includes('2_days_prior'),
+        oneWeekPrior: types.includes('1_week_prior'),
+        twoWeeksPrior: types.includes('2_weeks_prior'),
+        customPrior: hasCustom,
+        customValue,
+        customUnit
+      }
+
+      return {
+        id: t.id,
+        title: t.title,
+        notes: t.description || "",
+        due: t.due_date || undefined,
+        completed: t.is_completed || false,
+        completedAt: t.completed_at || undefined,
+        listId,
+        subjectId: t.subject_id || undefined,
+        reminderSettings
+      }
+    })
+
+    return [...googleReminders, ...unmatchedReminders]
   } catch (error) {
     console.error("Error fetching reminders:", error)
     return []
@@ -387,6 +502,7 @@ export async function createReminder(data: {
   notes?: string
   due?: string // RFC3339 Timestamp
   listId?: string
+  subjectId?: string
   reminderSettings?: {
     dueTime: boolean
     oneDayPrior: boolean
@@ -403,7 +519,22 @@ export async function createReminder(data: {
     const service = google.tasks({ version: "v1", auth })
     const listId = data.listId || "@default"
     
-    // 1. Create task in local database
+    // 1. Create on Google FIRST
+    const response = await service.tasks.insert({
+      tasklist: listId,
+      requestBody: {
+        title: data.title,
+        notes: data.notes || "",
+        due: data.due ? data.due.split("T")[0] + "T00:00:00.000Z" : undefined,
+      },
+    })
+    const googleTask = response.data
+
+    if (!googleTask.id) {
+      throw new Error("Failed to get Google Task ID from API response")
+    }
+
+    // 2. Only now insert locally, with the real link already attached
     const { data: localTask, error: insertErr } = await supabase
       .from('tasks')
       .insert({
@@ -411,13 +542,23 @@ export async function createReminder(data: {
         title: data.title,
         description: data.notes || '',
         due_date: data.due || null,
-        is_completed: false
+        is_completed: false,
+        subject_id: data.subjectId || null,
+        google_task_id: googleTask.id,
+        google_tasklist_id: listId,
       })
       .select()
       .single()
 
     if (insertErr) {
       console.error("Local database task insert error:", insertErr)
+      // Google task now exists with no local row — clean it up rather than leaving an orphan
+      try {
+        await service.tasks.delete({ tasklist: listId, task: googleTask.id })
+      } catch (delErr) {
+        console.error("Failed to rollback Google Task after DB insert failure:", delErr)
+      }
+      return null
     }
 
     let calendarEventId: string | null = null
@@ -434,7 +575,7 @@ export async function createReminder(data: {
     const finalSettings = data.reminderSettings || defaultSettings
 
     if (localTask && data.due) {
-      // 2. Schedule reminders in local database
+      // 3. Schedule reminders in local database
       const scheduledList = calculateReminderTimes(data.due, finalSettings)
       for (const item of scheduledList) {
         await supabase
@@ -449,7 +590,7 @@ export async function createReminder(data: {
           })
       }
 
-      // 3. Sync to Google Calendar
+      // 4. Sync to Google Calendar
       calendarEventId = await syncGoogleCalendarEvent(
         auth,
         data.title,
@@ -459,27 +600,16 @@ export async function createReminder(data: {
       )
     }
 
-    // 4. Create task on Google Tasks (completely clean notes)
-    const response = await service.tasks.insert({
-      tasklist: listId,
-      requestBody: {
-        title: data.title,
-        notes: data.notes || "",
-        due: data.due ? data.due.split("T")[0] + "T00:00:00.000Z" : undefined,
-      },
-    })
-    
-    const item = response.data
-    
     revalidatePath("/dashboard/tasks")
     return {
-      id: item.id || "",
-      title: item.title || "",
-      notes: item.notes || "",
+      id: googleTask.id,
+      title: googleTask.title || data.title,
+      notes: googleTask.notes || data.notes || "",
       due: data.due || undefined,
-      completed: item.status === "completed",
-      completedAt: item.completed || undefined,
+      completed: googleTask.status === "completed",
+      completedAt: googleTask.completed || undefined,
       listId,
+      subjectId: data.subjectId,
       reminderSettings: finalSettings
     }
   } catch (error) {
@@ -495,6 +625,7 @@ export async function updateReminder(
     notes?: string
     due?: string // RFC3339 Timestamp
     completed?: boolean
+    subjectId?: string | null
     reminderSettings?: {
       dueTime: boolean
       oneDayPrior: boolean
@@ -521,13 +652,15 @@ export async function updateReminder(
     const currentTitle = currentTask.data.title || ""
     const currentDatePart = currentTask.data.due ? currentTask.data.due.split("T")[0] : null
 
-    // Look up local task by old title and date
+    // Look up local task by google_task_id, id, or old title and date
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, title, due_date')
+      .select('id, title, due_date, subject_id, google_task_id')
       .eq('profile_id', profileId)
 
     const matchedLocal = localTasks?.find(t => {
+      if (t.google_task_id && t.google_task_id === id) return true
+      if (t.id === id) return true
       if (t.title.trim().toLowerCase() !== currentTitle.trim().toLowerCase()) return false
       if (!t.due_date && !currentDatePart) return true
       if (t.due_date && currentDatePart) {
@@ -547,7 +680,10 @@ export async function updateReminder(
           title: data.title !== undefined ? data.title : currentTask.data.title || "",
           description: data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
           due_date: data.due !== undefined ? (data.due || null) : (currentTask.data.due || null),
-          is_completed: data.completed !== undefined ? data.completed : (currentTask.data.status === "completed")
+          is_completed: data.completed !== undefined ? data.completed : (currentTask.data.status === "completed"),
+          subject_id: data.subjectId !== undefined ? data.subjectId : null,
+          google_task_id: id,
+          google_tasklist_id: listId,
         })
         .select()
         .single()
@@ -573,10 +709,14 @@ export async function updateReminder(
     const finalSettings = data.reminderSettings !== undefined ? data.reminderSettings : existingSettings
 
     if (taskId) {
-      const updateData: any = {}
+      const updateData: any = {
+        google_task_id: id,
+        google_tasklist_id: listId
+      }
       if (data.title !== undefined) updateData.title = data.title
       if (data.notes !== undefined) updateData.description = data.notes
       if (data.due !== undefined) updateData.due_date = data.due || null
+      if (data.subjectId !== undefined) updateData.subject_id = data.subjectId
       if (data.completed !== undefined) {
         updateData.is_completed = data.completed
         updateData.completed_at = data.completed ? new Date().toISOString() : null
@@ -655,6 +795,7 @@ export async function updateReminder(
       completed: item.status === "completed",
       completedAt: item.completed || undefined,
       listId,
+      subjectId: data.subjectId !== undefined ? (data.subjectId || undefined) : (localTask?.subject_id || undefined),
       reminderSettings: finalSettings
     }
   } catch (error) {
@@ -666,30 +807,18 @@ export async function updateReminder(
 export async function deleteReminder(id: string, listId = "@default"): Promise<boolean> {
   try {
     const { oauth2Client: auth, supabase } = await getAuthenticatedClient()
-    const service = google.tasks({ version: "v1", auth })
-    
-    const currentTask = await service.tasks.get({
-      tasklist: listId,
-      task: id,
-    })
-    
-    const currentTitle = currentTask.data.title || ""
-    const currentDatePart = currentTask.data.due ? currentTask.data.due.split("T")[0] : null
 
-    // Look up local task
+    // 1. Look up local task by google_task_id or local UUID
     const { data: localTasks } = await supabase
       .from('tasks')
-      .select('id, due_date')
-      .eq('title', currentTitle)
+      .select('id, title, due_date, subject_id, google_task_id')
 
-    // Narrow down by date
-    const matchedLocal = localTasks?.find(t => {
-      if (!t.due_date && !currentDatePart) return true
-      if (t.due_date && currentDatePart) {
-        return t.due_date.split("T")[0] === currentDatePart
-      }
-      return false
-    })
+    const matchedLocal = localTasks?.find(t => t.google_task_id === id || t.id === id)
+
+    let localTitle = matchedLocal?.title || ""
+    let localDueDate = matchedLocal?.due_date || null
+    let subjectId = matchedLocal?.subject_id || null
+    const targetGoogleTaskId = matchedLocal?.google_task_id || id
 
     if (matchedLocal) {
       await supabase
@@ -698,16 +827,76 @@ export async function deleteReminder(id: string, listId = "@default"): Promise<b
         .eq('id', matchedLocal.id)
     }
 
-    const calendarEventId = await findCalendarEvent(auth, currentTitle, matchedLocal?.due_date)
-    if (calendarEventId) {
-      await deleteGoogleCalendarEvent(auth, calendarEventId)
+    // 2. Delete from Google Tasks using exact Google Task ID
+    try {
+      const service = google.tasks({ version: "v1", auth })
+      await service.tasks.delete({
+        tasklist: listId,
+        task: targetGoogleTaskId,
+      })
+    } catch (googleErr) {
+      console.warn("Google Task delete failed or not found:", googleErr)
     }
 
-    await service.tasks.delete({
-      tasklist: listId,
-      task: id,
-    })
-    
+    // 4. Clean up shared course exam dates if it was an exam task
+    if (subjectId && localTitle) {
+      try {
+        const { data: subjectData } = await supabase
+          .from('subjects')
+          .select('type, source_course_id')
+          .eq('id', subjectId)
+          .single()
+
+        if (subjectData?.type === 'academic' && subjectData.source_course_id) {
+          const courseId = typeof subjectData.source_course_id === 'object' 
+            ? (subjectData.source_course_id as { id?: string })?.id 
+            : (subjectData.source_course_id as string)
+
+          if (courseId) {
+            const { data: courseData } = await supabase
+              .from('academic_courses')
+              .select('id, exam_dates')
+              .eq('id', courseId)
+              .single()
+
+            if (courseData?.exam_dates) {
+              const cleanTitleLabel = localTitle.startsWith("[Exam] ") 
+                ? localTitle.replace("[Exam] ", "") 
+                : localTitle
+
+              const newDates = { ...courseData.exam_dates }
+              let deletedAny = false
+              for (const key of Object.keys(newDates)) {
+                if (key.trim().toLowerCase() === cleanTitleLabel.trim().toLowerCase()) {
+                  delete newDates[key]
+                  deletedAny = true
+                }
+              }
+
+              if (deletedAny) {
+                await supabase
+                  .from('academic_courses')
+                  .update({ exam_dates: newDates })
+                  .eq('id', courseId)
+              }
+            }
+          }
+        }
+      } catch (courseErr) {
+        console.warn("Failed to delete shared course exam date on delete:", courseErr)
+      }
+    }
+
+    // 5. Try to delete the linked Google Calendar event
+    try {
+      const calendarEventId = await findCalendarEvent(auth, localTitle, localDueDate)
+      if (calendarEventId) {
+        await deleteGoogleCalendarEvent(auth, calendarEventId)
+      }
+    } catch (calErr) {
+      console.warn("Google Calendar event delete skipped or failed:", calErr)
+    }
+
     revalidatePath("/dashboard/tasks")
     return true
   } catch (error) {

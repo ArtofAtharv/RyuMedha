@@ -27,19 +27,28 @@ import {
   Target,
   Clock,
   Trash2,
-  CalendarDays
+  CalendarDays,
+  Pencil,
+  Plus
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import Link from "next/link"
 import { m } from "motion/react"
 import { haptic } from "@/lib/haptic"
+import { createReminder, deleteReminder } from "@/app/actions/google-tasks"
 
 interface SubjectCourse {
+  id?: string
   instructor_name?: string
+  expected_total_lectures?: number
+  exam_dates?: Record<string, string>
 }
 
 interface SubjectData {
@@ -47,6 +56,8 @@ interface SubjectData {
   name: string
   color_hex?: string
   source_course_id?: SubjectCourse
+  instructor_name?: string
+  expected_total_lectures?: number
 }
 
 interface AttendanceLog {
@@ -61,15 +72,175 @@ interface ProfileData {
   target_attendance_pct: number
 }
 
-export function SubjectDetailContent({ subject, attendanceLogs, profile, token }: Readonly<{ subject: SubjectData, attendanceLogs: AttendanceLog[], profile: ProfileData, token: string }>) {
+export function SubjectDetailContent({ subject, attendanceLogs, exams = [], profile, token }: Readonly<{ subject: SubjectData, attendanceLogs: AttendanceLog[], exams: any[], profile: ProfileData, token: string }>) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [localSubject, setLocalSubject] = useState(subject)
+  const [localExams, setLocalExams] = useState(exams)
+
+  // Edit Subject states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editName, setEditName] = useState(subject.name)
+  const [editInstructor, setEditInstructor] = useState(
+    (subject as any).source_course_id?.instructor_name || (subject as any).instructor_name || ""
+  )
+  const [editExpectedLectures, setEditExpectedLectures] = useState(
+    (subject as any).source_course_id?.expected_total_lectures || (subject as any).expected_total_lectures || 0
+  )
+  const [editColorHex, setEditColorHex] = useState(subject.color_hex || "#8b5cf6")
+
+  // Add Exam states
+  const [isAddExamModalOpen, setIsAddExamModalOpen] = useState(false)
+  const [examLabel, setExamLabel] = useState("")
+  const [examDate, setExamDate] = useState<Date | null>(null)
 
   const supabase = useMemo(
     () => getAppClient({ global: { headers: { Authorization: `Bearer ${token}` } } }),
     [token]
   )
+
+  async function handleSaveSubject() {
+    if (!editName.trim() || isUpdating) return
+    setIsUpdating(true)
+    try {
+      const isAcademic = (localSubject as any).type === 'academic'
+      
+      if (isAcademic && (localSubject as any).source_course_id) {
+        const courseId = (localSubject as any).source_course_id.id || (localSubject as any).source_course_id
+        await supabase
+          .from('academic_courses')
+          .update({
+            instructor_name: editInstructor,
+            expected_total_lectures: Number(editExpectedLectures)
+          })
+          .eq('id', courseId)
+      }
+
+      const updates: any = {
+        name: editName.trim(),
+        color_hex: editColorHex,
+        expected_total_lectures: Number(editExpectedLectures),
+        instructor_name: editInstructor
+      }
+
+      const { data, error } = await supabase
+        .from('subjects')
+        .update(updates)
+        .eq('id', localSubject.id)
+        .select('*, source_course_id(*)')
+        .single()
+
+      if (error) throw error
+      setLocalSubject(data || {
+        ...localSubject,
+        name: editName.trim(),
+        color_hex: editColorHex,
+        source_course_id: isAcademic ? {
+          ...(localSubject as any).source_course_id,
+          instructor_name: editInstructor,
+          expected_total_lectures: Number(editExpectedLectures)
+        } : undefined,
+        instructor_name: editInstructor,
+        expected_total_lectures: Number(editExpectedLectures)
+      })
+      toast.success("Subject details updated")
+      setIsEditModalOpen(false)
+    } catch (e: any) {
+      toast.error(e.message || "Failed to update subject")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  async function handleAddExam() {
+    if (!examLabel.trim() || !examDate || isUpdating) return
+    setIsUpdating(true)
+    try {
+      const dateStr = format(examDate, 'yyyy-MM-dd')
+      
+      let createdTask = null
+      try {
+        createdTask = await createReminder({
+          title: `[Exam] ${examLabel.trim()}`,
+          due: new Date(dateStr).toISOString(),
+          subjectId: localSubject.id,
+          reminderSettings: {
+            dueTime: true,
+            oneDayPrior: true,
+            twoDaysPrior: false,
+            oneWeekPrior: true,
+            twoWeeksPrior: false,
+            customPrior: false
+          }
+        })
+      } catch (googleError) {
+        console.warn("Google Tasks sync failed, falling back to direct db insert:", googleError)
+      }
+
+      if (!createdTask) {
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert({
+            profile_id: profile.id,
+            subject_id: localSubject.id,
+            title: `[Exam] ${examLabel.trim()}`,
+            due_date: dateStr,
+            priority: 'high',
+            is_completed: false,
+            is_exam: true
+          })
+          .select()
+          .single()
+        if (error) throw error
+        createdTask = data
+      } else {
+        await supabase
+          .from('tasks')
+          .update({ is_exam: true })
+          .eq('title', `[Exam] ${examLabel.trim()}`)
+          .eq('profile_id', profile.id)
+      }
+
+      const isAcademic = (localSubject as any).type === 'academic'
+      if (isAcademic && (localSubject as any).source_course_id) {
+        const courseId = (localSubject as any).source_course_id.id || (localSubject as any).source_course_id
+        const existingDates = (localSubject as any).source_course_id.exam_dates || {}
+        const updatedDates = { ...existingDates, [examLabel.trim()]: dateStr }
+        await supabase
+          .from('academic_courses')
+          .update({ exam_dates: updatedDates })
+          .eq('id', courseId)
+      }
+
+      setLocalExams(prev => [...prev, createdTask])
+      toast.success("Exam date added successfully")
+      setIsAddExamModalOpen(false)
+      setExamLabel("")
+      setExamDate(null)
+    } catch (e: any) {
+      toast.error(e.message || "Failed to add exam")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  async function handleDeleteExam(taskId: string) {
+    if (isUpdating) return
+    setIsUpdating(true)
+    try {
+      const exam = localExams.find(ex => ex.id === taskId)
+      if (exam) {
+        await deleteReminder(taskId)
+      }
+      setLocalExams(prev => prev.filter(ex => ex.id !== taskId))
+      toast.success("Exam deleted successfully")
+    } catch (e: any) {
+      toast.error(e.message || "Failed to delete exam")
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   const monthStart = startOfMonth(currentDate)
   const monthEnd = endOfMonth(monthStart)
@@ -154,17 +325,17 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
       {/* Header & Goal Section */}
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="p-3 bg-muted/50 rounded-2xl hover:bg-muted transition-colors group">
+          <Link href="/dashboard/subjects" className="p-3 bg-muted/50 rounded-2xl hover:bg-muted transition-colors group">
             <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           </Link>
           <div className="flex items-center gap-3">
             <div 
               className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
-              style={{ background: subject.color_hex }}
+              style={{ background: localSubject.color_hex }}
             >
               <CalIcon className="w-5 h-5" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">{subject.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{localSubject.name}</h1>
           </div>
         </div>
 
@@ -200,10 +371,13 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
         {/* Left Column: Stats & Meta */}
         <div className="space-y-6">
           <Card className="border-border/50 bg-card/50 backdrop-blur-xl rounded-3xl overflow-hidden">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
               <CardTitle className="text-lg font-bold flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-primary" /> Subject Mastery
               </CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setIsEditModalOpen(true)} className="h-8 w-8 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
+                <Pencil className="w-4 h-4" />
+              </Button>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-3 gap-2">
@@ -246,7 +420,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                   </div>
                   <div>
                     <p className="text-sm font-bold">Instructor</p>
-                    <p className="text-sm text-muted-foreground">{subject.source_course_id?.instructor_name || "Not assigned"}</p>
+                    <p className="text-sm text-muted-foreground">{localSubject.source_course_id?.instructor_name || localSubject.instructor_name || "Not assigned"}</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -254,11 +428,46 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
                     <Clock className="w-4 h-4 text-muted-foreground" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold">Total Lectures</p>
-                    <p className="text-sm text-muted-foreground">{stats.total} logged so far</p>
+                    <p className="text-sm font-bold">Expected / Total Lectures</p>
+                    <p className="text-sm text-muted-foreground">
+                      {localSubject.source_course_id?.expected_total_lectures || localSubject.expected_total_lectures || 0} Expected / {stats.total} logged
+                    </p>
                   </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Exams & Milestones Card */}
+          <Card className="border-border/50 bg-card/50 backdrop-blur-xl rounded-3xl overflow-hidden">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <CalIcon className="w-5 h-5 text-primary" /> Exams & Dates
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setIsAddExamModalOpen(true)} className="h-8 rounded-xl font-bold text-xs cursor-pointer">
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {localExams.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4 font-medium">No exams scheduled yet.</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {localExams.map(ex => (
+                    <div key={ex.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-bold text-sm truncate">{ex.title.replace("[Exam] ", "")}</span>
+                        <span className="text-[10px] text-muted-foreground font-bold">
+                          {ex.due_date ? format(new Date(ex.due_date), 'MMM do, yyyy') : 'No date'}
+                        </span>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => handleDeleteExam(ex.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-lg cursor-pointer shrink-0">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -547,6 +756,91 @@ export function SubjectDetailContent({ subject, attendanceLogs, profile, token }
           <DialogFooter className="p-4 bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl border-t border-border/50">
             <Button variant="ghost" onClick={() => { haptic(); setSelectedDay(null); }} className="w-full font-bold">Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- EDIT SUBJECT DETAILS DIALOG --- */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
+          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
+            <DialogTitle>Edit Subject details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 px-6 pb-6 pt-4">
+            <div className="space-y-1.5">
+              <Label>Subject Name</Label>
+              <Input value={editName} onChange={e => setEditName(e.target.value)} className="bg-card shadow-sm rounded-xl" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Instructor Name</Label>
+              <Input 
+                value={editInstructor} 
+                onChange={e => setEditInstructor(e.target.value)} 
+                placeholder="Instructor name" 
+                className="bg-card shadow-sm rounded-xl"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
+              <Input type="number" min="0" value={editExpectedLectures} onChange={e => setEditExpectedLectures(Number(e.target.value) || 0)} className="bg-card shadow-sm rounded-xl" />
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label>Color Identity</Label>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#a855f7'].map(hex => (
+                  <button
+                    key={hex}
+                    type="button"
+                    onClick={() => setEditColorHex(hex)}
+                    className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 shadow-sm ${editColorHex === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-transparent hover:scale-110'}`}
+                    style={{ background: hex }}
+                    title={hex}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-4 flex gap-2 w-full">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)} className="flex-1 rounded-xl">Cancel</Button>
+              <Button onClick={handleSaveSubject} className="flex-1 font-bold tracking-wider rounded-xl bg-primary text-primary-foreground hover:bg-primary/95">Save Changes</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* --- ADD EXAM DATE DIALOG --- */}
+      <Dialog open={isAddExamModalOpen} onOpenChange={setIsAddExamModalOpen}>
+        <DialogContent className="sm:max-w-sm p-0 bg-background border-primary/20 overflow-hidden rounded-3xl">
+          <div className="h-1 w-full bg-primary/50" />
+          <div className="p-5 space-y-4">
+            <DialogHeader className="flex flex-row justify-between items-center pb-3 border-b border-border/50">
+              <DialogTitle className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date / Exam</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
+                <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
+                <DatePicker
+                  date={examDate || undefined}
+                  setDate={(d) => setExamDate(d as Date)}
+                  className="w-full h-11 border-border/50 rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="pt-4">
+              <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                Save Exam Task
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -38,12 +38,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { getAppClient } from "@/lib/supabase-client"
 
 export default function TasksPage() {
-  const { profile } = useProfile()
+  const { profile, activeTrack } = useProfile()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [taskLists, setTaskLists] = useState<TaskList[]>([])
+  const [subjects, setSubjects] = useState<any[]>([])
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("none")
   const [activeListId, setActiveListId] = useState("@default")
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
@@ -232,6 +235,13 @@ export default function TasksPage() {
   useEffect(() => {
     async function init() {
       try {
+        const supabase = getAppClient()
+        const { data: subs } = await supabase
+          .from('subjects')
+          .select('id, name, type')
+          .eq('is_active', true)
+        setSubjects(subs || [])
+
         const lists = await fetchTaskLists()
         setTaskLists(lists)
         if (lists.length > 0) {
@@ -313,6 +323,7 @@ export default function TasksPage() {
     setEditingReminder(null)
     setTitle("")
     setNotes("")
+    setSelectedSubjectId("none")
     setDateType("today")
     setTimePreset("all-day")
     setCustomDate("")
@@ -332,6 +343,7 @@ export default function TasksPage() {
     setEditingReminder(reminder)
     setTitle(reminder.title)
     setNotes(reminder.notes || "")
+    setSelectedSubjectId(reminder.subjectId || "none")
     
     if (reminder.due) {
       const dateObj = new Date(reminder.due)
@@ -451,7 +463,13 @@ export default function TasksPage() {
         // Edit mode
         const updated = await updateReminder(
           editingReminder.id,
-          { title, notes, due: finalDue, reminderSettings },
+          { 
+            title, 
+            notes, 
+            due: finalDue, 
+            reminderSettings,
+            subjectId: selectedSubjectId === "none" ? null : selectedSubjectId 
+          },
           activeListId
         )
         if (updated) {
@@ -465,7 +483,8 @@ export default function TasksPage() {
           notes,
           due: finalDue,
           listId: activeListId,
-          reminderSettings
+          reminderSettings,
+          subjectId: selectedSubjectId === "none" ? undefined : selectedSubjectId
         })
         if (created) {
           setReminders(prev => [created, ...prev])
@@ -484,6 +503,7 @@ export default function TasksPage() {
   // Filters
   const filteredReminders = useMemo(() => {
     let list = reminders
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       list = list.filter(
@@ -494,6 +514,7 @@ export default function TasksPage() {
     }
     return list
   }, [reminders, searchQuery])
+
 
   // Sorting
   const groups = useMemo(() => {
@@ -512,6 +533,7 @@ export default function TasksPage() {
       today: [] as Reminder[],
       tomorrow: [] as Reminder[],
       upcoming: [] as Reminder[],
+      later: [] as Reminder[],
       noDate: [] as Reminder[],
       completed: [] as Reminder[],
     }
@@ -539,7 +561,7 @@ export default function TasksPage() {
       } else if (dueDate <= nextWeek) {
         result.upcoming.push(r)
       } else {
-        result.noDate.push(r)
+        result.later.push(r)
       }
     })
 
@@ -785,6 +807,7 @@ export default function TasksPage() {
                     onEdit={handleOpenEditModal}
                     onDelete={handleDelete}
                     formatDate={formatReminderDate}
+                    subjects={subjects}
                     isOverdue
                   />
                 ))}
@@ -807,6 +830,7 @@ export default function TasksPage() {
                     onEdit={handleOpenEditModal}
                     onDelete={handleDelete}
                     formatDate={formatReminderDate}
+                    subjects={subjects}
                   />
                 ))}
               </div>
@@ -828,6 +852,7 @@ export default function TasksPage() {
                     onEdit={handleOpenEditModal}
                     onDelete={handleDelete}
                     formatDate={formatReminderDate}
+                    subjects={subjects}
                   />
                 ))}
               </div>
@@ -849,6 +874,29 @@ export default function TasksPage() {
                     onEdit={handleOpenEditModal}
                     onDelete={handleDelete}
                     formatDate={formatReminderDate}
+                    subjects={subjects}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Later / Future */}
+          {groups.later.length > 0 && (
+            <section className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Later / Future
+              </h3>
+              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
+                {groups.later.map(r => (
+                  <ReminderRow
+                    key={r.id}
+                    reminder={r}
+                    onToggle={handleToggleComplete}
+                    onEdit={handleOpenEditModal}
+                    onDelete={handleDelete}
+                    formatDate={formatReminderDate}
+                    subjects={subjects}
                   />
                 ))}
               </div>
@@ -870,6 +918,7 @@ export default function TasksPage() {
                     onEdit={handleOpenEditModal}
                     onDelete={handleDelete}
                     formatDate={formatReminderDate}
+                    subjects={subjects}
                   />
                 ))}
               </div>
@@ -908,6 +957,7 @@ export default function TasksPage() {
                     onEdit={handleOpenEditModal}
                     onDelete={handleDelete}
                     formatDate={formatReminderDate}
+                    subjects={subjects}
                   />
                 ))}
               </div>
@@ -946,6 +996,23 @@ export default function TasksPage() {
                 rows={2}
                 className="w-full bg-muted/40 border border-border/50 rounded-xl p-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary outline-none resize-none placeholder-muted-foreground/60 text-foreground"
               />
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="subject" className="text-xs font-bold text-muted-foreground uppercase">Link to Subject (Optional)</Label>
+              <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                <SelectTrigger className="w-full h-10 bg-muted/40 border-border/50">
+                  <SelectValue placeholder="None (General Task)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (General Task)</SelectItem>
+                  {subjects.map(sub => (
+                    <SelectItem key={sub.id} value={sub.id}>
+                      {sub.name} ({sub.type === 'academic' ? 'Academic' : 'Personal'})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1219,6 +1286,7 @@ interface ReminderRowProps {
   onEdit: (reminder: Reminder) => void
   onDelete: (id: string) => void
   formatDate: (isoStr?: string) => string
+  subjects: any[]
   isOverdue?: boolean
 }
 
@@ -1228,8 +1296,13 @@ function ReminderRow({
   onEdit,
   onDelete,
   formatDate,
+  subjects,
   isOverdue,
 }: ReminderRowProps) {
+  const isExam = reminder.title.startsWith("[Exam]")
+  const cleanTitle = isExam ? reminder.title.replace("[Exam] ", "") : reminder.title
+  const linkedSub = reminder.subjectId ? subjects.find(s => s.id === reminder.subjectId) : null
+
   return (
     <div className="group flex items-center justify-between px-3 py-3 sm:px-5 sm:py-3.5 hover:bg-muted/40 transition-colors">
       <div className="flex items-start space-x-2.5 sm:space-x-3.5 flex-1 min-w-0">
@@ -1245,13 +1318,20 @@ function ReminderRow({
         </button>
 
         <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onEdit(reminder)}>
-          <p
-            className={`text-sm font-medium truncate text-foreground ${
-              reminder.completed ? "line-through text-muted-foreground" : ""
-            }`}
-          >
-            {reminder.title}
-          </p>
+          <div className="flex items-center flex-wrap gap-2">
+            <span
+              className={`text-sm font-medium truncate text-foreground ${
+                reminder.completed ? "line-through text-muted-foreground" : ""
+              }`}
+            >
+              {cleanTitle}
+            </span>
+            {isExam && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-bold border border-destructive/20 select-none">
+                EXAM
+              </span>
+            )}
+          </div>
           
           {reminder.notes && (
             <p className="text-xs text-muted-foreground truncate mt-0.5 font-normal">
@@ -1259,17 +1339,34 @@ function ReminderRow({
             </p>
           )}
 
-          {reminder.due && (
-            <div className="flex items-center space-x-1.5 mt-1.5">
-              {isOverdue ? (
-                <span className="inline-flex items-center text-[10px] font-semibold text-destructive space-x-1">
-                  <Clock className="w-3 h-3" />
-                  <span>{formatDate(reminder.due)} (Overdue)</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center text-[10px] font-medium text-primary space-x-1">
-                  <CalendarIcon className="w-3 h-3" />
-                  <span>{formatDate(reminder.due)}</span>
+          {(reminder.due || linkedSub) && (
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+              {reminder.due && (
+                <>
+                  {isOverdue ? (
+                    <span className="inline-flex items-center text-[10px] font-semibold text-destructive space-x-1">
+                      <Clock className="w-3 h-3" />
+                      <span>{formatDate(reminder.due)} (Overdue)</span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center text-[10px] font-medium text-primary space-x-1">
+                      <CalendarIcon className="w-3 h-3" />
+                      <span>{formatDate(reminder.due)}</span>
+                    </span>
+                  )}
+                </>
+              )}
+
+              {linkedSub && (
+                <span 
+                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border"
+                  style={{
+                    backgroundColor: `${linkedSub.color_hex}15`,
+                    borderColor: `${linkedSub.color_hex}30`,
+                    color: linkedSub.color_hex
+                  }}
+                >
+                  {linkedSub.name}
                 </span>
               )}
             </div>

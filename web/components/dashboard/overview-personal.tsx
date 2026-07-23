@@ -7,6 +7,8 @@ import { StudyAnalyticsChart } from '@/components/dashboard/study-analytics-char
 import { m, Variants } from "motion/react"
 import type { PersonalOverviewData } from '@/app/dashboard/(overview)/overview-content'
 import type { SubjectInfo } from '@/components/dashboard/interactive-attendance-grid'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 const item: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -107,6 +109,36 @@ export function PersonalOverviewSection({
             <p className="text-sm text-muted-foreground/80 mt-2 max-w-sm">Start a stopwatch or pomodoro session to see your focus analysis.</p>
           </Card>
         )}
+      </m.div>
+
+      {/* Task Quest Card */}
+      <m.div variants={item} className="pt-4">
+        <div className="p-5 rounded-2xl bg-card/60 border border-border/50 backdrop-blur-md flex flex-col justify-between group hover:border-orange-500/40 transition-all duration-300">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${data.personalPendingTasksToday > 0 ? 'bg-orange-500' : 'bg-green-500'}`} />
+                {" "}Task Quest
+              </h3>
+              <p className="text-sm text-muted-foreground mt-1 font-medium">
+                {data.personalPendingTasksToday === 0
+                  ? "No tasks due today. Use this time to relax or get ahead! 🚀"
+                  : `You have ${data.personalPendingTasksToday} ${data.personalPendingTasksToday === 1 ? 'task' : 'tasks'} due today.`
+                }
+              </p>
+            </div>
+            <div className="p-2 rounded-xl bg-orange-500/10 text-orange-500 group-hover:scale-110 transition-transform">
+              <ListTodo className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Link href="/dashboard/tasks">
+              <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-wider hover:bg-orange-500/10 hover:text-orange-500">
+                View Tasks
+              </Button>
+            </Link>
+          </div>
+        </div>
       </m.div>
 
       <m.div variants={item} className="pt-4">

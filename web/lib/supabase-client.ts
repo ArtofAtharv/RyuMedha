@@ -38,6 +38,7 @@ export function createAppClient(
     ...options,
     auth: {
       flowType: 'pkce' as const,
+      autoRefreshToken: false,
       persistSession: true,
       detectSessionInUrl: false,
       storage: cookieStorage,
@@ -47,21 +48,22 @@ export function createAppClient(
 
   // If we are on the server, always create a new client to avoid cross-request contamination
   if (typeof window === 'undefined') {
-    return createClient(url, key, mergedOptions) as AppSupabaseClient
+    return createClient(url, key, {
+      ...mergedOptions,
+      global: {
+        ...mergedOptions.global,
+        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+      }
+    }) as AppSupabaseClient
   }
 
-  // Extract the auth token from options if it exists
-  const headers = options?.global?.headers as Record<string, string> | undefined;
-  const token = headers?.Authorization || null;
-
-  // If a client already exists and the token matches, reuse it
-  if (globalClient && globalClientToken === token) {
+  // If a client already exists, reuse it in the browser
+  if (globalClient) {
     return globalClient;
   }
-
+ 
   // Otherwise create a new client and cache it
   globalClient = createClient(url, key, mergedOptions) as AppSupabaseClient;
-  globalClientToken = token;
   return globalClient;
 }
 

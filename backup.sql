@@ -39,6 +39,8 @@ CREATE TABLE profiles (
     google_access_token TEXT,
     google_refresh_token TEXT,
     google_token_expiry BIGINT,
+    whatsapp_verification_code TEXT,
+    whatsapp_verification_expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -195,6 +197,8 @@ CREATE TABLE tasks (
     is_exam BOOLEAN DEFAULT false,
     is_completed BOOLEAN DEFAULT false,
     completed_at TIMESTAMPTZ,
+    google_task_id TEXT,
+    google_tasklist_id TEXT DEFAULT '@default',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -264,6 +268,7 @@ CREATE INDEX idx_profiles_whatsapp ON profiles(whatsapp_number);
 CREATE INDEX idx_subjects_profile_active ON subjects(profile_id, is_active);
 CREATE INDEX idx_attendance_date ON attendance_logs(profile_id, lecture_date);
 CREATE INDEX idx_tasks_pending ON tasks(profile_id, is_completed, due_date) WHERE NOT is_completed;
+CREATE UNIQUE INDEX tasks_google_task_id_idx ON tasks(google_task_id) WHERE google_task_id IS NOT NULL;
 CREATE INDEX idx_timers_active ON study_timers(profile_id, ended_at) WHERE ended_at IS NULL;
 CREATE INDEX idx_task_reminders_polling ON task_reminders(scheduled_for) WHERE (whatsapp_sent = false OR push_sent = false);
 
@@ -385,8 +390,26 @@ RETURNS SETOF whatsapp_window_status
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
+DECLARE
+  caller_sub TEXT;
+  is_caller_admin BOOLEAN;
 BEGIN
-  IF (SELECT is_admin FROM profiles WHERE id = auth.uid()) = true THEN
+  BEGIN
+    caller_sub := current_setting('request.jwt.claims', true)::jsonb ->> 'sub';
+  EXCEPTION WHEN OTHERS THEN
+    caller_sub := NULL;
+  END;
+
+  IF caller_sub IS NULL THEN
+    RETURN;
+  END IF;
+
+  SELECT is_admin INTO is_caller_admin
+  FROM profiles
+  WHERE id::text = caller_sub
+     OR whatsapp_number = caller_sub;
+
+  IF is_caller_admin = true THEN
     RETURN QUERY SELECT * FROM whatsapp_window_status;
   ELSE
     RETURN;
@@ -400,8 +423,8 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  IF (SELECT is_admin FROM profiles WHERE whatsapp_number = (auth.jwt() ->> 'sub')) = true THEN
-    DELETE FROM whatsapp_message_logs;
+  IF (SELECT is_admin FROM profiles WHERE id = auth.uid() OR whatsapp_number = (auth.jwt() ->> 'sub')) = true THEN
+    DELETE FROM whatsapp_message_logs WHERE id IS NOT NULL;
   END IF;
 END;
 $$;
@@ -446,8 +469,8 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'Google User'),
     new.email,
     'Asia/Kolkata',
-    false,
-    true
+    NULL,
+    NULL
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
@@ -522,8 +545,26 @@ BEGIN
       'whatsapp_message_logs', (SELECT json_agg(wl) FROM whatsapp_message_logs wl)
     ) INTO result;
     RETURN result;
-  ELSE
-    RAISE EXCEPTION 'Access Denied: Admin privileges required';
   END IF;
+END;
+$$;
+
+-- SQL function to allow authenticated users to delete their own account completely from public.profiles and auth.users
+CREATE OR REPLACE FUNCTION delete_current_user()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  -- RLS & Security verification: check if auth.uid() is valid
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Access Denied: User is not authenticated';
+  END IF;
+
+  -- Delete from profiles first (cascades to other tables like tasks, study_timers, etc.)
+  DELETE FROM public.profiles WHERE id = auth.uid();
+  
+  -- Delete from auth.users to completely delete user auth details
+  DELETE FROM auth.users WHERE id = auth.uid();
 END;
 $$;
