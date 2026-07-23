@@ -27,10 +27,21 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and supabase.auth.getUser()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const accessToken = request.cookies.get('sb-access-token')?.value
+
+  let user = null
+  if (accessToken) {
+    const { data, error } = await supabase.auth.getUser(accessToken)
+    if (data?.user && !error) {
+      user = data.user
+    }
+  }
+
+  // Fallback to standard Supabase auth check if token check didn't yield user
+  if (!user) {
+    const { data } = await supabase.auth.getUser()
+    user = data?.user || null
+  }
 
   // Also sync sb-access-token and sb-refresh-token if an active session exists
   const { data: { session } } = await supabase.auth.getSession()
@@ -54,7 +65,7 @@ export async function updateSession(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl
-  const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/profile')
+  const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/profile') || pathname.startsWith('/setup')
 
   if (!user && isProtected) {
     const loginUrl = new URL('/login', request.url)

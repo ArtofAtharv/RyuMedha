@@ -52,7 +52,7 @@ export async function seedDefaultCategories(phone: string) {
 }
 
 // --- CATEGORY HANDLERS ---
-async function handleAddCategory(user, categoryName) {
+async function handleAddCategory(user: any, categoryName: string) {
   if (!categoryName) return MESSAGES.categories.prompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: dup } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).ilike('name', categoryName).maybeSingle();
@@ -64,16 +64,16 @@ async function handleAddCategory(user, categoryName) {
   return MESSAGES.categories.success(created.name);
 }
 
-async function handleListCategories(user) {
+async function handleListCategories(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: cats } = await uc.from('subject_categories').select('name').eq('profile_id', user.id).order('created_at', { ascending: true });
   if (!cats || cats.length === 0) return MESSAGES.categories.empty;
   let msg = MESSAGES.categories.listHeader(cats.length);
-  cats.forEach((c, i)=>{ msg += `${i + 1}. ${c.name}\n`; });
+  cats.forEach((c: any, i: number)=>{ msg += `${i + 1}. ${c.name}\n`; });
   return msg;
 }
 
-async function handleDeleteCategory(user, categoryName) {
+async function handleDeleteCategory(user: any, categoryName: string) {
   if (!categoryName) return MESSAGES.categories.deletePrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: cat } = await uc.from('subject_categories').select('id, name').eq('profile_id', user.id).ilike('name', categoryName).maybeSingle();
@@ -127,7 +127,7 @@ async function createSubject(user: any, subjectName: string, type: string, total
   return MESSAGES.subjects.personalSuccess(subject.name);
 }
 
-async function handleAddSubject(user, phone, rawText) {
+async function handleAddSubject(user: any, phone: string, rawText: string) {
   if (!rawText) return MESSAGES.subjects.addPrompt;
   const catMatch = rawText.match(/(?:to|in|under|into)\s+(?:the\s+)?(?:category|cat)\s+(.+)$/i);
   let manualCategory = null;
@@ -136,7 +136,7 @@ async function handleAddSubject(user, phone, rawText) {
     manualCategory = catMatch[1].trim();
     textToProcess = rawText.replace(/(?:to|in|under|into)\s+(?:the\s+)?(?:category|cat)\s+(.+)$/i, '').trim();
   }
-  const parts = textToProcess.split(',').map((s)=>s.trim()).filter(Boolean);
+  const parts = textToProcess.split(',').map((s: string)=>s.trim()).filter(Boolean);
   if (parts.length === 1) {
     const type = user.personal_enabled && !user.academics_enabled ? 'personal' : 'academic';
     return await createSubject(user, parts[0], type, null, 0, 0, manualCategory);
@@ -155,21 +155,21 @@ async function handleAddSubject(user, phone, rawText) {
     let category = manualCategory;
     if (type === 'personal' && !category) {
       const nextPart = parts[i + consumed];
-      if (nextPart && isNaN(nextPart)) { category = nextPart; consumed++; }
+      if (nextPart && isNaN(Number(nextPart))) { category = nextPart; consumed++; }
     }
     let total = null;
-    if (i + consumed < parts.length && !isNaN(parts[i + consumed])) { total = parseInt(parts[i + consumed], 10); consumed++; }
+    if (i + consumed < parts.length && !isNaN(Number(parts[i + consumed]))) { total = parseInt(parts[i + consumed], 10); consumed++; }
     responses.push(await createSubject(user, name, type, total, 0, 0, category));
     i += consumed;
   }
   return responses.join('\n\n');
 }
 
-async function handleListSubjects(user) {
+async function handleListSubjects(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: subjects } = await uc.from('subjects').select('name, type, category_id, subject_categories(name), source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).order('created_at', { ascending: true });
   if (!subjects || subjects.length === 0) return MESSAGES.subjects.empty;
-  const filtered = subjects.filter((s)=>{
+  const filtered = subjects.filter((s: any)=>{
     if (s.type === 'academic' && !user.academics_enabled) return false;
     if (s.type === 'personal' && !user.personal_enabled) return false;
     if (s.type === 'academic') {
@@ -179,24 +179,24 @@ async function handleListSubjects(user) {
     return true;
   });
   if (filtered.length === 0) return MESSAGES.subjects.emptySemester;
-  const academic = filtered.filter((s)=>s.type === 'academic');
-  const personal = filtered.filter((s)=>s.type === 'personal');
+  const academic = filtered.filter((s: any)=>s.type === 'academic');
+  const personal = filtered.filter((s: any)=>s.type === 'personal');
   let msg = MESSAGES.subjects.listHeader;
   if (academic.length) {
     msg += MESSAGES.subjects.listAcademic;
-    academic.forEach((s, i)=>{ msg += `  ${i + 1}. ${s.name} \n`; });
+    academic.forEach((s: any, i: number)=>{ msg += `  ${i + 1}. ${s.name} \n`; });
   }
   if (personal.length) {
     msg += MESSAGES.subjects.listPersonal;
-    const grouped = {};
-    personal.forEach((s)=>{
+    const grouped: Record<string, string[]> = {};
+    personal.forEach((s: any)=>{
       const cat = s.subject_categories?.name || 'Uncategorized';
       if (!grouped[cat]) grouped[cat] = [];
       grouped[cat].push(s.name);
     });
     for (const [cat, items] of Object.entries(grouped)){
       msg += `\n📂 *${cat}*\n`;
-      items.forEach((name)=>{ msg += `  - ${name}\n`; });
+      (items as string[]).forEach((name: string)=>{ msg += `  - ${name}\n`; });
     }
   }
   msg += MESSAGES.subjects.listFooter(filtered.length, filtered.length !== 1);
@@ -204,17 +204,17 @@ async function handleListSubjects(user) {
 }
 
 // --- ATTENDANCE HANDLERS ---
-async function logAttendance(user, subjectName, status) {
+async function logAttendance(user: any, subjectName: string, status: 'present' | 'absent' | 'deemed') {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, expected_total_lectures, source_course_id(semester_id, expected_total_lectures)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
   if (!raw || raw.length === 0) return null;
-  const subjects = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const subjects = raw.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (subjects.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
   let subject = subjects[0];
   if (subjects.length > 1) {
-    const exact = subjects.find((s)=>s.name.toLowerCase() === subjectName.trim().toLowerCase());
+    const exact = subjects.find((s: any)=>s.name.toLowerCase() === subjectName.trim().toLowerCase());
     if (exact) subject = exact;
-    else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s, i)=>`${i + 1}. ${s.name}`).join('\n'));
+    else return MESSAGES.subjects.ambiguity(subjectName.trim(), subjects.map((s: any, i: number)=>`${i + 1}. ${s.name}`).join('\n'));
   }
   if (subject.type !== 'academic') return MESSAGES.attendance.academicOnly(subject.name);
   const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
@@ -241,15 +241,15 @@ async function logAttendance(user, subjectName, status) {
   };
 }
 
-async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetchedLogs = null) {
+async function buildAttendanceSummary(uc: any, user: any, subject: any, prefix = '', preFetchedLogs: any = null) {
   const logs = preFetchedLogs || await (async () => {
     const { data } = await uc.from('attendance_logs').select('status').eq('profile_id', user.id).eq('subject_id', subject.id);
     return data;
   })();
   // Legacy attendance is now ignored (always 0) as requested
-  const present = (logs?.filter((l)=>l.status === 'present').length || 0);
-  const absent = (logs?.filter((l)=>l.status === 'absent').length || 0);
-  const deemed = (logs?.filter((l)=>l.status === 'deemed').length || 0);
+  const present = (logs?.filter((l: any)=>l.status === 'present').length || 0);
+  const absent = (logs?.filter((l: any)=>l.status === 'absent').length || 0);
+  const deemed = (logs?.filter((l: any)=>l.status === 'deemed').length || 0);
   const total = present + absent + deemed;
   if (total === 0) return MESSAGES.attendance.summaryNoData(subject.name);
   
@@ -289,33 +289,33 @@ async function buildAttendanceSummary(uc, user, subject, prefix = '', preFetched
 }
 
 // --- SUBJECT MANAGEMENT ---
-async function handleRenameSubject(user, text) {
-  const parts = text.split(',').map((s)=>s.trim());
+async function handleRenameSubject(user: any, text: string) {
+  const parts = text.split(',').map((s: string)=>s.trim());
   if (parts.length < 2) return MESSAGES.subjects.renamePrompt;
   const [oldName, newName] = parts;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', oldName);
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(oldName);
-  const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const valid = raw.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return `❌ Subject exists but is not in your current context.`;
   const { error } = await uc.from('subjects').update({ name: newName }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.renameError;
   return MESSAGES.subjects.renameSuccess(valid[0].name, newName);
 }
 
-async function handleDeleteSubject(user, subjectName) {
+async function handleDeleteSubject(user: any, subjectName: string) {
   if (!subjectName) return MESSAGES.subjects.deletePrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', subjectName.trim());
   if (!raw || raw.length === 0) return MESSAGES.subjects.notFound(subjectName.trim());
-  const valid = raw.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const valid = raw.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return MESSAGES.attendance.wrongContext(subjectName.trim());
   const { error } = await uc.from('subjects').update({ is_active: false }).eq('id', valid[0].id);
   if (error) return MESSAGES.subjects.deleteError;
   return MESSAGES.subjects.deleteSuccess(valid[0].name);
 }
 
-async function handleSetupLectures(user, text) {
+async function handleSetupLectures(user: any, text: string) {
   const type = text.startsWith('total') ? 'total' : 'missed';
   const parts = text.replace(/^(total|missed)\s+/i, '').split(',');
   if (parts.length < 2) return MESSAGES.general.unknown;
@@ -331,10 +331,10 @@ async function handleSetupLectures(user, text) {
   return MESSAGES.subjects.setupLecturesSuccess(subjects[0].name, type, val);
 }
 
-async function handleMarkAll(user, status) {
+async function handleMarkAll(user: any, status: 'present' | 'absent' | 'deemed') {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: raw } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).eq('type', 'academic');
-  const filtered = raw?.filter((s)=>Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
+  const filtered = raw?.filter((s: any)=>Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
   if (filtered.length === 0) return MESSAGES.stats.noSubjects;
   const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   let count = 0;
@@ -348,7 +348,7 @@ async function handleMarkAll(user, status) {
   return MESSAGES.attendance.allSuccess(status, count);
 }
 
-async function handleUndoAll(user) {
+async function handleUndoAll(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const today = new Date().toLocaleDateString('en-CA', { timeZone: user.timezone || 'Asia/Kolkata' });
   const { error } = await uc.from('attendance_logs').delete().eq('profile_id', user.id).eq('lecture_date', today);
@@ -358,7 +358,7 @@ async function handleUndoAll(user) {
 
 // --- TASK HANDLERS ---
 // --- TASK HANDLERS ---
-async function handleAddTask(user, rawText) {
+async function handleAddTask(user: any, rawText: string) {
   if (!rawText) return MESSAGES.tasks.addPrompt;
   let title = rawText.trim(), dueDate = null, subjectId = null;
   const dueMatch = title.match(/due\s+(on\s+)?([\w\s,]+)/i);
@@ -408,7 +408,7 @@ async function handleAddTask(user, rawText) {
   return MESSAGES.tasks.addSuccess(task.title, dueStr);
 }
 
-async function handleCompleteTask(user, numberStr) {
+async function handleCompleteTask(user: any, numberStr: string) {
   const idx = parseInt(numberStr, 10) - 1;
   const uc = await getUserClient(user.whatsapp_number);
   
@@ -463,7 +463,7 @@ async function handleCompleteTask(user, numberStr) {
   } else {
     // 2. Fallback: query local database tasks directly (legacy flow)
     const { data: raw } = await uc.from('tasks').select('id, title, due_date, subject_id, subjects(type, source_course_id(semester_id))').eq('profile_id', user.id).eq('is_completed', false).order('due_date', { ascending: true, nullsFirst: false });
-    const tasks = raw?.filter((t)=>{
+    const tasks = raw?.filter((t: any)=>{
       if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
       if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
       if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
@@ -530,7 +530,7 @@ async function handleCompleteTask(user, numberStr) {
   return successMsg;
 }
 
-async function handleListTasks(user) {
+async function handleListTasks(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   
   const threeDaysAgoStr = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
@@ -550,7 +550,7 @@ async function handleListTasks(user) {
     buttons.push({ type: 'reply', reply: { id: 'profile', title: '👤 Show Profile' } });
   }
 
-  const localTasks = (raw || []).filter((t) => {
+  const localTasks = (raw || []).filter((t: any) => {
     if (!t.subject_id) return user.academics_enabled || user.personal_enabled;
     if (t.subjects?.type === 'academic' && !user.academics_enabled) return false;
     if (t.subjects?.type === 'personal' && !user.personal_enabled) return false;
@@ -726,10 +726,12 @@ async function handleListTasks(user) {
   let msg = `📋 *Your Tasks* 📋\n`;
   let itemIndex = 1;
 
+  const priorityIcons: Record<string, string> = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
+
   if (overdue.length > 0) {
     msg += `\n🚨 *Overdue:*\n`;
     overdue.forEach(t => {
-      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+      const p = priorityIcons[t.priority || 'medium'] || '🟡';
       msg += `${itemIndex}. ${p} ${t.title}${t.due ? ` (due ${new Date(t.due).toLocaleDateString('en-IN')})` : ''}\n`;
       itemIndex++;
     });
@@ -738,7 +740,7 @@ async function handleListTasks(user) {
   if (todayTasks.length > 0) {
     msg += `\n📅 *Today:*\n`;
     todayTasks.forEach(t => {
-      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+      const p = priorityIcons[t.priority || 'medium'] || '🟡';
       msg += `${itemIndex}. ${p} ${t.title}\n`;
       itemIndex++;
     });
@@ -747,7 +749,7 @@ async function handleListTasks(user) {
   if (upcoming.length > 0) {
     msg += `\n🗓️ *Upcoming:*\n`;
     upcoming.forEach(t => {
-      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority || 'medium'] || '🟡';
+      const p = priorityIcons[t.priority || 'medium'] || '🟡';
       msg += `${itemIndex}. ${p} ${t.title}${t.due ? ` (due ${new Date(t.due).toLocaleDateString('en-IN')})` : ''}\n`;
       itemIndex++;
     });
@@ -771,20 +773,20 @@ async function handleListTasks(user) {
 }
 
 // --- TIMER HANDLERS ---
-async function handleStartTimer(user, subjectName) {
+async function handleStartTimer(user: any, subjectName: string) {
   if (!subjectName) return MESSAGES.timers.startPrompt;
   const uc = await getUserClient(user.whatsapp_number);
   const { data: running } = await uc.from('study_timers').select('id, subjects(name)').eq('profile_id', user.id).is('ended_at', null).maybeSingle();
   if (running) return MESSAGES.timers.alreadyRunning(running.subjects?.name);
   const { data: subs } = await uc.from('subjects').select('id, name, type, source_course_id(semester_id)').eq('profile_id', user.id).eq('is_active', true).ilike('name', `%${subjectName.trim()}%`);
   if (!subs || subs.length === 0) return MESSAGES.timers.notFound(subjectName.trim());
-  const valid = subs.filter((s)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
+  const valid = subs.filter((s: any)=>s.type === 'personal' || (Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id));
   if (valid.length === 0) return MESSAGES.timers.wrongContext(subjectName.trim());
   await uc.from('study_timers').insert([{ profile_id: user.id, subject_id: valid[0].id, started_at: new Date().toISOString() }]);
   return MESSAGES.timers.started(valid[0].name);
 }
 
-async function handleStopTimer(user) {
+async function handleStopTimer(user: any) {
   const uc = await getUserClient(user.whatsapp_number);
   const { data: running } = await uc.from('study_timers').select('id, started_at, subjects(name)').eq('profile_id', user.id).is('ended_at', null).maybeSingle();
   if (!running) return MESSAGES.timers.noActive;
@@ -969,8 +971,9 @@ async function handleRespawn(user: any) {
   let taskSnippet = "";
   if (tasks.length > 0) {
     taskSnippet = `\n\n📋 *Your Pending Tasks (${tasks.length}):*\n`;
+    const priorityIcons: Record<string, string> = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' };
     tasks.slice(0, 3).forEach((t: any, i: number) => {
-      const p = { urgent: '🔴', high: '🟠', medium: '🟡', low: '🟢' }[t.priority] || '🟡';
+      const p = priorityIcons[t.priority] || '🟡';
       taskSnippet += `${i + 1}. ${p} ${t.title}\n`;
     });
     if (tasks.length > 3) {

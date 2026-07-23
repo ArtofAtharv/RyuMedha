@@ -78,7 +78,34 @@ export default function SetupPage() {
       const supabase = getAppClient()
       setSupabaseClient(supabase)
 
-      const { data: { session: activeSession } } = await supabase.auth.getSession()
+      let activeSession = null
+      const { data: sessionData } = await supabase.auth.getSession()
+      activeSession = sessionData?.session
+
+      if (!activeSession) {
+        const getCookie = (name: string) => {
+          if (typeof document === 'undefined') return null
+          const cookies = document.cookie.split(';')
+          for (let i = 0; i < cookies.length; i++) {
+            const c = cookies[i].trim()
+            if (c.startsWith(`${name}=`)) {
+              return decodeURIComponent(c.substring(name.length + 1))
+            }
+          }
+          return null
+        }
+        const accessToken = getCookie('sb-access-token')
+        const refreshToken = getCookie('sb-refresh-token')
+
+        if (refreshToken) {
+          const { data: setSessionRes } = await supabase.auth.setSession({
+            access_token: accessToken || '',
+            refresh_token: refreshToken
+          })
+          activeSession = setSessionRes?.session
+        }
+      }
+
       if (!activeSession) {
         router.push("/login")
         return
