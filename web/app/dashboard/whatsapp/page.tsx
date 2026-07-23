@@ -117,12 +117,21 @@ export default function WhatsAppAdminPage() {
     setLoading(false)
   }
 
+  const getAccessToken = () => {
+    if (typeof document === 'undefined') return null
+    const match = document.cookie.match(/(?:^|;\s*)sb-access-token=([^;]*)/)
+    return match ? decodeURIComponent(match[1]) : null
+  }
+
   const triggerEngagement = async (profileId: string) => {
     if (!supabaseClient) return
     setEngagingId(profileId)
     try {
+      const token = getAccessToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined
       const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'engage', profile_id: profileId }
+        body: { trigger: 'engage', profile_id: profileId },
+        headers
       })
       if (error) throw error
       toast.success("Engagement message sent successfully!")
@@ -139,8 +148,11 @@ export default function WhatsAppAdminPage() {
   const triggerTasksReminder = async () => {
     if (!supabaseClient) return
     try {
+      const token = getAccessToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined
       const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'reminders' }
+        body: { trigger: 'reminders' },
+        headers
       })
       if (error) throw error
       if (data?.message === "No reminders due") {
@@ -159,8 +171,11 @@ export default function WhatsAppAdminPage() {
   const triggerPendingTasksBlast = async () => {
     if (!supabaseClient) return
     try {
+      const token = getAccessToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined
       const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'tasks' }
+        body: { trigger: 'tasks' },
+        headers
       })
       if (error) throw error
       toast.success(`Pending Tasks blast sent to ${data?.sent || 0} users!`)
@@ -175,8 +190,11 @@ export default function WhatsAppAdminPage() {
   const triggerAttendanceGuardian = async () => {
     if (!supabaseClient) return
     try {
+      const token = getAccessToken()
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined
       const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'daily' }
+        body: { trigger: 'daily' },
+        headers
       })
       if (error) throw error
       toast.success(`Attendance Guardian triggered! Messages sent: ${data?.sent || 0}`)
@@ -281,7 +299,7 @@ export default function WhatsAppAdminPage() {
             <CardContent className="p-4 space-y-3.5">
               
               <div className="space-y-1.5">
-                <Button onClick={triggerTasksReminder} className="w-full justify-start gap-2.5 h-10 shadow-sm rounded-xl font-semibold transition-all">
+                <Button onClick={triggerTasksReminder} className="w-full justify-center items-center gap-2.5 h-10 shadow-sm rounded-xl font-semibold transition-all">
                   <CheckCircle2 className="w-4 h-4" /> Send Due Reminders
                 </Button>
                 <p className="text-[11px] text-muted-foreground px-1">
@@ -292,7 +310,7 @@ export default function WhatsAppAdminPage() {
               <hr className="border-border/30 my-2" />
 
               <div className="space-y-1.5">
-                <Button onClick={triggerPendingTasksBlast} variant="secondary" className="w-full justify-start gap-2.5 h-10 border border-border/50 rounded-xl font-semibold transition-all">
+                <Button onClick={triggerPendingTasksBlast} variant="secondary" className="w-full justify-center items-center gap-2.5 h-10 border border-border/50 rounded-xl font-semibold transition-all">
                   <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
                 </Button>
                 <p className="text-[11px] text-muted-foreground px-1">
@@ -303,7 +321,7 @@ export default function WhatsAppAdminPage() {
               <hr className="border-border/30 my-2" />
 
               <div className="space-y-1.5">
-                <Button onClick={triggerAttendanceGuardian} variant="secondary" className="w-full justify-start gap-2.5 h-10 border border-border/50 rounded-xl font-semibold transition-all">
+                <Button onClick={triggerAttendanceGuardian} variant="secondary" className="w-full justify-center items-center gap-2.5 h-10 border border-border/50 rounded-xl font-semibold transition-all">
                   <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
                 </Button>
                 <p className="text-[11px] text-muted-foreground px-1">
@@ -329,7 +347,7 @@ export default function WhatsAppAdminPage() {
                     }
                   }} 
                   variant="destructive" 
-                  className="w-full h-10 rounded-xl font-semibold gap-2 shadow-sm transition-all hover:bg-destructive/95"
+                  className="w-full justify-center items-center h-10 rounded-xl font-semibold gap-2 shadow-sm transition-all hover:bg-destructive/95"
                 >
                   Clear Logs Table
                 </Button>

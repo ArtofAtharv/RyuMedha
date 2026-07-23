@@ -424,7 +424,7 @@ SECURITY DEFINER
 AS $$
 BEGIN
   IF (SELECT is_admin FROM profiles WHERE id = auth.uid() OR whatsapp_number = (auth.jwt() ->> 'sub')) = true THEN
-    DELETE FROM whatsapp_message_logs;
+    DELETE FROM whatsapp_message_logs WHERE id IS NOT NULL;
   END IF;
 END;
 $$;

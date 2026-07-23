@@ -19,6 +19,11 @@ const ENGAGEMENT_TEMPLATES = [
   "Focus time! Need a reminder of what's due next? Reply to keep our window open! ✨"
 ]
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
 const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 async function sendWhatsAppMessage(to: string, content: any, message_type: string = 'bot_reply', profileId?: string) {
@@ -78,7 +83,6 @@ async function handleTasksTrigger(): Promise<Response> {
         const phone = `+${user.whatsapp_number.replace(/\D/g, '')}`;
         const reply = await processMessage(phone, 'tasks', { isInteractive: false });
         
-        // Wait, processMessage can return an interactive message object or a string
         const textReply = typeof reply === 'string' ? reply : (reply?.body?.text || "");
 
         if (textReply && !textReply.includes("caught up") && !textReply.includes("don't have any pending tasks") && !textReply.includes("No pending tasks")) {
@@ -90,12 +94,15 @@ async function handleTasksTrigger(): Promise<Response> {
     }
     
     return new Response(JSON.stringify({ success: true, sent: sentCount }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200
     });
   } catch (err: any) {
     console.error('Error in daily tasks guardian:', err);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
+    return new Response(JSON.stringify({ error: err.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500
+    });
   }
 }
 
@@ -127,10 +134,16 @@ async function handleDailyTrigger(): Promise<Response> {
         sentCount++;
       }
     }
-    return new Response(JSON.stringify({ success: true, sent: sentCount }), { status: 200 })
+    return new Response(JSON.stringify({ success: true, sent: sentCount }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200
+    })
   } catch (e: any) {
     console.error('Daily Trigger Error:', e)
-    return new Response(JSON.stringify({ error: e.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: e.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500
+    })
   }
 }
 
@@ -160,7 +173,8 @@ async function handleRemindersTrigger(): Promise<Response> {
 
     if (!reminders || reminders.length === 0) {
       return new Response(JSON.stringify({ status: "success", message: "No reminders due" }), {
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200
       })
     }
 
@@ -253,11 +267,15 @@ async function handleRemindersTrigger(): Promise<Response> {
     }
 
     return new Response(JSON.stringify({ status: "success", processedCount }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200
     })
   } catch (err: any) {
     console.error('Error in reminders trigger:', err)
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: err.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500
+    })
   }
 }
 
@@ -265,7 +283,10 @@ async function handleEngageTrigger(profileId: string): Promise<Response> {
   try {
     const { data: profile } = await supabase.from('profiles').select('*').eq('id', profileId).single()
     if (!profile) {
-      return new Response(JSON.stringify({ error: "Profile not found" }), { status: 404 })
+      return new Response(JSON.stringify({ error: "Profile not found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404
+      })
     }
 
     const msg = ENGAGEMENT_TEMPLATES[Math.floor(Math.random() * ENGAGEMENT_TEMPLATES.length)]
@@ -283,10 +304,16 @@ async function handleEngageTrigger(profileId: string): Promise<Response> {
     }
 
     await sendWhatsAppMessage(cleanTo, interactiveMsg, 'engagement', profile.id)
-    return new Response(JSON.stringify({ success: true }), { status: 200 })
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200
+    })
   } catch (err: any) {
     console.error('Engage Trigger Error:', err)
-    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: err.message }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500
+    })
   }
 }
 
@@ -414,14 +441,20 @@ async function handlePostRequest(req: Request): Promise<Response> {
     if (body && body.trigger) {
       const authHeader = req.headers.get('Authorization')
       if (!authHeader) {
-        return new Response(JSON.stringify({ error: "Missing Authorization header" }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+        return new Response(JSON.stringify({ error: "Missing Authorization header" }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
       const token = authHeader.replace(/^Bearer\s+/i, '').trim()
       const { data: { user }, error: userErr } = await supabase.auth.getUser(token)
 
       if (userErr || !user) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
       const { data: profile, error: profileErr } = await supabase
@@ -431,7 +464,10 @@ async function handlePostRequest(req: Request): Promise<Response> {
         .maybeSingle()
 
       if (profileErr || !profile || !profile.is_admin) {
-        return new Response(JSON.stringify({ error: "Forbidden: Admin privileges required" }), { status: 403, headers: { 'Content-Type': 'application/json' } })
+        return new Response(JSON.stringify({ error: "Forbidden: Admin privileges required" }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        })
       }
 
       if (body.trigger === 'tasks') return handleTasksTrigger();
@@ -439,7 +475,10 @@ async function handlePostRequest(req: Request): Promise<Response> {
       if (body.trigger === 'reminders') return handleRemindersTrigger();
       if (body.trigger === 'engage') return handleEngageTrigger(body.profile_id);
 
-      return new Response(JSON.stringify({ error: "Invalid trigger" }), { status: 400, headers: { 'Content-Type': 'application/json' } })
+      return new Response(JSON.stringify({ error: "Invalid trigger" }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
     }
 
     const entry = body.entry?.[0]
@@ -449,15 +488,18 @@ async function handlePostRequest(req: Request): Promise<Response> {
     if (value?.messages) await handleMessages(value.messages);
     if (value?.statuses) await handleStatuses(value.statuses);
 
-    return new Response('EVENT_RECEIVED', { status: 200 })
+    return new Response('EVENT_RECEIVED', { status: 200, headers: corsHeaders })
   } catch (e) {
     console.error('Webhook Error:', e)
-    return new Response('Error', { status: 500 })
+    return new Response('Error', { status: 500, headers: corsHeaders })
   }
 }
 
 serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
   if (req.method === 'GET') return handleGetRequest(new URL(req.url))
   if (req.method === 'POST') return handlePostRequest(req)
-  return new Response('Method Not Allowed', { status: 405 })
+  return new Response('Method Not Allowed', { status: 405, headers: corsHeaders })
 })
