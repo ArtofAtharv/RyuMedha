@@ -3,10 +3,8 @@
 import { UserProfile, useProfile } from "@/components/dashboard/profile-context"
 import { useGamification } from "@/components/dashboard/gamification-context"
 import { Card, CardContent } from '@/components/ui/card'
-import { BookOpen, FolderOpen, Sparkles, Flame } from 'lucide-react'
-import { SegmentedControl } from '@/components/dashboard/segmented-control'
+import { Sparkles, Flame } from 'lucide-react'
 import { PageHeader } from '@/components/dashboard/page-header'
-import { useState, useEffect } from 'react'
 import { AnimatePresence, m, Variants } from "motion/react"
 import { AcademicOverviewSection } from '@/components/dashboard/overview-academics'
 import { PersonalOverviewSection } from '@/components/dashboard/overview-personal'

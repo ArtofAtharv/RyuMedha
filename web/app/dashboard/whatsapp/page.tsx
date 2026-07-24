@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, Zap, Loader2, BellRing, FolderOpen } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
-import { PageHeader } from '@/components/dashboard/page-header'
+// import { PageHeader } from '@/components/dashboard/page-header'
 
 // Types for admin page data
 interface WindowStatusRow {
@@ -74,7 +74,7 @@ export default function WhatsAppAdminPage() {
       downloadAnchor.click()
       downloadAnchor.remove()
       toast.success("Database exported successfully!")
-    } catch (err: any) {
+    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
       console.error(err)
       toast.error(`Export failed: ${err.message || err}`)
     }
@@ -129,7 +129,7 @@ export default function WhatsAppAdminPage() {
     try {
       const token = getAccessToken()
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined
-      const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
+      const { error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
         body: { trigger: 'engage', profile_id: profileId },
         headers
       })
@@ -339,7 +339,7 @@ export default function WhatsAppAdminPage() {
                       const { error } = await supabaseClient.rpc('clear_whatsapp_logs')
                       if (error) {
                          console.error("Clear Logs Error:", error)
-                         toast.error(`Failed: ${error.message}`)
+                         toast.error(`Failed: ${(error as Error).message}`)
                       } else {
                          toast.success("Logs cleared")
                          fetchData(supabaseClient)

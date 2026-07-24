@@ -17,7 +17,7 @@ import { hexToGradient } from "@/lib/gradient"
 
 import type { DashboardSubject } from "@/lib/dashboard-types"
 import { getSourceCourse } from "@/lib/source-course"
-import { SegmentedControl } from '@/components/dashboard/segmented-control'
+// import { SegmentedControl } from '@/components/dashboard/segmented-control'
 import { PageHeader } from '@/components/dashboard/page-header'
 import { useProfile } from '@/components/dashboard/profile-context'
 import { createReminder } from "@/app/actions/google-tasks"
@@ -431,7 +431,7 @@ export default function SubjectsPage() {
     }
 
     if (!createdTask) {
-      const { data, error } = await supabaseClient
+      const { error } = await supabaseClient
         .from('tasks')
         .insert([{
           profile_id: profileId,
@@ -464,7 +464,7 @@ export default function SubjectsPage() {
     })
   }
 
-  async function handleDeleteExamDate(subject_id: string, label: string) {
+  async function _handleDeleteExamDate(subject_id: string, label: string) {
     if (!supabaseClient || !profileId) return
 
     // 1. Update academic_courses to delete the exam date

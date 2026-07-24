@@ -1,7 +1,7 @@
 'use client'
 
 import React, { Suspense, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { m } from 'motion/react'
 import { Loader2 } from 'lucide-react'
 import Image from 'next/image'
@@ -32,9 +32,9 @@ function LoginPageInner() {
         }
       })
       if (error) throw error
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err)
-      setError(err.message || 'Authentication failed. Please try again.')
+      setError((err as Error).message || 'Authentication failed. Please try again.')
       setLoading(false)
     }
   }

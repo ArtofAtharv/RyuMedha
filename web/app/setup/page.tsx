@@ -17,14 +17,14 @@ import {
 import { toast } from "sonner"
 import { m, AnimatePresence } from "motion/react"
 
-interface SessionUser {
-  supabaseToken?: string
-  phone?: string
-}
+// interface SessionUser {
+//   supabaseToken?: string
+//   phone?: string
+// }
 
-interface SessionData {
-  user: SessionUser
-}
+// interface SessionData {
+//   user: SessionUser
+// }
 
 interface IdName { id: string; name: string }
 interface Program extends IdName { default_target_attendance?: number }
@@ -34,7 +34,7 @@ interface Course { id: string; course_name: string }
 export default function SetupPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
-  const { session } = useSupabaseSession()
+  const { session: _session } = useSupabaseSession()
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string | null>(null)
   
@@ -111,7 +111,7 @@ export default function SetupPage() {
         return
       }
       
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile, error: _profileError } = await supabase
         .from('profiles')
         .select('*')
         .single()

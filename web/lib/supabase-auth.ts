@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { getAppClient } from '@/lib/supabase-client'
+import { type Session } from '@supabase/supabase-js'
 
 export function useSupabaseSession() {
-  const [session, setSession] = useState<any>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const supabase = getAppClient()
 
@@ -24,41 +25,36 @@ export function useSupabaseSession() {
       const accessToken = getCookie('sb-access-token')
       const refreshToken = getCookie('sb-refresh-token')
 
-      let activeSession = null
+      let activeSession: Session | null = null
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession()
-        if (sessionError) {
-          console.error('useSupabaseSession: getSession error', sessionError)
-          // Clear stale cookies to prevent loop
-          document.cookie = 'sb-access-token=; path=/; max-age=0; samesite=lax'
-          document.cookie = 'sb-refresh-token=; path=/; max-age=0; samesite=lax'
-          const cookies = document.cookie.split(';')
-          for (let i = 0; i < cookies.length; i++) {
-            const c = cookies[i].trim()
-            if (c.startsWith('sb-') && c.endsWith('-auth-token')) {
-              const name = c.split('=')[0]
-              document.cookie = `${name}=; path=/; max-age=0; samesite=lax`
-            }
-          }
-          setSession(null)
-          setLoading(false)
-          return
-        }
+        const { data } = await supabase.auth.getSession()
         activeSession = data?.session || null
       } catch (err) {
         console.error('useSupabaseSession: getSession exception', err)
       }
 
       if (!activeSession && refreshToken) {
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken || '',
-          refresh_token: refreshToken
-        })
-        if (!error && data.session) {
-          setSession(data.session)
-        } else if (error) {
-          console.error('useSupabaseSession: session sync error', error)
-          // Clear stale cookies on error so we don't keep trying to sync an invalid session
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken || '',
+            refresh_token: refreshToken
+          })
+          if (!error && data?.session) {
+            activeSession = data.session
+          } else {
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
+              refresh_token: refreshToken
+            })
+            if (!refreshError && refreshData?.session) {
+              activeSession = refreshData.session
+            }
+          }
+        } catch (err) {
+          console.error('useSupabaseSession: refresh exception', err)
+        }
+
+        if (!activeSession) {
+          // Clear stale cookies only after failed refresh attempt
           document.cookie = 'sb-access-token=; path=/; max-age=0; samesite=lax'
           document.cookie = 'sb-refresh-token=; path=/; max-age=0; samesite=lax'
           const cookies = document.cookie.split(';')
@@ -69,11 +65,10 @@ export function useSupabaseSession() {
               document.cookie = `${name}=; path=/; max-age=0; samesite=lax`
             }
           }
-          setSession(null)
         }
-      } else {
-        setSession(activeSession)
       }
+
+      setSession(activeSession)
       setLoading(false)
     }
 
@@ -95,7 +90,7 @@ export function useSupabaseSession() {
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [supabase.auth])
 
   return { session, loading, isAuthenticated: !!session }
 }

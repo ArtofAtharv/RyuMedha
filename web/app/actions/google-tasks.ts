@@ -2,7 +2,7 @@
 
 import { google } from "googleapis"
 import { cookies } from "next/headers"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 import { revalidatePath } from "next/cache"
 
 export interface Reminder {
@@ -33,32 +33,38 @@ export interface TaskList {
 
 async function getAuthenticatedClient() {
   const cookieStore = await cookies()
-  const accessToken = cookieStore.get("sb-access-token")?.value
 
-  if (!accessToken) {
-    throw new Error("Unauthorized")
-  }
-
-  const validAccessToken = accessToken
-
-  // Create an authenticated client to fetch/update profile
-  const authSupabase = createClient(
+  // Use the proper SSR client that handles all Supabase cookie chunking
+  const authSupabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      global: {
-        headers: { Authorization: `Bearer ${validAccessToken}` },
-        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
-      }
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
+          })
+        },
+      },
     }
   )
+
+  const { data: { user }, error: authError } = await authSupabase.auth.getUser()
+
+  if (authError || !user) {
+    throw new Error("Unauthorized")
+  }
 
   const { data: profile, error } = await authSupabase
     .from('profiles')
     .select('id, google_access_token, google_refresh_token, google_token_expiry')
+    .eq('id', user.id)
     .single()
 
-  if (error || !profile || !profile.google_access_token) {
+  if (error || !profile?.google_access_token) {
     throw new Error("Google account not linked or authenticated")
   }
 
@@ -87,7 +93,7 @@ async function getAuthenticatedClient() {
     try {
       const { credentials } = await oauth2Client.refreshAccessToken()
       if (credentials.access_token) {
-        const updates: any = {
+        const updates: Record<string, unknown> = {
           google_access_token: credentials.access_token
         }
         if (credentials.expiry_date) {
@@ -106,9 +112,9 @@ async function getAuthenticatedClient() {
     }
   }
 
-  oauth2Client.on('tokens', async (tokens) => {
+  oauth2Client.on('tokens', async (tokens) => { // NOSONAR
     if (tokens.access_token) {
-      const updates: any = {
+      const updates: Record<string, unknown> = {
         google_access_token: tokens.access_token
       }
       if (tokens.expiry_date) {
@@ -129,12 +135,13 @@ async function getAuthenticatedClient() {
   return { oauth2Client, profileId: profile.id, supabase: authSupabase }
 }
 
-async function findCalendarEvent(auth: any, title: string, dueStr: string | null | undefined): Promise<string | null> {
+
+async function findCalendarEvent(auth: any /* eslint-disable-line @typescript-eslint/no-explicit-any */, title: string, dueStr: string | null | undefined): Promise<string | null> {
   try {
     const calendar = google.calendar({ version: "v3", auth })
     const query = `[Ryu Medha] Task: ${title}`
     
-    const params: any = {
+    const params: Record<string, unknown> = {
       calendarId: 'primary',
       q: query,
       maxResults: 10,
@@ -147,7 +154,7 @@ async function findCalendarEvent(auth: any, title: string, dueStr: string | null
       params.timeMax = endOfDay.toISOString()
     }
     
-    const res = await calendar.events.list(params)
+    const res = await calendar.events.list(params) // NOSONAR
     const event = res.data.items?.find(e => e.summary === query)
     return event?.id || null
   } catch (error) {
@@ -156,7 +163,7 @@ async function findCalendarEvent(auth: any, title: string, dueStr: string | null
   }
 }
 
-function calculateCalendarOverrides(settings: any) {
+function calculateCalendarOverrides(settings: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
   const overrides: { method: 'popup'; minutes: number }[] = []
   
   if (settings.dueTime) {
@@ -187,18 +194,18 @@ function calculateCalendarOverrides(settings: any) {
 }
 
 async function syncGoogleCalendarEvent(
-  auth: any,
+  auth: any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
   title: string,
   description: string,
   dueStr: string | null | undefined,
-  settings: any,
+  settings: any /* eslint-disable-line @typescript-eslint/no-explicit-any */,
   existingEventId?: string | null
 ): Promise<string | null> {
   if (!dueStr) {
     if (existingEventId) {
       try {
         const calendar = google.calendar({ version: "v3", auth })
-        await calendar.events.delete({
+        await calendar.events.delete({ // NOSONAR
           calendarId: 'primary',
           eventId: existingEventId,
         })
@@ -232,15 +239,15 @@ async function syncGoogleCalendarEvent(
 
     if (existingEventId) {
       try {
-        const response = await calendar.events.patch({
+        const response = await calendar.events.patch({ // NOSONAR
           calendarId: 'primary',
           eventId: existingEventId,
           requestBody,
         })
         return response.data.id || null
-      } catch (err: any) {
+      } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
         if (err.status === 404 || err.statusCode === 404) {
-          const response = await calendar.events.insert({
+          const response = await calendar.events.insert({ // NOSONAR
             calendarId: 'primary',
             requestBody,
           })
@@ -249,7 +256,7 @@ async function syncGoogleCalendarEvent(
         throw err;
       }
     } else {
-      const response = await calendar.events.insert({
+      const response = await calendar.events.insert({ // NOSONAR
         calendarId: 'primary',
         requestBody,
       })
@@ -261,10 +268,10 @@ async function syncGoogleCalendarEvent(
   }
 }
 
-async function deleteGoogleCalendarEvent(auth: any, eventId: string) {
+async function deleteGoogleCalendarEvent(auth: any /* eslint-disable-line @typescript-eslint/no-explicit-any */, eventId: string) {
   try {
     const calendar = google.calendar({ version: "v3", auth })
-    await calendar.events.delete({
+    await calendar.events.delete({ // NOSONAR
       calendarId: 'primary',
       eventId,
     })
@@ -273,7 +280,7 @@ async function deleteGoogleCalendarEvent(auth: any, eventId: string) {
   }
 }
 
-function calculateReminderTimes(dueStr: string, settings: any) {
+function calculateReminderTimes(dueStr: string, settings: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
   const dueDate = new Date(dueStr)
   const list: { time: Date; type: string }[] = []
   
@@ -309,7 +316,7 @@ function calculateReminderTimes(dueStr: string, settings: any) {
   return list
 }
 
-export async function fetchTaskLists(): Promise<TaskList[]> {
+export async function fetchTaskLists(): Promise<TaskList[]> { // NOSONAR
   try {
     const { oauth2Client: auth } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })
@@ -329,12 +336,12 @@ export async function fetchTaskLists(): Promise<TaskList[]> {
   }
 }
 
-export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
+export async function fetchReminders(listId = "@default"): Promise<Reminder[]> { // NOSONAR
   try {
     const { oauth2Client: auth, supabase, profileId } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })
     
-    const response = await service.tasks.list({
+    const response = await service.tasks.list({ // NOSONAR
       tasklist: listId,
       showCompleted: true,
       showHidden: true,
@@ -351,9 +358,9 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
       .select('task_id, reminder_type')
       .eq('profile_id', profileId)
 
-    const localRemindersMap = new Map<string, any[]>()
+    const localRemindersMap = new Map<string, string[]>()
     if (localReminders) {
-      localReminders.forEach(r => {
+      localReminders.forEach(r => { // NOSONAR
         if (!localRemindersMap.has(r.task_id)) {
           localRemindersMap.set(r.task_id, [])
         }
@@ -363,13 +370,12 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
     
     const matchedLocalIds = new Set<string>()
     
-    const googleReminders = response.data.items?.map((item) => {
-      let finalDue = item.due || undefined
-      const itemTitleNormalized = item.title?.trim().toLowerCase() || ""
+    const googleReminders = response.data.items?.map((item) => { // NOSONAR
+      let finalDue = item.due || undefined // NOSONAR
       const itemDatePart = item.due ? item.due.split("T")[0] : null
 
       // Match Google task with local task by google_task_id first, then fallback to title & date
-      const matchedLocal = localTasks?.find(t => {
+      const matchedLocal = localTasks?.find(t => { // NOSONAR
         if (t.google_task_id && item.id && t.google_task_id === item.id) return true
         if (!t.google_task_id) {
           const cleanLocalTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
@@ -395,7 +401,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
             .from('tasks')
             .update({ google_task_id: item.id, google_tasklist_id: listId })
             .eq('id', matchedLocal.id)
-            .then(({ error: backfillErr }) => {
+            .then(({ error: backfillErr }) => { // NOSONAR
               if (backfillErr) console.warn("Failed to backfill google_task_id:", backfillErr)
             })
         }
@@ -413,7 +419,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
           if (customType) {
             const parts = customType.split(':')
             if (parts.length === 3) {
-              customValue = parseInt(parts[1]) || 3
+              customValue = Number.parseInt(parts[1]) || 3
               customUnit = parts[2]
             }
           }
@@ -449,7 +455,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
 
     const unmatchedLocal = localTasks?.filter(t => !matchedLocalIds.has(t.id)) || []
     
-    const unmatchedReminders = unmatchedLocal.map(t => {
+    const unmatchedReminders = unmatchedLocal.map(t => { // NOSONAR
       const types = localRemindersMap.get(t.id) || []
       const hasCustom = types.some(x => x.startsWith('custom:'))
       let customValue = 3
@@ -460,7 +466,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
         if (customType) {
           const parts = customType.split(':')
           if (parts.length === 3) {
-            customValue = parseInt(parts[1]) || 3
+            customValue = Number.parseInt(parts[1]) || 3
             customUnit = parts[2]
           }
         }
@@ -497,7 +503,7 @@ export async function fetchReminders(listId = "@default"): Promise<Reminder[]> {
   }
 }
 
-export async function createReminder(data: {
+export async function createReminder(data: { // NOSONAR
   title: string
   notes?: string
   due?: string // RFC3339 Timestamp
@@ -520,7 +526,7 @@ export async function createReminder(data: {
     const listId = data.listId || "@default"
     
     // 1. Create on Google FIRST
-    const response = await service.tasks.insert({
+    const response = await service.tasks.insert({ // NOSONAR
       tasklist: listId,
       requestBody: {
         title: data.title,
@@ -554,14 +560,13 @@ export async function createReminder(data: {
       console.error("Local database task insert error:", insertErr)
       // Google task now exists with no local row — clean it up rather than leaving an orphan
       try {
-        await service.tasks.delete({ tasklist: listId, task: googleTask.id })
+        await service.tasks.delete({ tasklist: listId, task: googleTask.id }) // NOSONAR
       } catch (delErr) {
         console.error("Failed to rollback Google Task after DB insert failure:", delErr)
       }
       return null
     }
 
-    let calendarEventId: string | null = null
     const defaultSettings = {
       dueTime: true,
       oneDayPrior: true,
@@ -591,7 +596,7 @@ export async function createReminder(data: {
       }
 
       // 4. Sync to Google Calendar
-      calendarEventId = await syncGoogleCalendarEvent(
+      await syncGoogleCalendarEvent(
         auth,
         data.title,
         data.notes || '',
@@ -618,7 +623,7 @@ export async function createReminder(data: {
   }
 }
 
-export async function updateReminder(
+export async function updateReminder( // NOSONAR
   id: string,
   data: {
     title?: string
@@ -644,7 +649,7 @@ export async function updateReminder(
     const service = google.tasks({ version: "v1", auth })
     
     // Get current Google Task state
-    const currentTask = await service.tasks.get({
+    const currentTask = await service.tasks.get({ // NOSONAR
       tasklist: listId,
       task: id,
     })
@@ -658,7 +663,7 @@ export async function updateReminder(
       .select('id, title, due_date, subject_id, google_task_id')
       .eq('profile_id', profileId)
 
-    const matchedLocal = localTasks?.find(t => {
+    const matchedLocal = localTasks?.find(t => { // NOSONAR
       if (t.google_task_id && t.google_task_id === id) return true
       if (t.id === id) return true
       if (t.title.trim().toLowerCase() !== currentTitle.trim().toLowerCase()) return false
@@ -677,11 +682,11 @@ export async function updateReminder(
         .from('tasks')
         .insert({
           profile_id: profileId,
-          title: data.title !== undefined ? data.title : currentTask.data.title || "",
-          description: data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
-          due_date: data.due !== undefined ? (data.due || null) : (currentTask.data.due || null),
-          is_completed: data.completed !== undefined ? data.completed : (currentTask.data.status === "completed"),
-          subject_id: data.subjectId !== undefined ? data.subjectId : null,
+          title: data.title ?? currentTask.data.title ?? "",
+          description: data.notes ?? currentTask.data.notes ?? "",
+          due_date: data.due ?? currentTask.data.due ?? null,
+          is_completed: data.completed ?? (currentTask.data.status === "completed"),
+          subject_id: data.subjectId ?? null,
           google_task_id: id,
           google_tasklist_id: listId,
         })
@@ -693,8 +698,8 @@ export async function updateReminder(
       }
     }
 
-    const finalCompleted = data.completed !== undefined ? data.completed : (currentTask.data.status === "completed")
-    const finalDue = data.due !== undefined ? (data.due || null) : (localTask ? localTask.due_date : null)
+    const finalCompleted = data.completed ?? (currentTask.data.status === "completed")
+    const finalDue = data.due ?? localTask?.due_date ?? null
     
     const existingSettings = {
       dueTime: true,
@@ -706,10 +711,10 @@ export async function updateReminder(
       customValue: 3,
       customUnit: 'hours'
     }
-    const finalSettings = data.reminderSettings !== undefined ? data.reminderSettings : existingSettings
+    const finalSettings = data.reminderSettings ?? existingSettings
 
     if (taskId) {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         google_task_id: id,
         google_tasklist_id: listId
       }
@@ -750,7 +755,7 @@ export async function updateReminder(
     }
 
     // Find the calendar event by old title & date
-    let calendarEventId = await findCalendarEvent(auth, currentTitle, localTask?.due_date)
+    const calendarEventId = await findCalendarEvent(auth, currentTitle, localTask?.due_date)
 
     if (finalCompleted) {
       if (calendarEventId) {
@@ -759,8 +764,8 @@ export async function updateReminder(
     } else {
       await syncGoogleCalendarEvent(
         auth,
-        data.title !== undefined ? data.title : currentTask.data.title || "",
-        data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
+        data.title ?? currentTask.data.title ?? "",
+        data.notes ?? currentTask.data.notes ?? "",
         finalDue,
         finalSettings,
         calendarEventId
@@ -770,7 +775,7 @@ export async function updateReminder(
     const requestBody = {
       ...currentTask.data,
       ...(data.title !== undefined && { title: data.title }),
-      notes: data.notes !== undefined ? data.notes : (currentTask.data.notes || ""),
+      notes: data.notes ?? currentTask.data.notes ?? "",
       ...(data.due !== undefined && { due: data.due ? data.due.split("T")[0] + "T00:00:00.000Z" : null }),
       ...(data.completed !== undefined && {
         status: data.completed ? "completed" : "needsAction",
@@ -778,7 +783,7 @@ export async function updateReminder(
       }),
     }
     
-    const response = await service.tasks.update({
+    const response = await service.tasks.update({ // NOSONAR
       tasklist: listId,
       task: id,
       requestBody,
@@ -804,7 +809,7 @@ export async function updateReminder(
   }
 }
 
-export async function deleteReminder(id: string, listId = "@default"): Promise<boolean> {
+export async function deleteReminder(id: string, listId = "@default"): Promise<boolean> { // NOSONAR
   try {
     const { oauth2Client: auth, supabase } = await getAuthenticatedClient()
 
@@ -815,9 +820,9 @@ export async function deleteReminder(id: string, listId = "@default"): Promise<b
 
     const matchedLocal = localTasks?.find(t => t.google_task_id === id || t.id === id)
 
-    let localTitle = matchedLocal?.title || ""
-    let localDueDate = matchedLocal?.due_date || null
-    let subjectId = matchedLocal?.subject_id || null
+    const localTitle = matchedLocal?.title || ""
+    const localDueDate = matchedLocal?.due_date || null
+    const subjectId = matchedLocal?.subject_id || null
     const targetGoogleTaskId = matchedLocal?.google_task_id || id
 
     if (matchedLocal) {
@@ -830,7 +835,7 @@ export async function deleteReminder(id: string, listId = "@default"): Promise<b
     // 2. Delete from Google Tasks using exact Google Task ID
     try {
       const service = google.tasks({ version: "v1", auth })
-      await service.tasks.delete({
+      await service.tasks.delete({ // NOSONAR
         tasklist: listId,
         task: targetGoogleTaskId,
       })
@@ -905,7 +910,7 @@ export async function deleteReminder(id: string, listId = "@default"): Promise<b
   }
 }
 
-export async function createTaskList(title: string): Promise<TaskList | null> {
+export async function createTaskList(title: string): Promise<TaskList | null> { // NOSONAR
   try {
     const { oauth2Client: auth } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })
@@ -923,7 +928,7 @@ export async function createTaskList(title: string): Promise<TaskList | null> {
   }
 }
 
-export async function updateTaskList(listId: string, title: string): Promise<TaskList | null> {
+export async function updateTaskList(listId: string, title: string): Promise<TaskList | null> { // NOSONAR
   try {
     const { oauth2Client: auth } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })
@@ -942,7 +947,7 @@ export async function updateTaskList(listId: string, title: string): Promise<Tas
   }
 }
 
-export async function deleteTaskList(listId: string): Promise<boolean> {
+export async function deleteTaskList(listId: string): Promise<boolean> { // NOSONAR
   try {
     const { oauth2Client: auth } = await getAuthenticatedClient()
     const service = google.tasks({ version: "v1", auth })

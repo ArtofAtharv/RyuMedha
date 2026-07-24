@@ -3,7 +3,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav"
 import { createClient } from "@supabase/supabase-js"
-import { ProfileProvider, UserProfile } from "@/components/dashboard/profile-context"
+
 import { GamificationProvider } from "@/components/dashboard/gamification-context"
 
 export default async function DashboardLayout({ children }: Readonly<{ children: ReactNode }>) {
@@ -30,7 +30,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
 
   // Fetch the user's profile on the server with retries to handle database cold starts/transient connection errors
   let profile = null
-  let error = null
+  let error: any /* eslint-disable-line @typescript-eslint/no-explicit-any */ = null
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
@@ -38,17 +38,17 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
         .from('profiles')
         .select('*')
         .single()
-      
+
       profile = res.data
       error = res.error
 
       // If we got a profile, or it's a known PGRST116 (profile doesn't exist, setup needed), stop retrying
-      if (profile || (error && error.code === 'PGRST116')) {
+      if (profile || error?.code === 'PGRST116') {
         break
       }
 
       console.warn(`DashboardLayout: Profile fetch attempt ${attempt} failed:`, error)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn(`DashboardLayout: Profile fetch attempt ${attempt} threw exception:`, err)
       error = err
     }
@@ -67,19 +67,19 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
       hint: error?.hint,
       errorObj: error
     })
-    
-    if (error && error.code === 'PGRST116') {
+
+    if (error?.code === 'PGRST116') {
       redirect("/setup")
     }
-    
+
     // Fallback: if it's a connection error, redirect to login or show error.
     // But redirect to setup is the default fallback.
     redirect("/setup")
   }
 
   // Check if account setup is complete
-  const isSetup = (profile.academics_enabled !== null || profile.personal_enabled !== null) && 
-                  (!profile.academics_enabled || !!profile.current_semester_id);
+  const isSetup = (profile.academics_enabled !== null || profile.personal_enabled !== null) &&
+    (!profile.academics_enabled || !!profile.current_semester_id);
 
   if (!isSetup) {
     redirect('/setup')

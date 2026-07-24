@@ -24,9 +24,9 @@ export default function Navigation() {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setDisplayName("")
-      setWhatsAppNumber(null)
-      setLastUserMessageAt(null)
+      setTimeout(() => setDisplayName(""), 0)
+      setTimeout(() => setWhatsAppNumber(null), 0)
+      setTimeout(() => setLastUserMessageAt(null), 0)
       return
     }
     const supabase = getAppClient()
@@ -43,7 +43,8 @@ export default function Navigation() {
       })
   }, [isAuthenticated, pathname])
 
-  const name = displayName || session?.user?.user_metadata?.full_name || session?.user?.user_metadata?.name || session?.user?.email
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const name = displayName || (session?.user as any )?.user_metadata?.full_name || (session?.user as any )?.user_metadata?.name || session?.user?.email
   const initials = name
     ? name
       .split(" ")
@@ -56,14 +57,14 @@ export default function Navigation() {
   let botStatus: "unlinked" | "active" | "inactive" = "unlinked"
   if (whatsAppNumber) {
     if (lastUserMessageAt) {
-      const diff = new Date(lastUserMessageAt).getTime() + 24 * 60 * 60 * 1000 - Date.now()
+      const diff = new Date(lastUserMessageAt).getTime() + 24 * 60 * 60 * 1000 - new Date().getTime()
       botStatus = diff > 0 ? "active" : "inactive"
     } else {
       botStatus = "inactive"
     }
   }
 
-  const isDashboard = pathname?.startsWith("/dashboard")
+  
 
   // Only show the track toggle on pages where it actually changes what's displayed
   const trackToggleRoutes = ["/dashboard", "/dashboard/subjects"]

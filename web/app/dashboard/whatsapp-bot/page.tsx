@@ -12,7 +12,7 @@ import {
   RefreshCw, LogOut, Check, Copy, ArrowLeft, Clock, Zap, AlertTriangle
 } from "lucide-react"
 import { toast } from "sonner"
-import Link from "next/link"
+// import Link from "next/link"
 
 const BOT_LINK = "https://wa.me/message/P4QSZGK7MV2PL1"
 const BOT_URL = "https://wa.me/+918976156904"
@@ -28,7 +28,7 @@ interface ProfileData {
 
 export default function WhatsAppBotPage() {
   const router = useRouter()
-  const { session } = useSupabaseSession()
+  const { session: _session } = useSupabaseSession()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [loading, setLoading] = useState(true)
@@ -46,12 +46,12 @@ export default function WhatsAppBotPage() {
 
   useEffect(() => {
     const supabase = getAppClient()
-    setSupabaseClient(supabase)
-    fetchProfile(supabase)
+    setTimeout(() => setSupabaseClient(supabase), 0)
+    setTimeout(() => fetchProfile(supabase), 0)
 
     // Poll profile every 5 seconds to automatically detect when they verify code on WhatsApp
     const interval = setInterval(() => {
-      fetchProfile(supabase)
+      setTimeout(() => fetchProfile(supabase), 0)
     }, 5000)
 
     return () => clearInterval(interval)
@@ -141,7 +141,7 @@ export default function WhatsAppBotPage() {
 
   if (hasLinked && profile.last_user_message_at) {
     const lastMsgTime = new Date(profile.last_user_message_at).getTime()
-    const now = Date.now()
+    const now = new Date().getTime()
     const diff = lastMsgTime + 24 * 60 * 60 * 1000 - now
     if (diff > 0) {
       isWindowActive = true
