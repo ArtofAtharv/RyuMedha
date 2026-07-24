@@ -323,7 +323,7 @@ export default function SetupPage() {
     
     setIsSubmitting(false)
     if (error) setErrorMsg(error.message)
-    else router.push("/dashboard")
+    else router.push("/dashboard/whatsapp-bot")
   }
 
   async function handleStep2Next() {
@@ -438,8 +438,8 @@ export default function SetupPage() {
       }
     }
 
-setIsSubmitting(false)
-    router.push("/dashboard")
+    setIsSubmitting(false)
+    router.push("/dashboard/whatsapp-bot")
     router.refresh()
   }
 
@@ -908,7 +908,7 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
             onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as React.SyntheticEvent) }}
             disabled={isSubmitting}
           >
-            Skip to Dashboard
+            Skip and Connect WhatsApp
           </Button>
         </div>
       </CardContent>
