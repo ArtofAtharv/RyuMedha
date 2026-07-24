@@ -28,6 +28,7 @@ export async function updateSession(request: NextRequest) {
   )
 
   const accessToken = request.cookies.get('sb-access-token')?.value
+  const refreshToken = request.cookies.get('sb-refresh-token')?.value
 
   let user = null
   if (accessToken) {
@@ -39,12 +40,31 @@ export async function updateSession(request: NextRequest) {
 
   // Fallback to standard Supabase auth check if token check didn't yield user
   if (!user) {
-    const { data } = await supabase.auth.getUser()
-    user = data?.user || null
+    const { data, error } = await supabase.auth.getUser()
+    if (data?.user && !error) {
+      user = data.user
+    }
+  }
+
+  let session = null
+
+  // If user is still null but we have a refresh token, attempt to refresh the session
+  if (!user && refreshToken) {
+    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
+      refresh_token: refreshToken,
+    })
+    if (refreshData?.user && refreshData?.session && !refreshError) {
+      user = refreshData.user
+      session = refreshData.session
+    }
   }
 
   // Also sync sb-access-token and sb-refresh-token if an active session exists
-  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    session = sessionData?.session || null
+  }
+
   if (session) {
     response.cookies.set('sb-access-token', session.access_token, {
       path: '/',
