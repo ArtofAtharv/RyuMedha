@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 
 export interface InviteCode {
   id: string
@@ -12,16 +13,6 @@ export interface InviteCode {
   createdBy?: string
 }
 
-function getFilePath(): string {
-  const cwd = process.cwd()
-  const baseDir = cwd.endsWith('web') ? cwd : path.join(cwd, 'web')
-  const libDir = path.join(baseDir, 'lib')
-  if (!fs.existsSync(libDir)) {
-    fs.mkdirSync(libDir, { recursive: true })
-  }
-  return path.join(libDir, 'invite-codes.json')
-}
-
 const DEFAULT_CODES: InviteCode[] = [
   {
     id: 'default-lifetime-1',
@@ -30,7 +21,7 @@ const DEFAULT_CODES: InviteCode[] = [
     maxUses: null,
     usesCount: 0,
     isActive: true,
-    createdAt: new Date().toISOString()
+    createdAt: '2026-01-01T00:00:00.000Z'
   },
   {
     id: 'default-1year-1',
@@ -39,40 +30,79 @@ const DEFAULT_CODES: InviteCode[] = [
     maxUses: null,
     usesCount: 0,
     isActive: true,
-    createdAt: new Date().toISOString()
+    createdAt: '2026-01-01T00:00:00.000Z'
   }
 ]
 
+let inMemoryCodes: InviteCode[] | null = null
+
+function getPrimaryFilePath(): string {
+  const cwd = process.cwd()
+  const baseDir = cwd.endsWith('web') ? cwd : path.join(cwd, 'web')
+  return path.join(baseDir, 'lib', 'invite-codes.json')
+}
+
+function getTmpFilePath(): string {
+  return path.join(os.tmpdir(), 'invite-codes.json')
+}
+
 export function getInviteCodes(): InviteCode[] {
-  try {
-    const filePath = getFilePath()
-    if (!fs.existsSync(filePath)) {
-      const dir = path.dirname(filePath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
-      fs.writeFileSync(filePath, JSON.stringify(DEFAULT_CODES, null, 2), 'utf-8')
-      return DEFAULT_CODES
-    }
-    const data = fs.readFileSync(filePath, 'utf-8')
-    return JSON.parse(data)
-  } catch (err) {
-    console.error('Error reading invite codes:', err)
-    return DEFAULT_CODES
+  if (inMemoryCodes) {
+    return inMemoryCodes
   }
+
+  // 1. Try reading from /tmp if available
+  const tmpPath = getTmpFilePath()
+  if (fs.existsSync(tmpPath)) {
+    try {
+      const data = fs.readFileSync(tmpPath, 'utf-8')
+      inMemoryCodes = JSON.parse(data)
+      return inMemoryCodes!
+    } catch {
+      // fallback
+    }
+  }
+
+  // 2. Try reading from primary project directory
+  try {
+    const primaryPath = getPrimaryFilePath()
+    if (fs.existsSync(primaryPath)) {
+      const data = fs.readFileSync(primaryPath, 'utf-8')
+      inMemoryCodes = JSON.parse(data)
+      return inMemoryCodes!
+    }
+  } catch {
+    // fallback
+  }
+
+  inMemoryCodes = [...DEFAULT_CODES]
+  return inMemoryCodes
 }
 
 export function saveInviteCodes(codes: InviteCode[]) {
+  inMemoryCodes = codes
+  const jsonStr = JSON.stringify(codes, null, 2)
+
+  // 1. Try writing to primary path
   try {
-    const filePath = getFilePath()
-    const dir = path.dirname(filePath)
+    const primaryPath = getPrimaryFilePath()
+    const dir = path.dirname(primaryPath)
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
-    fs.writeFileSync(filePath, JSON.stringify(codes, null, 2), 'utf-8')
+    fs.writeFileSync(primaryPath, jsonStr, 'utf-8')
+    return
   } catch (err) {
-    console.error('Error saving invite codes:', err)
-    throw err
+    // Expected on serverless / Vercel (EROFS: read-only file system)
+    console.warn('Primary file write restricted, using /tmp fallback:', err instanceof Error ? err.message : err)
+  }
+
+  // 2. Fallback to /tmp path (always writable in Lambda / Vercel)
+  try {
+    const tmpPath = getTmpFilePath()
+    fs.writeFileSync(tmpPath, jsonStr, 'utf-8')
+  } catch (err) {
+    console.error('Error saving invite codes to /tmp:', err)
   }
 }
 
