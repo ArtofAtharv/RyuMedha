@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   BookOpen, FolderOpen, User, ArrowRight, CheckCircle2, 
   School, GraduationCap, Calendar, Loader2, ChevronLeft,
-  Plus, Trash2, X, Check
+  Plus, Trash2, X, Check, Target
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
@@ -51,7 +51,7 @@ export default function SetupPage() {
   const [selectedUniId, setSelectedUniId] = useState<string>("")
   const [selectedProgId, setSelectedProgId] = useState<string>("")
   const [selectedSemId, setSelectedSemId] = useState<string>("")
-  const [targetAttendance, setTargetAttendance] = useState("75")
+  const [targetAttendance, setTargetAttendance] = useState("70")
 
   // Dynamic Management States
   const [isAddingUni, setIsAddingUni] = useState(false)
@@ -153,7 +153,7 @@ export default function SetupPage() {
         setUserPhone(profile.whatsapp_number || activeSession.user.phone || "")
         setAcademicsEnabled(profile.academics_enabled ?? false)
         setPersonalEnabled(profile.personal_enabled ?? false)
-        setTargetAttendance(profile.target_attendance_pct?.toString() || "75")
+        setTargetAttendance(profile.target_attendance_pct?.toString() || "70")
       } else {
         // If profile is missing, auto-create it on the fly
         const user = activeSession.user
@@ -166,7 +166,7 @@ export default function SetupPage() {
             display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
             academics_enabled: null,
             personal_enabled: null,
-            target_attendance_pct: 75
+            target_attendance_pct: 70
           })
           .select()
           .single()
@@ -179,7 +179,7 @@ export default function SetupPage() {
           setUserPhone(newProfile.whatsapp_number || "")
           setAcademicsEnabled(false)
           setPersonalEnabled(false)
-          setTargetAttendance("75")
+          setTargetAttendance("70")
         } else {
           console.error("Setup init: failed to auto-create profile", insertError)
           toast.error("Failed to initialize profile. Please refresh the page.")
@@ -430,7 +430,7 @@ export default function SetupPage() {
       display_name: displayName.trim(),
       academics_enabled: academicsEnabled,
       personal_enabled: personalEnabled,
-      target_attendance_pct: Number.parseFloat(targetAttendance) || 75
+      target_attendance_pct: Number.parseFloat(targetAttendance) || 70
     }
 
     if (academicsEnabled) {
@@ -523,6 +523,7 @@ export default function SetupPage() {
     isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
     isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
     isAddingSem, setIsAddingSem, newSemName, setNewSemName, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
+    targetAttendance, setTargetAttendance,
     errorMsg, setStep, handleStep2Next, isSubmitting
   };
   const step3Bundle = {
@@ -659,6 +660,8 @@ interface Step2CardProps {
   setSelectedSemId: (val: string) => void
   semesters: Semester[]
   handleDeleteSem: (e: React.MouseEvent, id: string) => void
+  targetAttendance: string
+  setTargetAttendance: (val: string) => void
   errorMsg: string
   setStep: (val: number) => void
   handleStep2Next: () => void
@@ -670,6 +673,7 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
     isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
     isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
     isAddingSem, setIsAddingSem, newSemName, setNewSemName, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
+    targetAttendance, setTargetAttendance,
     errorMsg, setStep, handleStep2Next, isSubmitting
   } = props;
 
@@ -865,7 +869,30 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
                 </div>
               </SelectContent>
             </Select>
-          )}
+        </div>
+
+        {/* TARGET ATTENDANCE GOAL */}
+        <div className="space-y-2">
+          <Label htmlFor="targetAttendance" className="font-bold flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Target className="w-4 h-4 text-muted-foreground" /> Target Attendance Goal
+            </span>
+            <span className="text-xs text-primary font-mono font-bold">{targetAttendance || "70"}%</span>
+          </Label>
+          <div className="relative">
+            <Input 
+              id="targetAttendance" 
+              type="number" 
+              min="50" 
+              max="100" 
+              placeholder="70" 
+              className="h-12 bg-background border-muted-foreground/20 text-base pr-8 font-semibold"
+              value={targetAttendance}
+              onChange={(e) => setTargetAttendance(e.target.value)}
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-bold">%</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">Default target is 70%. You can adjust this anytime in your profile settings.</p>
         </div>
 
         {errorMsg && <p className="text-xs text-destructive text-center font-semibold bg-destructive/10 p-2 rounded">{errorMsg}</p>}

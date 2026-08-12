@@ -208,7 +208,7 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
       ...data,
       programId: program.id,
       programName: program.name,
-      defaultTarget: program.default_target_attendance || 75,
+      defaultTarget: program.default_target_attendance || 70,
       semsList: sems || []
     });
     return SETUP_MESSAGES.semesterPrompt(sems || []);
@@ -267,7 +267,7 @@ export async function handleOnboarding(user: any, session: any, rawText: string,
   }
   if (step === 'awaiting_target_pct') {
     const match = text.match(/\d+(\.\d+)?/);
-    const pct = match ? parseFloat(match[0]) : data.defaultTarget || 75;
+    const pct = match ? parseFloat(match[0]) : data.defaultTarget || 70;
     const { data: courses } = await deps.supabaseAdmin.from('academic_courses').select('id, course_name').eq('semester_id', data.semesterId).order('course_name').limit(20);
     
     const nextStep = courses && courses.length > 0 ? 'awaiting_subjects' : 'awaiting_custom_subject_name';

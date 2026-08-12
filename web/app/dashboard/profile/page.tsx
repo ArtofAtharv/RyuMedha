@@ -789,11 +789,11 @@ export default function ProfilePage() {
               icon={<Target className="w-4 h-4 text-white" />}
               iconBg="bg-rose-500"
               label="Target Attendance"
-              value={`${profile.target_attendance_pct ?? 75}%`}
+              value={`${profile.target_attendance_pct ?? 70}%`}
               isEditing={editField === "target_attendance_pct"}
               editValue={editValue}
               saving={saving}
-              onEdit={() => startEdit("target_attendance_pct", profile.target_attendance_pct ?? 75)}
+              onEdit={() => startEdit("target_attendance_pct", profile.target_attendance_pct ?? 70)}
               onCancel={cancelEdit}
               onChange={setEditValue}
               onSave={() => {

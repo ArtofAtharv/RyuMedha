@@ -32,7 +32,7 @@ CREATE TABLE profiles (
     current_university_id UUID,
     current_program_id UUID,
     current_semester_id UUID,
-    target_attendance_pct DECIMAL(5,2) DEFAULT 75.00,
+    target_attendance_pct DECIMAL(5,2) DEFAULT 70.00,
     push_notifications_enabled BOOLEAN DEFAULT false,
     is_admin BOOLEAN DEFAULT false,
     last_user_message_at TIMESTAMPTZ,
@@ -74,7 +74,7 @@ CREATE TABLE programs (
     degree_type TEXT, 
     total_semesters INTEGER,
     duration_years DECIMAL(3,1),
-    default_target_attendance DECIMAL(5,2) DEFAULT 75.00,
+    default_target_attendance DECIMAL(5,2) DEFAULT 70.00,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(university_id, name)

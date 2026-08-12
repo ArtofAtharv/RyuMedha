@@ -171,7 +171,7 @@ export default async function DashboardPage() {
   }
 
   // Derived calculations (moved from original code)
-  const targetPct = profile?.target_attendance_pct || 75
+  const targetPct = profile?.target_attendance_pct || 70
   const attendanceData = subjectsData?.filter(s => s.type === 'academic').map(sub => {
     const subjectLogs = attendanceLogs?.filter(log => log.subject_id === sub.id) || []
     const logPresent = subjectLogs.filter(log => log.status === 'present').length

@@ -49,7 +49,7 @@ export function AttendanceCard({
   neededToRecover,
   maxPossiblePct,
   isPossibleToRecover,
-  targetPct = 75,
+  targetPct = 70,
   onLog,
 }: AttendanceCardProps) {
   const pct = Number(percentage ?? 0)

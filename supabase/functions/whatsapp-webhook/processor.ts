@@ -255,7 +255,7 @@ async function buildAttendanceSummary(uc: any, user: any, subject: any, prefix =
   
   // Percent calculation: (Present + Deemed) / Total
   const pct = (present + deemed) / total * 100;
-  const target = user.target_attendance_pct || 75;
+  const target = user.target_attendance_pct || 70;
   const emoji = pct >= target ? '✅' : pct >= target - 15 ? '⚠️' : '🔴';
   let msg = prefix + MESSAGES.attendance.summaryLine(emoji, subject.name, present + deemed, total, pct.toFixed(1));
   if (deemed > 0) msg += MESSAGES.attendance.deemedNote(deemed);
@@ -802,7 +802,7 @@ async function handleProfile(user: any, uc: any) {
   let msg = MESSAGES.general.profileHeader + MESSAGES.general.profileName(user.display_name);
   if (user.personal_enabled) msg += MESSAGES.general.profilePersonal;
   if (user.academics_enabled) {
-    msg += MESSAGES.general.profileAcademic + MESSAGES.general.profileTarget(user.target_attendance_pct || 75);
+    msg += MESSAGES.general.profileAcademic + MESSAGES.general.profileTarget(user.target_attendance_pct || 70);
     if (user.current_university_id) {
       const { data: uni } = await uc.from('universities').select('name').eq('id', user.current_university_id).maybeSingle();
       if (uni) msg += MESSAGES.general.profileUniversity(uni.name);
@@ -846,7 +846,7 @@ async function handleStats(user: any, uc: any) {
   const filtered = raw?.filter((s: any) => Array.isArray(s.source_course_id) ? s.source_course_id[0]?.semester_id === user.current_semester_id : s.source_course_id?.semester_id === user.current_semester_id) || [];
   if (filtered.length === 0) return MESSAGES.stats.noSubjects;
   const { data: logs } = await uc.from('attendance_logs').select('subject_id, status').eq('profile_id', user.id).in('subject_id', filtered.map((x: any) => x.id));
-  let msg = MESSAGES.stats.header(user.target_attendance_pct || 75), hasData = false;
+  let msg = MESSAGES.stats.header(user.target_attendance_pct || 70), hasData = false;
   for (const s of filtered) {
     const sLogs = logs?.filter((l: any) => l.subject_id === s.id) || [];
     const sum = await buildAttendanceSummary(uc, user, s, '', sLogs);
