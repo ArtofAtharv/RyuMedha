@@ -40,32 +40,57 @@ export async function GET(_req: Request) {
       return NextResponse.json({ error: 'Access denied: Admin privileges required' }, { status: 403 })
     }
 
-    // Fetch all profiles
-    const { data: profiles, error: pErr } = await supabase
-      .from('profiles')
-      .select('id, display_name, email, whatsapp_number, created_at, is_admin')
-      .order('created_at', { ascending: false })
+    // Fetch all profiles via export_all_data RPC (SECURITY DEFINER) or direct select
+    let profiles: Array<{
+      id: string
+      display_name: string
+      email: string | null
+      whatsapp_number: string | null
+      created_at: string
+      is_admin: boolean | null
+      academics_enabled?: boolean | null
+      personal_enabled?: boolean | null
+    }> = []
 
-    if (pErr) throw pErr
+    try {
+      const { data: exportData, error: expErr } = await supabase.rpc('export_all_data')
+      if (!expErr && exportData?.profiles && Array.isArray(exportData.profiles)) {
+        profiles = exportData.profiles
+      }
+    } catch {
+      // fallback if RPC fails
+    }
+
+    if (profiles.length === 0) {
+      const { data: pData, error: pErr } = await supabase
+        .from('profiles')
+        .select('id, display_name, email, whatsapp_number, created_at, is_admin, academics_enabled, personal_enabled')
+        .order('created_at', { ascending: false })
+
+      if (pErr) throw pErr
+      profiles = pData || []
+    }
 
     // Fetch all subscriptions
     const { data: subscriptions, error: sErr } = await supabase
       .from('subscriptions')
       .select('*')
 
-    if (sErr) throw sErr
+    if (sErr) console.warn('Could not fetch subscriptions:', sErr)
 
     // Map profiles with their subscription
     const subMap = new Map(subscriptions?.map(s => [s.profile_id, s]))
 
-    const userSubscriptions = (profiles || []).map(p => {
+    const userSubscriptions = profiles.map(p => {
       const sub = subMap.get(p.id)
+      const isSetupIncomplete = p.academics_enabled === null && p.personal_enabled === null
       return {
         profileId: p.id,
-        displayName: p.display_name,
+        displayName: p.display_name || (p.email ? p.email.split('@')[0] : p.whatsapp_number || 'Incomplete Setup User'),
         email: p.email,
         whatsappNumber: p.whatsapp_number,
         isAdmin: p.is_admin === true,
+        isSetupIncomplete,
         userCreatedAt: p.created_at,
         subscriptionId: sub?.id || null,
         status: sub?.status || 'trialing',

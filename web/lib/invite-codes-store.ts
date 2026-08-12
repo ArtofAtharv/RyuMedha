@@ -12,7 +12,17 @@ export interface InviteCode {
   createdBy?: string
 }
 
-const FILE_PATH = path.join(process.cwd(), 'lib', 'invite-codes.json')
+function getFilePath(): string {
+  const webLibDir = path.join(process.cwd(), 'web', 'lib')
+  if (fs.existsSync(webLibDir)) {
+    return path.join(webLibDir, 'invite-codes.json')
+  }
+  const libDir = path.join(process.cwd(), 'lib')
+  if (!fs.existsSync(libDir)) {
+    fs.mkdirSync(libDir, { recursive: true })
+  }
+  return path.join(libDir, 'invite-codes.json')
+}
 
 const DEFAULT_CODES: InviteCode[] = [
   {
@@ -37,15 +47,16 @@ const DEFAULT_CODES: InviteCode[] = [
 
 export function getInviteCodes(): InviteCode[] {
   try {
-    if (!fs.existsSync(FILE_PATH)) {
-      const dir = path.dirname(FILE_PATH)
+    const filePath = getFilePath()
+    if (!fs.existsSync(filePath)) {
+      const dir = path.dirname(filePath)
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })
       }
-      fs.writeFileSync(FILE_PATH, JSON.stringify(DEFAULT_CODES, null, 2), 'utf-8')
+      fs.writeFileSync(filePath, JSON.stringify(DEFAULT_CODES, null, 2), 'utf-8')
       return DEFAULT_CODES
     }
-    const data = fs.readFileSync(FILE_PATH, 'utf-8')
+    const data = fs.readFileSync(filePath, 'utf-8')
     return JSON.parse(data)
   } catch (err) {
     console.error('Error reading invite codes:', err)
@@ -55,12 +66,15 @@ export function getInviteCodes(): InviteCode[] {
 
 export function saveInviteCodes(codes: InviteCode[]) {
   try {
-    const dir = path.dirname(FILE_PATH)
+    const filePath = getFilePath()
+    const dir = path.dirname(filePath)
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true })
     }
-    fs.writeFileSync(FILE_PATH, JSON.stringify(codes, null, 2), 'utf-8')
+    fs.writeFileSync(filePath, JSON.stringify(codes, null, 2), 'utf-8')
   } catch (err) {
     console.error('Error saving invite codes:', err)
+    throw err
   }
 }
+

@@ -48,6 +48,7 @@ interface UserSubData {
   email: string
   whatsappNumber: string
   isAdmin: boolean
+  isSetupIncomplete?: boolean
   userCreatedAt: string
   subscriptionId: string | null
   status: string
@@ -553,9 +554,10 @@ export default function AdminPage() {
                     {filteredUsers.map((u) => (
                       <tr key={u.profileId} className="hover:bg-muted/30 transition-colors">
                         <td className="py-3 px-4">
-                          <div className="font-bold text-foreground flex items-center gap-1.5">
+                          <div className="font-bold text-foreground flex items-center gap-1.5 flex-wrap">
                             {u.displayName}
                             {u.isAdmin && <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Admin</Badge>}
+                            {u.isSetupIncomplete && <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0">Incomplete Setup</Badge>}
                           </div>
                           <div className="text-[11px] text-muted-foreground font-mono">
                             {u.email || u.whatsappNumber || "No email/phone"}
