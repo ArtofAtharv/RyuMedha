@@ -122,6 +122,7 @@ export default function SetupPage() {
         setAcademicsEnabled(profile.academics_enabled ?? false)
         setPersonalEnabled(profile.personal_enabled ?? false)
         setTargetAttendance(profile.target_attendance_pct?.toString() || "75")
+      } else {
         // If profile is missing, auto-create it on the fly
         const user = activeSession.user
         const { data: newProfile, error: insertError } = await supabase
@@ -194,7 +195,8 @@ export default function SetupPage() {
     const { data, error } = await supabaseClient.from('universities').insert([{ name: newUniName.trim() }]).select().single()
     setIsSubmitting(false)
     if (error) {
-      toast.error("Failed to add university")
+      console.error("handleCreateUni error:", error)
+      toast.error(`Failed to add university: ${error.message || "Unknown error"}`)
     } else {
       setUniversities(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedUniId(data.id)
@@ -231,7 +233,8 @@ export default function SetupPage() {
     }]).select().single()
     setIsSubmitting(false)
     if (error) {
-      toast.error("Failed to add program")
+      console.error("handleCreateProg error:", error)
+      toast.error(`Failed to add program: ${error.message || "Unknown error"}`)
     } else {
       setPrograms(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedProgId(data.id)
@@ -269,7 +272,8 @@ export default function SetupPage() {
     }]).select().single()
     setIsSubmitting(false)
     if (error) {
-      toast.error("Failed to add semester")
+      console.error("handleCreateSem error:", error)
+      toast.error(`Failed to add semester: ${error.message || "Unknown error"}`)
     } else {
       setSemesters(prev => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
       setSelectedSemId(data.id)

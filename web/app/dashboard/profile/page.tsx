@@ -369,7 +369,8 @@ export default function ProfilePage() {
     if (!newUniName.trim() || !supabaseClient) return
     const { data, error } = await supabaseClient.from('universities').insert([{ name: newUniName.trim() }]).select().single()
     if (error) {
-      toast.error("Failed to add university")
+      console.error("handleCreateUni error:", error)
+      toast.error(`Failed to add university: ${error.message || "Unknown error"}`)
     } else {
       setUniversities(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       handleRelationalChange('current_university_id', data.id)
@@ -404,7 +405,8 @@ export default function ProfilePage() {
       university_id: profile.current_university_id 
     }]).select().single()
     if (error) {
-      toast.error("Failed to add program")
+      console.error("handleCreateProg error:", error)
+      toast.error(`Failed to add program: ${error.message || "Unknown error"}`)
     } else {
       setPrograms(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       handleRelationalChange('current_program_id', data.id)
@@ -440,7 +442,8 @@ export default function ProfilePage() {
       program_id: profile.current_program_id 
     }]).select().single()
     if (error) {
-      toast.error("Failed to add semester")
+      console.error("handleCreateSem error:", error)
+      toast.error(`Failed to add semester: ${error.message || "Unknown error"}`)
     } else {
       setSemesters(prev => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
       handleRelationalChange('current_semester_id', data.id)
