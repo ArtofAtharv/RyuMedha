@@ -30,7 +30,7 @@ import { m, AnimatePresence } from "motion/react"
 interface IdName { id: string; name: string }
 interface Program extends IdName { default_target_attendance?: number }
 interface Semester extends IdName { semester_number: number }
-interface Course { id: string; course_name: string }
+interface Course { id: string; course_name: string; instructor_name?: string; expected_total_lectures?: number }
 
 export default function SetupPage() {
   const router = useRouter()
@@ -406,7 +406,7 @@ export default function SetupPage() {
     // Fetch available courses for this semester
     const { data: courses, error } = await supabaseClient
       .from('academic_courses')
-      .select('id, course_name')
+      .select('id, course_name, instructor_name, expected_total_lectures')
       .eq('semester_id', selectedSemId)
       .order('course_name')
     
@@ -470,6 +470,8 @@ export default function SetupPage() {
             name: course?.course_name || "Unknown Subject",
             type: 'academic',
             source_course_id: courseId,
+            instructor_name: course?.instructor_name || null,
+            expected_total_lectures: course?.expected_total_lectures || 0,
             color_hex: '#3b82f6',
             is_active: true
           }

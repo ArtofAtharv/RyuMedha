@@ -100,6 +100,7 @@ CREATE TABLE academic_courses (
     credits DECIMAL(3,1),
     course_type TEXT,
     instructor_name TEXT,
+    expected_total_lectures INTEGER,
     exam_dates JSONB,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),

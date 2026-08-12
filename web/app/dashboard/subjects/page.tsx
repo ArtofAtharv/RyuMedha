@@ -46,6 +46,8 @@ interface CategoryRecord {
 interface CourseRecord {
   id: string
   course_name: string
+  instructor_name?: string
+  expected_total_lectures?: number
 }
 
 function formatOutputDate(d: Date) {
@@ -104,7 +106,7 @@ export default function SubjectsPage() {
         if (profile.current_semester_id) {
           const { data: courses } = await supabase
             .from('academic_courses')
-            .select('id, course_name')
+            .select('id, course_name, instructor_name, expected_total_lectures')
             .eq('semester_id', profile.current_semester_id)
             .order('course_name')
           setAvailableCourses(courses || [])
@@ -216,6 +218,8 @@ export default function SubjectsPage() {
           name: course?.course_name || "Unknown",
           type: 'academic',
           source_course_id: cid,
+          instructor_name: course?.instructor_name || null,
+          expected_total_lectures: course?.expected_total_lectures || 0,
           color_hex: '#3b82f6',
           is_active: true
         }
