@@ -2,6 +2,7 @@ import { ReactNode } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav"
+import { SubscriptionBanner } from "@/components/dashboard/subscription-banner"
 import { createClient } from "@supabase/supabase-js"
 
 import { GamificationProvider } from "@/components/dashboard/gamification-context"
@@ -85,9 +86,25 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
     redirect('/setup')
   }
 
+  // Check subscription status
+  let subscription = null
+  try {
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('profile_id', profile.id)
+      .single()
+    subscription = subData
+  } catch (err) {
+    console.warn("Subscription fetch warning:", err)
+  }
+
   return (
     <GamificationProvider>
       <div className="flex flex-col min-h-screen bg-background text-foreground">
+        {/* Subscription Notice Banner */}
+        <SubscriptionBanner subscription={subscription} />
+
         {/* Animated Dashboard Navigation */}
         <DashboardNav />
 

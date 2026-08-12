@@ -6,6 +6,17 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  const { pathname } = request.nextUrl
+  const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/profile') || pathname.startsWith('/setup')
+
+  const accessToken = request.cookies.get('sb-access-token')?.value
+  const refreshToken = request.cookies.get('sb-refresh-token')?.value
+
+  // Fast path: Unauthenticated user visiting public page -> Return immediately (0ms network overhead)
+  if (!accessToken && !refreshToken && !isProtected) {
+    return response
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -27,42 +38,30 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  const accessToken = request.cookies.get('sb-access-token')?.value
-  const refreshToken = request.cookies.get('sb-refresh-token')?.value
-
   let user = null
-  if (accessToken) {
-    const { data, error } = await supabase.auth.getUser(accessToken)
-    if (data?.user && !error) {
-      user = data.user
-    }
-  }
-
-  // Fallback to standard Supabase auth check if token check didn't yield user
-  if (!user) {
-    const { data, error } = await supabase.auth.getUser()
-    if (data?.user && !error) {
-      user = data.user
-    }
-  }
-
   let session = null
 
-  // If user is still null but we have a refresh token, attempt to refresh the session
-  if (!user && refreshToken) {
-    const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
-      refresh_token: refreshToken,
-    })
-    if (refreshData?.user && refreshData?.session && !refreshError) {
-      user = refreshData.user
-      session = refreshData.session
+  try {
+    if (accessToken) {
+      const { data, error } = await supabase.auth.getUser(accessToken)
+      if (data?.user && !error) {
+        user = data.user
+      }
     }
-  }
 
-  // Also sync sb-access-token and sb-refresh-token if an active session exists
-  if (!session) {
-    const { data: sessionData } = await supabase.auth.getSession()
-    session = sessionData?.session || null
+    if (!user && refreshToken) {
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession({
+        refresh_token: refreshToken,
+      })
+      if (refreshData?.user && refreshData?.session && !refreshError) {
+        user = refreshData.user
+        session = refreshData.session
+      }
+    }
+  } catch (err) {
+    // Catch stale/expired token errors gracefully without blocking or logging noise
+    user = null
+    session = null
   }
 
   if (session) {
@@ -82,24 +81,7 @@ export async function updateSession(request: NextRequest) {
         maxAge: 60 * 60 * 24 * 30,
       })
     }
-    
-    // Force all sb-*-auth-token* cookies to be httpOnly: false so the browser can read them.
-    // This fixes the issue where they were previously set as httpOnly: true.
-    request.cookies.getAll().forEach(cookie => {
-      if (cookie.name.startsWith('sb-') && cookie.name.includes('-auth-token')) {
-        response.cookies.set(cookie.name, cookie.value, {
-          path: '/',
-          httpOnly: false,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: session.expires_in,
-        })
-      }
-    })
   }
-
-  const { pathname } = request.nextUrl
-  const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/profile') || pathname.startsWith('/setup')
 
   if (!user && isProtected) {
     const loginUrl = new URL('/login', request.url)

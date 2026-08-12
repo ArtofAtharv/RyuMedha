@@ -377,26 +377,160 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCell
-              value="100%"
-              label="Free to use"
-              description="No subscription, no trial period. Every feature is unlocked for every student from the moment they sign up."
+              value="30 Days"
+              label="Free Trial"
+              description="Every new student receives 1 full month of unlimited workspace access."
             />
             <StatCell
               value="WhatsApp"
               label="Primary interface"
-              description="No app to install, no new habit to build. The fastest interface is the one already open on your phone."
+              description="No app to install, no new habit to build. The fastest interface is already open on your phone."
             />
             <StatCell
               value="5 sec"
               label="To log attendance"
-              description="Send one message. Your attendance is marked, your dashboard updates, and you are already back to your lecture."
+              description="Send one message. Your attendance is marked, your dashboard updates, and you are back to your lecture."
             />
             <StatCell
-              value="1 app"
-              label="For your entire semester"
-              description="Attendance, grades, tasks, focus timers, and analytics. Everything you need, in one focused workspace."
+              value="60 Days"
+              label="Data Retention"
+              description="Your data is safely preserved for 60 days even if your subscription temporarily expires."
             />
           </div>
+        </m.div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          PRICING & FREE TRIAL
+          ══════════════════════════════════════════ */}
+      <section id="pricing" className="min-h-screen flex items-center border-b border-border px-5 sm:px-8 lg:px-14 xl:px-20 py-20">
+        <m.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+          className="w-full max-w-5xl mx-auto"
+        >
+          <m.p variants={fadeUp} className="mb-3 text-xs font-semibold uppercase tracking-widest text-primary">
+            Simple & Transparent Pricing
+          </m.p>
+          <m.h2 variants={fadeUp} className="text-3xl font-semibold tracking-tight md:text-5xl text-balance max-w-2xl">
+            Start with a 1-Month Free Trial.
+          </m.h2>
+          <m.p variants={fadeUp} className="mt-4 mb-12 max-w-xl text-base text-muted-foreground leading-relaxed">
+            Every new student gets 30 days of full access completely free. Set up auto-pay anytime to ensure your data stays protected.
+          </m.p>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Monthly Card */}
+            <m.div
+              variants={fadeUp}
+              className="rounded-3xl border border-border bg-card/60 p-8 backdrop-blur-md shadow-sm flex flex-col justify-between hover:border-primary/40 transition-all"
+            >
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4">
+                  1ST MONTH FREE
+                </div>
+                <h3 className="text-xl font-bold tracking-tight">Monthly Auto-Pay</h3>
+                <p className="text-xs text-muted-foreground mt-1">Perfect for semester-by-semester tracking</p>
+
+                <div className="flex items-baseline gap-1 mt-6">
+                  <span className="text-5xl font-extrabold tracking-tight">₹39</span>
+                  <span className="text-sm font-medium text-muted-foreground">/ month</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Billed automatically monthly via Razorpay after 30-day trial.</p>
+
+                <ul className="mt-8 space-y-3 text-sm text-muted-foreground border-t border-border/60 pt-6">
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Full Web Dashboard & WhatsApp Bot Access
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Attendance, Grades, Tasks & Focus Timers
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    2-Month Data Retention Policy Protection
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Cancel Anytime
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-8">
+                <Link
+                  href="/login"
+                  className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+                >
+                  Start 1-Month Free Trial <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </m.div>
+
+            {/* Yearly Card */}
+            <m.div
+              variants={fadeUp}
+              className="rounded-3xl border-2 border-primary bg-card p-8 shadow-md relative flex flex-col justify-between"
+            >
+              <span className="absolute -top-3.5 right-6 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-full shadow-sm">
+                BEST VALUE • SAVE 15%
+              </span>
+
+              <div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-4">
+                  1ST MONTH FREE
+                </div>
+                <h3 className="text-xl font-bold tracking-tight">Yearly Auto-Pay</h3>
+                <p className="text-xs text-muted-foreground mt-1">Best value for complete annual coverage</p>
+
+                <div className="flex items-baseline gap-1 mt-6">
+                  <span className="text-5xl font-extrabold tracking-tight">₹399</span>
+                  <span className="text-sm font-medium text-muted-foreground">/ year</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">Billed annually via Razorpay after 30-day trial (equivalent to ~₹33/mo).</p>
+
+                <ul className="mt-8 space-y-3 text-sm text-muted-foreground border-t border-border/60 pt-6">
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Everything in Monthly Plan
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    15% Savings compared to monthly plan
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Priority Support & Continuous Backups
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                    Cancel Anytime
+                  </li>
+                </ul>
+              </div>
+
+              <div className="mt-8">
+                <Link
+                  href="/login"
+                  className="w-full inline-flex h-12 items-center justify-center gap-2 rounded-full bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+                >
+                  Start 1-Month Free Trial <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </m.div>
+          </div>
+
+          <m.div variants={fadeUp} className="mt-12 p-6 rounded-2xl border border-border bg-muted/40 text-center space-y-2">
+            <p className="font-bold text-sm flex items-center justify-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-primary" /> 60-Day Data Retention Guarantee
+            </p>
+            <p className="text-xs text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+              If your subscription expires or trial ends without auto-pay, we retain your data safely for 60 days. After 60 days, un-subscribed accounts are permanently deleted from our database.
+            </p>
+          </m.div>
         </m.div>
       </section>
 

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { m } from "motion/react"
 
-import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare } from "lucide-react"
+import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare, CreditCard } from "lucide-react"
 import { useProfile } from './profile-context'
 import { haptic } from "@/lib/haptic"
 
@@ -19,6 +19,7 @@ export function DashboardNav() {
     { label: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
     { label: "Timers", href: "/dashboard/timers", icon: Clock },
     { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
+    { label: "Billing", href: "/dashboard/subscription", icon: CreditCard },
   ]
 
   if (isAdmin) {

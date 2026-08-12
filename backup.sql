@@ -332,6 +332,17 @@ CREATE POLICY "Public Select" ON programs FOR SELECT USING (true);
 CREATE POLICY "Public Select" ON semesters FOR SELECT USING (true);
 CREATE POLICY "Public Select" ON academic_courses FOR SELECT USING (true);
 
+-- Authenticated Insert & Delete Policies for shared academic assets
+CREATE POLICY "Authenticated Insert" ON universities FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated Insert" ON programs FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated Insert" ON semesters FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated Insert" ON academic_courses FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+CREATE POLICY "Authenticated Delete" ON universities FOR DELETE USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated Delete" ON programs FOR DELETE USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated Delete" ON semesters FOR DELETE USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Authenticated Delete" ON academic_courses FOR DELETE USING (auth.uid() IS NOT NULL);
+
 -- whatsapp_message_logs Policies
 CREATE POLICY "Admin view all or user view own" ON whatsapp_message_logs 
 FOR SELECT USING (
@@ -379,6 +390,61 @@ SELECT
     END as window_status,
     EXTRACT(EPOCH FROM (p.last_user_message_at + INTERVAL '24 hours' - NOW())) / 3600 as hours_remaining
 FROM profiles p;
+
+-- Active Study Sessions View
+CREATE OR REPLACE VIEW active_study_sessions AS
+SELECT 
+    st.id,
+    st.profile_id,
+    st.subject_id,
+    s.name AS subject_name,
+    st.started_at,
+    st.total_pause_seconds,
+    st.pause_started_at
+FROM study_timers st
+JOIN subjects s ON s.id = st.subject_id
+WHERE st.ended_at IS NULL;
+
+-- Academic Performance Summary View
+CREATE OR REPLACE VIEW academic_performance_summary AS
+SELECT 
+    g.profile_id,
+    g.subject_id,
+    s.name AS subject_name,
+    ROUND(AVG( (g.marks / NULLIF(g.max_marks, 0)) * 100 ), 2) AS average_percentage,
+    COUNT(*) AS total_assessments
+FROM grades g
+JOIN subjects s ON s.id = g.subject_id
+GROUP BY g.profile_id, g.subject_id, s.name;
+
+-- Study Stats By Subject View
+CREATE OR REPLACE VIEW study_stats_by_subject AS
+SELECT 
+    st.profile_id,
+    st.subject_id,
+    s.name AS subject_name,
+    COALESCE(SUM(st.duration_seconds), 0) AS total_study_seconds,
+    COUNT(*) AS total_sessions
+FROM study_timers st
+JOIN subjects s ON s.id = st.subject_id
+WHERE st.ended_at IS NOT NULL
+GROUP BY st.profile_id, st.subject_id, s.name;
+
+-- Upcoming Tasks View
+CREATE OR REPLACE VIEW upcoming_tasks AS
+SELECT 
+    t.id,
+    t.profile_id,
+    t.subject_id,
+    s.name AS subject_name,
+    t.title,
+    t.due_date,
+    t.priority,
+    t.is_completed
+FROM tasks t
+LEFT JOIN subjects s ON s.id = t.subject_id
+WHERE t.is_completed = false AND t.due_date IS NOT NULL
+ORDER BY t.due_date ASC;
 
 -- ============================================================================
 -- STEP 7: FUNCTIONS & TRIGGERS
@@ -488,25 +554,12 @@ CREATE OR REPLACE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- Resolve view parameters to use security_invoker (respect RLS)
-ALTER VIEW public.whatsapp_window_status SET (security_invoker = true);
-ALTER VIEW public.active_study_sessions SET (security_invoker = true);
-ALTER VIEW public.attendance_summary SET (security_invoker = true);
-ALTER VIEW public.academic_performance_summary SET (security_invoker = true);
-ALTER VIEW public.study_stats_by_subject SET (security_invoker = true);
-ALTER VIEW public.upcoming_tasks SET (security_invoker = true);
-
--- SQL function to export all users' database tables as a consolidated JSON
-CREATE OR REPLACE FUNCTION export_all_data()
-RETURNS JSON
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  result JSON;
-  is_caller_admin BOOLEAN;
-  caller_sub TEXT;
-END;
-$$;
+ALTER VIEW IF EXISTS public.whatsapp_window_status SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.active_study_sessions SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.attendance_summary SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.academic_performance_summary SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.study_stats_by_subject SET (security_invoker = true);
+ALTER VIEW IF EXISTS public.upcoming_tasks SET (security_invoker = true);
 
 -- SQL function implementation to export all users' database tables
 CREATE OR REPLACE FUNCTION export_all_data()
@@ -568,3 +621,180 @@ BEGIN
   DELETE FROM auth.users WHERE id = auth.uid();
 END;
 $$;
+
+-- ============================================================================
+-- STEP 8: SUBSCRIPTION, FREE TRIAL & DATA RETENTION SCHEMA
+-- ============================================================================
+
+-- Subscriptions Table
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    profile_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'trialing' CHECK (status IN ('trialing', 'active', 'past_due', 'canceled', 'expired')),
+    plan_type TEXT CHECK (plan_type IN ('monthly', 'yearly')),
+    razorpay_customer_id TEXT,
+    razorpay_subscription_id TEXT,
+    razorpay_plan_id TEXT,
+    trial_start TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    trial_end TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '30 days'),
+    current_period_start TIMESTAMPTZ,
+    current_period_end TIMESTAMPTZ,
+    scheduled_deletion_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Subscription Notification Audit Log
+CREATE TABLE IF NOT EXISTS subscription_notifications_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    notification_type TEXT NOT NULL,
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(profile_id, notification_type)
+);
+
+-- Subscription Indexes
+CREATE INDEX IF NOT EXISTS idx_subscriptions_profile ON subscriptions(profile_id);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_subscriptions_deletion ON subscriptions(scheduled_deletion_at) WHERE scheduled_deletion_at IS NOT NULL;
+
+-- Enable RLS
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscription_notifications_log ENABLE ROW LEVEL SECURITY;
+
+-- Owner RLS Policies
+CREATE POLICY "Users can view own subscription" ON subscriptions
+    FOR SELECT USING (profile_id = auth.uid());
+
+CREATE POLICY "Service Role full access on subscriptions" ON subscriptions
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Service Role full access on notifications_log" ON subscription_notifications_log
+    FOR ALL USING (true) WITH CHECK (true);
+
+-- Trigger for updated_at
+CREATE TRIGGER update_subscriptions_ts 
+    BEFORE UPDATE ON subscriptions 
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Function & Trigger to auto-create 1-month trial subscription for new profiles
+CREATE OR REPLACE FUNCTION public.handle_new_subscription()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.subscriptions (
+        profile_id,
+        status,
+        trial_start,
+        trial_end
+    )
+    VALUES (
+        NEW.id,
+        'trialing',
+        NOW(),
+        NOW() + INTERVAL '30 days'
+    )
+    ON CONFLICT (profile_id) DO NOTHING;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+
+DROP TRIGGER IF EXISTS on_profile_created_subscription ON profiles;
+CREATE TRIGGER on_profile_created_subscription
+    AFTER INSERT ON profiles
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_subscription();
+
+-- Automated Data Cleanup Procedure (Purges profiles whose 2-month grace period has passed)
+CREATE OR REPLACE FUNCTION cleanup_expired_user_data()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    deleted_count integer := 0;
+BEGIN
+    WITH target_users AS (
+        SELECT s.profile_id
+        FROM subscriptions s
+        WHERE s.status IN ('expired', 'canceled')
+          AND s.scheduled_deletion_at IS NOT NULL
+          AND s.scheduled_deletion_at <= NOW()
+    )
+    DELETE FROM public.profiles
+    WHERE id IN (SELECT profile_id FROM target_users);
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;
+
+-- ============================================================================
+-- STEP 9: AUTOMATED CRON JOBS (PG_CRON & PG_NET)
+-- ============================================================================
+CREATE EXTENSION IF NOT EXISTS "pg_cron";
+
+-- 1. Minute-by-Minute Task Reminder Polling (Runs every 5 minutes)
+SELECT cron.schedule(
+    'invoke-send-reminders',
+    '*/5 * * * *',
+    $$
+    SELECT net.http_post(
+        url := 'https://tcrhnpknzbahxboheznm.supabase.co/functions/v1/send-reminders',
+        headers := '{"Content-Type": "application/json", "Authorization": "Bearer sb_publishable_YuxsBfQIMsqI2jtvaIaZ_A_dE922mJC"}'::jsonb
+    );
+    $$
+);
+
+-- 2. Hourly WhatsApp Bot Auto-Engagement (Runs hourly at :00)
+SELECT cron.schedule(
+    'auto-whatsapp-engagement',
+    '0 * * * *',
+    $$
+    SELECT net.http_post(
+        url := 'https://tcrhnpknzbahxboheznm.supabase.co/functions/v1/whatsapp-engagement',
+        headers := '{"Content-Type": "application/json"}'::jsonb,
+        body := '{"type": "auto"}'::jsonb
+    );
+    $$
+);
+
+-- 3. Daily Attendance Guardian Check (Runs daily at 10:30 AM UTC / 4:00 PM IST)
+SELECT cron.schedule(
+    'daily-attendance-guardian',
+    '30 10 * * *',
+    $$
+    SELECT net.http_get(
+        url := 'https://tcrhnpknzbahxboheznm.supabase.co/functions/v1/whatsapp-webhook?trigger=daily'
+    );
+    $$
+);
+
+-- 4. Clean Up Old Cron Job Logs (Runs daily at 12:00 PM UTC)
+SELECT cron.schedule(
+    'delete-job-run-details',
+    '0 12 * * *',
+    $$
+    DELETE FROM cron.job_run_details WHERE end_time < NOW() - INTERVAL '7 days';
+    $$
+);
+
+-- 5. Daily Expired User Data Deletion (Runs daily at 3:00 AM UTC / 8:30 AM IST)
+SELECT cron.schedule(
+    'daily-expired-user-cleanup',
+    '0 3 * * *',
+    $$ SELECT cleanup_expired_user_data(); $$
+);
+
+-- 6. Daily Subscription & Data Deletion Warning Notifications (Runs daily at 3:30 AM UTC / 9:00 AM IST)
+SELECT cron.schedule(
+    'daily-subscription-notifications',
+    '30 3 * * *',
+    $$
+    SELECT net.http_post(
+        url := 'https://tcrhnpknzbahxboheznm.supabase.co/functions/v1/subscription-notifications',
+        headers := '{"Content-Type": "application/json"}'::jsonb
+    );
+    $$
+);
+
+
+

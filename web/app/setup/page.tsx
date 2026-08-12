@@ -323,7 +323,7 @@ export default function SetupPage() {
     
     setIsSubmitting(false)
     if (error) setErrorMsg(error.message)
-    else router.push("/dashboard/whatsapp-bot")
+    else setStep(4)
   }
 
   async function handleStep2Next() {
@@ -439,8 +439,7 @@ export default function SetupPage() {
     }
 
     setIsSubmitting(false)
-    router.push("/dashboard/whatsapp-bot")
-    router.refresh()
+    setStep(4)
   }
 
   const step1Bundle = { displayName, setDisplayName, academicsEnabled, setAcademicsEnabled, personalEnabled, setPersonalEnabled, handleStep1Next };
@@ -462,6 +461,7 @@ export default function SetupPage() {
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 1 ? 'bg-primary' : 'bg-primary/20'}`} />
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 2 ? 'bg-primary' : 'bg-primary/20'}`} />
           <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 3 ? 'bg-primary' : 'bg-primary/20'}`} />
+          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 4 ? 'bg-primary' : 'bg-primary/20'}`} />
         </div>
 
         <Card className="overflow-hidden border-border/60 bg-card">
@@ -469,6 +469,7 @@ export default function SetupPage() {
             {step === 1 && <SetupStep1Card {...step1Bundle} />}
             {step === 2 && <SetupStep2Card {...step2Bundle} />}
             {step === 3 && <SetupStep3Card {...step3Bundle} />}
+            {step === 4 && <SetupStep4Card onComplete={() => router.push("/dashboard/whatsapp-bot")} />}
           </AnimatePresence>
         </Card>
       </div>
@@ -958,3 +959,152 @@ function CourseSelectionList({
     </div>
   )
 }
+
+function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
+  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
+  const [loadingPay, setLoadingPay] = useState(false)
+
+  const handleSubscribe = async () => {
+    setLoadingPay(true)
+    try {
+      const res = await fetch('/api/razorpay/create-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planType: selectedPlan })
+      })
+      const data = await res.json()
+
+      if (!res.ok || data.error) {
+        toast.error(data.error || 'Failed to initialize subscription')
+        setLoadingPay(false)
+        return
+      }
+
+      // Load Razorpay Checkout Script
+      const script = document.createElement('script')
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      script.onload = () => {
+        // @ts-expect-error Razorpay SDK attached to window
+        const rzp = new window.Razorpay({
+          key: data.key_id,
+          subscription_id: data.subscription_id,
+          name: 'Ryu Medha',
+          description: `Auto-Pay Subscription (${selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'})`,
+          handler: async (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
+            const verifyRes = await fetch('/api/razorpay/verify-subscription', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_subscription_id: response.razorpay_subscription_id,
+                razorpay_signature: response.razorpay_signature,
+                planType: selectedPlan
+              })
+            })
+            if (verifyRes.ok) {
+              toast.success('Subscription activated! Welcome to Ryu Medha Pro.')
+              onComplete()
+            } else {
+              toast.error('Payment verification failed')
+            }
+            setLoadingPay(false)
+          },
+          modal: {
+            ondismiss: () => {
+              setLoadingPay(false)
+            }
+          }
+        })
+        rzp.open()
+      }
+      script.onerror = () => {
+        toast.error('Failed to load Razorpay SDK')
+        setLoadingPay(false)
+      }
+      document.body.appendChild(script)
+    } catch (err: unknown) {
+      console.error(err)
+      toast.error('An unexpected error occurred')
+      setLoadingPay(false)
+    }
+  }
+
+  return (
+    <m.div
+      key="step4"
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+    >
+      <CardHeader className="text-center pb-2">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <CheckCircle2 className="w-7 h-7" />
+        </div>
+        <CardTitle className="text-2xl font-bold tracking-tight">1-Month Free Trial Ready!</CardTitle>
+        <CardDescription>
+          Your 30-day free trial is activated. Set up auto-pay to seamlessly continue after trial ends.
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4 pt-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div
+            onClick={() => setSelectedPlan('monthly')}
+            className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
+              selectedPlan === 'monthly'
+                ? 'border-primary bg-primary/5 shadow-sm'
+                : 'border-border/60 hover:bg-muted/30'
+            }`}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Monthly</p>
+            <p className="text-2xl font-bold mt-1">₹39<span className="text-xs font-normal text-muted-foreground">/mo</span></p>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight">1st month FREE, then ₹39/mo auto-pay.</p>
+          </div>
+
+          <div
+            onClick={() => setSelectedPlan('yearly')}
+            className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
+              selectedPlan === 'yearly'
+                ? 'border-primary bg-primary/5 shadow-sm'
+                : 'border-border/60 hover:bg-muted/30'
+            }`}
+          >
+            <span className="absolute -top-2.5 right-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+              SAVE 15%
+            </span>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Yearly</p>
+            <p className="text-2xl font-bold mt-1">₹399<span className="text-xs font-normal text-muted-foreground">/yr</span></p>
+            <p className="text-[11px] text-muted-foreground mt-1 leading-tight">1st month FREE, then ₹399/yr auto-pay.</p>
+          </div>
+        </div>
+
+        <div className="bg-muted/40 rounded-xl p-3 text-xs text-muted-foreground space-y-1">
+          <p className="font-semibold text-foreground flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Data Retention Guarantee
+          </p>
+          <p>If unsubscribed after trial, data is retained for 60 days before automatic permanent deletion.</p>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <Button
+            className="w-full h-12 rounded-full font-bold text-base shadow-md"
+            onClick={handleSubscribe}
+            disabled={loadingPay}
+          >
+            {loadingPay ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Set Up Auto-Pay (Razorpay)'}
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="w-full text-xs text-muted-foreground hover:text-foreground"
+            onClick={onComplete}
+          >
+            Continue with 1-Month Free Trial →
+          </Button>
+        </div>
+      </CardContent>
+    </m.div>
+  )
+}
+

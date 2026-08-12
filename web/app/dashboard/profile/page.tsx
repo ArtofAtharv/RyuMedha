@@ -7,7 +7,7 @@ import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { m, AnimatePresence } from "motion/react"
 import { 
   User, Phone, GraduationCap, Target, BookOpen, 
-  Check, X, Loader2,
+  Check, X, Loader2, CreditCard,
   School, FolderOpen, Trash2, Plus, ChevronRight
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -664,6 +664,23 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center gap-2 mr-1">
               <p className="text-sm text-muted-foreground">{profile.whatsapp_number ?? "Not Linked"}</p>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+            onClick={() => router.push('/dashboard/subscription')}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <CreditCard className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <p className="text-sm font-medium">Subscription & Billing</p>
+            </div>
+            <div className="flex items-center gap-2 mr-1">
+              <p className="text-sm text-muted-foreground">Manage Plan</p>
               <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
             </div>
           </button>

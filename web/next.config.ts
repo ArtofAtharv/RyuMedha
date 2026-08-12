@@ -3,14 +3,13 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(projectRoot, "..");
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: repoRoot,
-  turbopack: {
-    root: repoRoot,
+  outputFileTracingRoot: projectRoot,
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'framer-motion', 'motion', 'recharts']
   },
-  allowedDevOrigins: ['10.100.230.144'],
+  allowedDevOrigins: ['10.100.230.144', '192.168.1.5', 'localhost'],
 };
 
 export default nextConfig;
