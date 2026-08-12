@@ -105,6 +105,8 @@ export async function POST(req: Request) {
         status: userSub?.status || 'trialing',
         plan_type: planType,
         razorpay_subscription_id: subscription.id,
+        razorpay_plan_id: planId,
+        razorpay_customer_id: (subscription as any)?.customer_id || null,
         updated_at: now.toISOString()
       }, { onConflict: 'profile_id' })
     }

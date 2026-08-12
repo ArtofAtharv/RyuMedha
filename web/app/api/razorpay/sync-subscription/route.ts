@@ -73,6 +73,8 @@ export async function POST(_req: Request) {
         status: 'active',
         plan_type: sub.plan_type || 'monthly',
         razorpay_subscription_id: sub.razorpay_subscription_id,
+        razorpay_plan_id: (rzpSub as any)?.plan_id || null,
+        razorpay_customer_id: (rzpSub as any)?.customer_id || null,
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
         scheduled_deletion_at: null,
