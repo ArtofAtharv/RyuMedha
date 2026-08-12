@@ -1,6 +1,6 @@
 "use client"
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, XCircle, User, BookOpen, Fingerprint, RotateCcw } from 'lucide-react'
+import { CheckCircle2, XCircle, User, BookOpen, Fingerprint, RotateCcw, Calendar, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { m } from "motion/react"
@@ -105,7 +105,7 @@ export function AttendanceCard({
         <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToAccentStyle(accentColor || '#8b5cf6')} />
 
         <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-center mb-4">
           {/* Badge / Code */}
           <div>
             <div 
@@ -119,6 +119,18 @@ export function AttendanceCard({
               <BookOpen className="w-3 h-3" /> Academic
             </div>
           </div>
+
+          {/* Explicit Open Calendar Button */}
+          {subjectId && (
+            <div 
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-muted/60 hover:bg-primary/15 text-muted-foreground hover:text-primary transition-all text-xs font-bold border border-border/40 group/cal"
+              title="Open Calendar & Detailed Attendance History"
+            >
+              <Calendar className="w-3.5 h-3.5 group-hover/cal:text-primary transition-colors text-primary" />
+              <span>Calendar</span>
+              <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover/cal:translate-x-0.5 transition-transform" />
+            </div>
+          )}
         </div>
 
         <div className="flex items-start justify-between gap-2 w-full mb-1">
