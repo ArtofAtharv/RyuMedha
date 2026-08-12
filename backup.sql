@@ -845,6 +845,32 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authentic
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON ROUTINES TO anon, authenticated, service_role;
 
+-- ============================================================================
+-- STEP 11: INVITE CODES TABLE & RLS POLICIES
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS invite_codes (
+    id TEXT PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,
+    duration_type TEXT NOT NULL CHECK (duration_type IN ('1_year', 'lifetime')),
+    max_uses INT,
+    uses_count INT NOT NULL DEFAULT 0,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    created_by UUID REFERENCES profiles(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_invite_codes_code ON invite_codes(code);
+CREATE INDEX IF NOT EXISTS idx_invite_codes_active ON invite_codes(is_active);
+
+ALTER TABLE invite_codes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read invite codes" ON invite_codes
+    FOR SELECT USING (true);
+
+CREATE POLICY "Service role full access on invite_codes" ON invite_codes
+    FOR ALL USING (true) WITH CHECK (true);
+
+
 
 
 

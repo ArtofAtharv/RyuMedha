@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-import { getInviteCodes, saveInviteCodes, type InviteCode } from '@/lib/invite-codes-store'
+import { 
+  getInviteCodesAsync, 
+  saveInviteCodeToDb, 
+  deleteInviteCodeFromDb, 
+  saveInviteCodesFile, 
+  type InviteCode 
+} from '@/lib/invite-codes-store'
 
 async function checkAdmin() {
   const cookieStore = await cookies()
@@ -47,7 +53,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invite code string is required' }, { status: 400 })
     }
 
-    const codes = getInviteCodes()
+    const codes = await getInviteCodesAsync()
     if (codes.some(c => c.code.toUpperCase() === cleanCode)) {
       return NextResponse.json({ error: 'This invite code already exists' }, { status: 400 })
     }
@@ -63,8 +69,10 @@ export async function POST(req: Request) {
       createdBy: admin.id
     }
 
+    // Save to Supabase DB and local memory/file fallback
+    await saveInviteCodeToDb(newCode)
     codes.unshift(newCode)
-    saveInviteCodes(codes)
+    saveInviteCodesFile(codes)
 
     return NextResponse.json({ success: true, code: newCode })
   } catch (err: unknown) {
@@ -99,15 +107,20 @@ export async function DELETE(req: Request) {
     }
 
     const targetId = String(codeId).trim()
-    let codes = getInviteCodes()
+
+    // Delete directly from Supabase Database
+    const dbDeleted = await deleteInviteCodeFromDb(targetId)
+
+    // Also filter out in memory / local file fallback
+    let codes = await getInviteCodesAsync()
     const initialLength = codes.length
     codes = codes.filter(c => c.id !== targetId && c.code.toUpperCase() !== targetId.toUpperCase())
 
-    if (codes.length === initialLength) {
+    if (!dbDeleted && codes.length === initialLength) {
       return NextResponse.json({ error: 'Invite code not found' }, { status: 404 })
     }
 
-    saveInviteCodes(codes)
+    saveInviteCodesFile(codes)
 
     return NextResponse.json({ success: true })
   } catch (err: unknown) {

@@ -36,11 +36,26 @@ export default function SubscriptionPage() {
   const [inviteCode, setInviteCode] = useState('')
   const [redeemingInvite, setRedeemingInvite] = useState(false)
 
+  const [profileData, setProfileData] = useState<{ email?: string; displayName?: string; whatsappNumber?: string } | null>(null)
+
   const fetchSubscription = async () => {
     try {
+      // Sync Razorpay payment status if pending
+      try {
+        await fetch('/api/razorpay/sync-subscription', { method: 'POST' })
+      } catch {
+        // non-blocking
+      }
+
       const supabase = getAppClient()
-      const { data: profile } = await supabase.from('profiles').select('id').single()
+      const { data: profile } = await supabase.from('profiles').select('id, display_name, email, whatsapp_number').single()
       if (profile) {
+        setProfileData({
+          email: profile.email || undefined,
+          displayName: profile.display_name || undefined,
+          whatsappNumber: profile.whatsapp_number || undefined
+        })
+
         const { data: sub } = await supabase
           .from('subscriptions')
           .select('*')
@@ -88,6 +103,11 @@ export default function SubscriptionPage() {
           subscription_id: data.subscription_id,
           name: 'Ryu Medha',
           description: `Auto-Pay Subscription (${selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'})`,
+          prefill: {
+            name: profileData?.displayName || '',
+            email: profileData?.email || '',
+            contact: profileData?.whatsappNumber || ''
+          },
           handler: async (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
             const verifyRes = await fetch('/api/razorpay/verify-subscription', {
               method: 'POST',

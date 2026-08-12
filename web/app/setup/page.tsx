@@ -90,6 +90,10 @@ export default function SetupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
 
+  const [userEmail, setUserEmail] = useState<string>("")
+  const [userPhone, setUserPhone] = useState<string>("")
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null)
+
   useEffect(() => {
     async function init() {
       const supabase = getAppClient()
@@ -127,15 +131,26 @@ export default function SetupPage() {
         router.push("/login")
         return
       }
+
+      // Try syncing pending Razorpay payment status if returning from payment app
+      try {
+        await fetch('/api/razorpay/sync-subscription', { method: 'POST' })
+      } catch {
+        // non-blocking
+      }
       
-      const { data: profile, error: _profileError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
         .single()
         
+      let currentProfileId = profile?.id || null
+
       if (profile) {
         setProfileId(profile.id)
         setDisplayName((prev) => prev || profile.display_name || "")
+        setUserEmail(profile.email || activeSession.user.email || "")
+        setUserPhone(profile.whatsapp_number || activeSession.user.phone || "")
         setAcademicsEnabled(profile.academics_enabled ?? false)
         setPersonalEnabled(profile.personal_enabled ?? false)
         setTargetAttendance(profile.target_attendance_pct?.toString() || "75")
@@ -157,8 +172,11 @@ export default function SetupPage() {
           .single()
 
         if (newProfile) {
+          currentProfileId = newProfile.id
           setProfileId(newProfile.id)
           setDisplayName(newProfile.display_name || "")
+          setUserEmail(newProfile.email || user.email || "")
+          setUserPhone(newProfile.whatsapp_number || "")
           setAcademicsEnabled(false)
           setPersonalEnabled(false)
           setTargetAttendance("75")
@@ -171,6 +189,30 @@ export default function SetupPage() {
       // Pre-fetch universities
       const { data: unis } = await supabase.from('universities').select('id, name').order('name')
       if (unis) setUniversities(unis)
+
+      // Fetch subscription status to see if active or setup is already complete
+      if (currentProfileId) {
+        const { data: subData } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('profile_id', currentProfileId)
+          .maybeSingle()
+
+        if (subData) {
+          setSubscriptionStatus(subData.status)
+        }
+
+        const isProfileSetupDone = profile && (profile.academics_enabled !== null || profile.personal_enabled !== null)
+        const isSubActive = subData?.status === 'active' || subData?.razorpay_subscription_id === 'admin_free_lifetime' || subData?.razorpay_subscription_id === 'admin_free_1year'
+
+        if (isProfileSetupDone) {
+          if (isSubActive) {
+            router.push('/dashboard/whatsapp-bot')
+          } else {
+            setStep(4)
+          }
+        }
+      }
     }
     init()
   }, [router])
@@ -501,7 +543,15 @@ export default function SetupPage() {
             {step === 1 && <SetupStep1Card {...step1Bundle} />}
             {step === 2 && <SetupStep2Card {...step2Bundle} />}
             {step === 3 && <SetupStep3Card {...step3Bundle} />}
-            {step === 4 && <SetupStep4Card onComplete={() => router.push("/dashboard/whatsapp-bot")} />}
+            {step === 4 && (
+              <SetupStep4Card 
+                onComplete={() => router.push("/dashboard/whatsapp-bot")} 
+                userEmail={userEmail}
+                displayName={displayName}
+                userPhone={userPhone}
+                subscriptionStatus={subscriptionStatus}
+              />
+            )}
           </AnimatePresence>
         </Card>
       </div>
@@ -1027,7 +1077,16 @@ function CourseSelectionList({
   )
 }
 
-function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
+interface Step4CardProps {
+  onComplete: () => void
+  userEmail?: string
+  displayName?: string
+  userPhone?: string
+  subscriptionStatus?: string | null
+}
+
+function SetupStep4Card(props: Readonly<Step4CardProps>) {
+  const { onComplete, userEmail, displayName, userPhone, subscriptionStatus } = props
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
   const [loadingPay, setLoadingPay] = useState(false)
   const [inviteCode, setInviteCode] = useState('')
@@ -1071,6 +1130,11 @@ function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
           subscription_id: data.subscription_id,
           name: 'Ryu Medha',
           description: `Auto-Pay Subscription (${selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'})`,
+          prefill: {
+            name: displayName || '',
+            email: userEmail || '',
+            contact: userPhone || ''
+          },
           handler: async (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
             const verifyRes = await fetch('/api/razorpay/verify-subscription', {
               method: 'POST',

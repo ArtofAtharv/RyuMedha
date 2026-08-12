@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-import { getInviteCodes, saveInviteCodes } from '@/lib/invite-codes-store'
+import { getInviteCodesAsync, saveInviteCodeToDb, saveInviteCodesFile } from '@/lib/invite-codes-store'
+import { sendInviteAccessEmail } from '@/lib/email'
 
 export async function POST(req: Request) {
   try {
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, display_name')
+      .select('id, display_name, email')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Please provide an invite code' }, { status: 400 })
     }
 
-    const codes = getInviteCodes()
+    const codes = await getInviteCodesAsync()
     const target = codes.find(c => c.code.toUpperCase() === rawCode)
 
     if (!target) {
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
     const subPayload = {
       profile_id: profile.id,
       status: 'active',
-      plan_type: target.durationType === 'lifetime' ? 'yearly' : 'yearly',
+      plan_type: 'yearly',
       razorpay_subscription_id: `invite_${rawCode}`,
       current_period_start: now.toISOString(),
       current_period_end: periodEnd,
@@ -95,7 +96,19 @@ export async function POST(req: Request) {
 
     // Increment invite code usage
     target.usesCount += 1
-    saveInviteCodes(codes)
+    await saveInviteCodeToDb(target)
+    saveInviteCodesFile(codes)
+
+    // Send confirmation email from ryumedha@gmail.com if email is available
+    const recipientEmail = profile.email || user.email
+    if (recipientEmail) {
+      await sendInviteAccessEmail({
+        to: recipientEmail,
+        displayName: profile.display_name,
+        code: rawCode,
+        durationType: target.durationType
+      })
+    }
 
     return NextResponse.json({
       success: true,

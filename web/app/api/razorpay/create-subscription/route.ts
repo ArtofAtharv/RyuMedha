@@ -98,6 +98,17 @@ export async function POST(req: Request) {
     // Create Subscription on Razorpay
     const subscription = await razorpay.subscriptions.create(subPayload as any)
 
+    // Save pending subscription ID to database
+    if (subscription?.id) {
+      await supabase.from('subscriptions').upsert({
+        profile_id: profile.id,
+        status: userSub?.status || 'trialing',
+        plan_type: planType,
+        razorpay_subscription_id: subscription.id,
+        updated_at: now.toISOString()
+      }, { onConflict: 'profile_id' })
+    }
+
     return NextResponse.json({
       subscription_id: subscription.id,
       key_id: keyId,

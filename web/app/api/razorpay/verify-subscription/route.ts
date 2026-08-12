@@ -3,6 +3,8 @@ import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
+import { sendPaymentConfirmationEmail } from '@/lib/email'
+
 export async function POST(req: Request) {
   try {
     const cookieStore = await cookies()
@@ -24,7 +26,7 @@ export async function POST(req: Request) {
       }
     )
 
-    const { data: profile } = await supabase.from('profiles').select('id').single()
+    const { data: profile } = await supabase.from('profiles').select('id, display_name, email').single()
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
@@ -84,6 +86,17 @@ export async function POST(req: Request) {
     if (subErr) {
       console.error('Error updating subscription in DB:', subErr)
       return NextResponse.json({ error: 'Failed to update subscription status' }, { status: 500 })
+    }
+
+    // Send payment confirmation email from ryumedha@gmail.com
+    if (profile.email) {
+      await sendPaymentConfirmationEmail({
+        to: profile.email,
+        displayName: profile.display_name,
+        planType: planType === 'yearly' ? 'yearly' : 'monthly',
+        razorpaySubId: razorpay_subscription_id,
+        periodEnd: periodEnd.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+      })
     }
 
     return NextResponse.json({ success: true, status: 'active', periodEnd: periodEnd.toISOString() })

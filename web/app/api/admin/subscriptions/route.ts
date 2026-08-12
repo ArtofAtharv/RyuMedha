@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-import { getInviteCodes } from '@/lib/invite-codes-store'
+import { getInviteCodesAsync } from '@/lib/invite-codes-store'
 
 export async function GET(_req: Request) {
   try {
@@ -113,7 +113,7 @@ export async function GET(_req: Request) {
     const trialingCount = userSubscriptions.filter(u => u.status === 'trialing' && u.trialEnd && new Date(u.trialEnd) > now).length
     const expiredCount = userSubscriptions.filter(u => u.status === 'expired' || u.status === 'canceled').length
 
-    const inviteCodes = getInviteCodes()
+    const inviteCodes = await getInviteCodesAsync()
 
     return NextResponse.json({
       stats: {
