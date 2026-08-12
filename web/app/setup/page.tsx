@@ -869,6 +869,7 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
                 </div>
               </SelectContent>
             </Select>
+          )}
         </div>
 
         {/* TARGET ATTENDANCE GOAL */}
