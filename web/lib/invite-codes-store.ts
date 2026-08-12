@@ -13,11 +13,9 @@ export interface InviteCode {
 }
 
 function getFilePath(): string {
-  const webLibDir = path.join(process.cwd(), 'web', 'lib')
-  if (fs.existsSync(webLibDir)) {
-    return path.join(webLibDir, 'invite-codes.json')
-  }
-  const libDir = path.join(process.cwd(), 'lib')
+  const cwd = process.cwd()
+  const baseDir = cwd.endsWith('web') ? cwd : path.join(cwd, 'web')
+  const libDir = path.join(baseDir, 'lib')
   if (!fs.existsSync(libDir)) {
     fs.mkdirSync(libDir, { recursive: true })
   }

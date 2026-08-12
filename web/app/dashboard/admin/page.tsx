@@ -272,20 +272,21 @@ export default function AdminPage() {
   const handleDeleteInviteCode = async (codeId: string) => {
     if (!confirm("Are you sure you want to delete this invite code?")) return
     try {
-      const res = await fetch('/api/admin/invite-codes', {
+      const res = await fetch(`/api/admin/invite-codes?codeId=${encodeURIComponent(codeId)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ codeId })
       })
-      if (res.ok) {
+      const data = await res.json().catch(() => ({}))
+      if (res.ok && data.success !== false) {
         toast.success("Invite code deleted")
         if (supabaseClient) fetchAdminData(supabaseClient)
       } else {
-        toast.error("Failed to delete invite code")
+        toast.error(data.error || "Failed to delete invite code")
       }
     } catch (err) {
       console.error(err)
-      toast.error("An error occurred")
+      toast.error("An error occurred while deleting invite code")
     }
   }
 

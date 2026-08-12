@@ -47,12 +47,27 @@ export async function POST(req: Request) {
       }
     }
 
+    // Fetch existing subscription to preserve free 1-year or trial period end date if active
+    const { data: existingSub } = await supabase
+      .from('subscriptions')
+      .select('current_period_end, trial_end, status')
+      .eq('profile_id', profile.id)
+      .maybeSingle()
+
     const now = new Date()
-    const periodEnd = new Date(now)
-    if (planType === 'yearly') {
-      periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+    let periodEnd: Date
+
+    if (existingSub?.current_period_end && new Date(existingSub.current_period_end) > now) {
+      periodEnd = new Date(existingSub.current_period_end)
+    } else if (existingSub?.status === 'trialing' && existingSub.trial_end && new Date(existingSub.trial_end) > now) {
+      periodEnd = new Date(existingSub.trial_end)
     } else {
-      periodEnd.setMonth(periodEnd.getMonth() + 1)
+      periodEnd = new Date(now)
+      if (planType === 'yearly') {
+        periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+      } else {
+        periodEnd.setMonth(periodEnd.getMonth() + 1)
+      }
     }
 
     // Upsert subscription state to active

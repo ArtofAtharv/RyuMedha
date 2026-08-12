@@ -191,8 +191,8 @@ export default function SubscriptionPage() {
   const isTrialing = subscription?.status === 'trialing' && trialEnd && trialEnd > now
   const trialDaysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0
 
-  const isLifetime = subscription?.razorpay_subscription_id === 'admin_free_lifetime' || (subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() > 2090)
-  const is1Year = subscription?.razorpay_subscription_id === 'admin_free_1year' || (subscription?.razorpay_subscription_id?.startsWith('invite_') && subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() <= 2090)
+  const isLifetime = Boolean(subscription?.razorpay_subscription_id === 'admin_free_lifetime' || (subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() > 2090))
+  const is1Year = Boolean(subscription?.razorpay_subscription_id === 'admin_free_1year' || (subscription?.razorpay_subscription_id?.startsWith('invite_') && subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() <= 2090))
 
   const isActive = subscription?.status === 'active'
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null
@@ -338,17 +338,37 @@ export default function SubscriptionPage() {
 
       {/* ── PLAN SELECTION CARDS ── */}
       <div className="space-y-3 pt-2">
-        {(isLifetime || is1Year) && (
+        {isLifetime ? (
           <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs flex items-center gap-3 mb-2">
             <Sparkles className="w-5 h-5 text-purple-500 shrink-0" />
             <div>
-              <p className="font-bold">Free Unlocked Access Active</p>
+              <p className="font-bold">Lifetime Free Access Active</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                You have {isLifetime ? 'Free Lifetime Access' : `Free 1-Year Access (until ${periodEndStr})`}. You will not be charged, and auto-pay setup is not required.
+                You have permanent free lifetime access to Ryu Medha! You will never be charged and setting up auto-pay is not required.
               </p>
             </div>
           </div>
-        )}
+        ) : is1Year ? (
+          <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs flex items-center gap-3 mb-2">
+            <Sparkles className="w-5 h-5 text-blue-500 shrink-0" />
+            <div>
+              <p className="font-bold">Free 1-Year Access Active (Expires: {periodEndStr})</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Setting up auto-pay authorizes your payment mandate today with <strong className="text-foreground">₹0 charged now</strong>. Your first payment of {selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'} will occur on <strong className="text-foreground">{periodEndStr}</strong> when your free year ends.
+              </p>
+            </div>
+          </div>
+        ) : isTrialing ? (
+          <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 text-primary text-xs flex items-center gap-3 mb-2">
+            <Clock className="w-5 h-5 text-primary shrink-0" />
+            <div>
+              <p className="font-bold">Free Trial Active ({trialDaysLeft} Days Left)</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Setting up auto-pay authorizes your payment mandate today with <strong className="text-foreground">₹0 charged now</strong>. Billing will start only after your trial ends on <strong className="text-foreground">{trialEnd?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <h3 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">Choose Plan & Set Up Auto-Pay</h3>
 
@@ -435,14 +455,19 @@ export default function SubscriptionPage() {
           size="lg"
           className="w-full h-14 rounded-2xl text-base font-bold shadow-lg flex items-center justify-center gap-2"
           onClick={handleSubscribe}
-          disabled={processingPay}
+          disabled={processingPay || isLifetime}
         >
           {processingPay ? (
             <Loader2 className="w-5 h-5 animate-spin" />
+          ) : isLifetime ? (
+            <>
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              Free Lifetime Access Active
+            </>
           ) : (
             <>
               <CreditCard className="w-5 h-5" />
-              {isActive ? 'Manage / Change Auto-Pay' : 'Activate Auto-Pay (Razorpay)'}
+              {isActive ? (is1Year ? 'Set Up Auto-Pay Mandate (Deferred)' : 'Manage / Change Auto-Pay') : 'Activate Auto-Pay (Razorpay)'}
               <ArrowRight className="w-5 h-5" />
             </>
           )}

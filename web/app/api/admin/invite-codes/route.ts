@@ -104,7 +104,7 @@ export async function DELETE(req: Request) {
     codes = codes.filter(c => c.id !== targetId && c.code.toUpperCase() !== targetId.toUpperCase())
 
     if (codes.length === initialLength) {
-      return NextResponse.json({ error: 'Invite code not found' }, { status: 444 })
+      return NextResponse.json({ error: 'Invite code not found' }, { status: 404 })
     }
 
     saveInviteCodes(codes)

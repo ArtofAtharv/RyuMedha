@@ -1152,7 +1152,7 @@ function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight">Set Up Auto-Pay</CardTitle>
         <CardDescription>
-          Auto-pay setup is required to start your 30-day free trial. You won&apos;t be charged today—billing starts only after your trial ends. Cancel anytime.
+          Auto-pay setup authorizes your payment mandate with ₹0 charged today. Billing begins only after your free trial or invite access period ends. Cancel anytime with 1-click.
         </CardDescription>
       </CardHeader>
 

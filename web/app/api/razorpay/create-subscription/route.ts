@@ -51,12 +51,24 @@ export async function POST(req: Request) {
       key_secret: keySecret
     })
 
-    // Check if user has an active free trial to defer start_at
+    // Check user's current subscription status and period end
     const { data: userSub } = await supabase
       .from('subscriptions')
-      .select('status, trial_end')
+      .select('status, trial_end, current_period_end, razorpay_subscription_id')
       .eq('profile_id', profile.id)
       .single()
+
+    const now = new Date()
+
+    // 1. Check for Lifetime Access: Block auto-pay creation as it's unneeded
+    const isLifetime = userSub?.razorpay_subscription_id === 'admin_free_lifetime' || 
+      (userSub?.current_period_end && new Date(userSub.current_period_end).getFullYear() > 2090)
+
+    if (isLifetime) {
+      return NextResponse.json({
+        error: 'You currently have Free Lifetime Access! Auto-pay is not required.'
+      }, { status: 400 })
+    }
 
     const subPayload: Record<string, unknown> = {
       plan_id: planId,
@@ -69,9 +81,18 @@ export async function POST(req: Request) {
       }
     }
 
-    if (userSub?.status === 'trialing' && userSub.trial_end && new Date(userSub.trial_end) > new Date()) {
-      const trialEndTime = Math.floor(new Date(userSub.trial_end).getTime() / 1000)
-      subPayload.start_at = trialEndTime
+    // 2. Determine if start_at should be deferred (e.g. 1-Year Free Access or Active Free Trial)
+    let deferUntil: Date | null = null
+
+    if (userSub?.current_period_end && new Date(userSub.current_period_end) > now) {
+      deferUntil = new Date(userSub.current_period_end)
+    } else if (userSub?.status === 'trialing' && userSub.trial_end && new Date(userSub.trial_end) > now) {
+      deferUntil = new Date(userSub.trial_end)
+    }
+
+    // Razorpay requires start_at to be at least 15 minutes (900 seconds) in the future
+    if (deferUntil && deferUntil.getTime() > now.getTime() + 15 * 60 * 1000) {
+      subPayload.start_at = Math.floor(deferUntil.getTime() / 1000)
     }
 
     // Create Subscription on Razorpay
