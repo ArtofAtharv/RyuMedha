@@ -622,6 +622,43 @@ BEGIN
 END;
 $$;
 
+-- SQL function to allow administrator users to delete any user account completely
+CREATE OR REPLACE FUNCTION admin_delete_user(target_profile_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  is_caller_admin BOOLEAN;
+  caller_sub TEXT;
+BEGIN
+  BEGIN
+    caller_sub := current_setting('request.jwt.claims', true)::jsonb ->> 'sub';
+  EXCEPTION WHEN OTHERS THEN
+    caller_sub := NULL;
+  END;
+
+  SELECT is_admin INTO is_caller_admin 
+  FROM profiles 
+  WHERE (whatsapp_number = caller_sub OR id::text = caller_sub OR id = auth.uid())
+    AND is_admin = true;
+
+  IF is_caller_admin = true THEN
+    -- Delete from profiles first (cascades to tasks, study_timers, subscriptions, etc.)
+    DELETE FROM public.profiles WHERE id = target_profile_id;
+    
+    -- Try deleting from auth.users
+    BEGIN
+      DELETE FROM auth.users WHERE id = target_profile_id;
+    EXCEPTION WHEN OTHERS THEN
+      -- Ignore if auth schema deletion is restricted
+    END;
+  ELSE
+    RAISE EXCEPTION 'Access Denied: Admin privileges required';
+  END IF;
+END;
+$$;
+
 -- ============================================================================
 -- STEP 8: SUBSCRIPTION, FREE TRIAL & DATA RETENTION SCHEMA
 -- ============================================================================

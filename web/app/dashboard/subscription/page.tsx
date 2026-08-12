@@ -191,8 +191,8 @@ export default function SubscriptionPage() {
   const isTrialing = subscription?.status === 'trialing' && trialEnd && trialEnd > now
   const trialDaysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0
 
-  const isLifetime = subscription?.razorpay_subscription_id === 'admin_free_lifetime' || subscription?.razorpay_subscription_id?.startsWith('invite_') || (subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() > 2090)
-  const is1Year = subscription?.razorpay_subscription_id === 'admin_free_1year'
+  const isLifetime = subscription?.razorpay_subscription_id === 'admin_free_lifetime' || (subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() > 2090)
+  const is1Year = subscription?.razorpay_subscription_id === 'admin_free_1year' || (subscription?.razorpay_subscription_id?.startsWith('invite_') && subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() <= 2090)
 
   const isActive = subscription?.status === 'active'
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null
@@ -338,6 +338,18 @@ export default function SubscriptionPage() {
 
       {/* ── PLAN SELECTION CARDS ── */}
       <div className="space-y-3 pt-2">
+        {(isLifetime || is1Year) && (
+          <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-300 text-xs flex items-center gap-3 mb-2">
+            <Sparkles className="w-5 h-5 text-purple-500 shrink-0" />
+            <div>
+              <p className="font-bold">Free Unlocked Access Active</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                You have {isLifetime ? 'Free Lifetime Access' : `Free 1-Year Access (until ${periodEndStr})`}. You will not be charged, and auto-pay setup is not required.
+              </p>
+            </div>
+          </div>
+        )}
+
         <h3 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">Choose Plan & Set Up Auto-Pay</h3>
 
         <div className="grid sm:grid-cols-2 gap-4">

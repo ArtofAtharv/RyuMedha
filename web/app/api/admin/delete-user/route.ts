@@ -66,29 +66,65 @@ export async function POST(req: Request) {
           }
     )
 
-    // Verify target profile exists
-    const { data: targetProfile, error: getErr } = await supabaseAdmin
-      .from('profiles')
-      .select('id, display_name')
-      .eq('id', profileId)
-      .maybeSingle()
+    // Verify target profile exists via export_all_data SECURITY DEFINER RPC
+    let targetDisplayName = 'User Account'
+    let profileExists = false
 
-    if (getErr || !targetProfile) {
+    try {
+      const { data: exportData } = await supabaseAdmin.rpc('export_all_data')
+      if (exportData?.profiles && Array.isArray(exportData.profiles)) {
+        const found = exportData.profiles.find((p: { id: string; display_name?: string; email?: string; whatsapp_number?: string }) => p.id === profileId)
+        if (found) {
+          profileExists = true
+          targetDisplayName = found.display_name || found.email || found.whatsapp_number || 'User Account'
+        }
+      }
+    } catch {
+      // fallback
+    }
+
+    if (!profileExists) {
+      const { data: targetProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('id, display_name')
+        .eq('id', profileId)
+        .maybeSingle()
+
+      if (targetProfile) {
+        profileExists = true
+        targetDisplayName = targetProfile.display_name || 'User Account'
+      }
+    }
+
+    if (!profileExists) {
       return NextResponse.json({ error: 'User profile not found' }, { status: 404 })
     }
 
-    // Delete subscriptions first if present
-    await supabaseAdmin.from('subscriptions').delete().eq('profile_id', profileId)
+    // Try deleting via admin_delete_user RPC (SECURITY DEFINER)
+    let deleteCompleted = false
+    try {
+      const { error: rpcErr } = await supabaseAdmin.rpc('admin_delete_user', { target_profile_id: profileId })
+      if (!rpcErr) {
+        deleteCompleted = true
+      }
+    } catch {
+      // RPC fallback
+    }
 
-    // Delete profile (cascades to all associated user data)
-    const { error: deleteErr } = await supabaseAdmin
-      .from('profiles')
-      .delete()
-      .eq('id', profileId)
+    if (!deleteCompleted) {
+      // Delete subscriptions first
+      await supabaseAdmin.from('subscriptions').delete().eq('profile_id', profileId)
 
-    if (deleteErr) {
-      console.error('Error deleting profile:', deleteErr)
-      return NextResponse.json({ error: `Failed to delete user profile: ${deleteErr.message}` }, { status: 500 })
+      // Delete profile directly (cascades to all associated user data)
+      const { error: deleteErr } = await supabaseAdmin
+        .from('profiles')
+        .delete()
+        .eq('id', profileId)
+
+      if (deleteErr) {
+        console.error('Error deleting profile:', deleteErr)
+        return NextResponse.json({ error: `Failed to delete user profile: ${deleteErr.message}` }, { status: 500 })
+      }
     }
 
     // Try deleting auth user if service role key exists
@@ -102,7 +138,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `User account '${targetProfile.display_name}' deleted successfully.`
+      message: `User account '${targetDisplayName}' deleted successfully.`
     })
   } catch (err: unknown) {
     console.error('Error in admin delete-user API:', err)
