@@ -1086,6 +1086,7 @@ interface Step4CardProps {
 }
 
 function SetupStep4Card(props: Readonly<Step4CardProps>) {
+  const router = useRouter()
   const { onComplete, userEmail, displayName, userPhone, subscriptionStatus } = props
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
   const [loadingPay, setLoadingPay] = useState(false)
