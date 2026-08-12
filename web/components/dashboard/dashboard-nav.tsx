@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { m } from "motion/react"
 
-import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, MessageSquare, CreditCard } from "lucide-react"
+import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, CreditCard, ShieldCheck } from "lucide-react"
 import { useProfile } from './profile-context'
 import { haptic } from "@/lib/haptic"
 
@@ -23,7 +23,7 @@ export function DashboardNav() {
   ]
 
   if (isAdmin) {
-    tabs.push({ label: "WhatsApp", href: "/dashboard/whatsapp", icon: MessageSquare })
+    tabs.push({ label: "Admin", href: "/dashboard/admin", icon: ShieldCheck })
   }
 
   // Match active tab — exact match for /dashboard, startsWith for sub-pages

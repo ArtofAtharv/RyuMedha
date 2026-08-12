@@ -58,7 +58,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase
       .from('subjects')
-      .select('id, name, color_hex, type, is_active, label, expected_total_lectures, category_id, source_course_id(*)')
+      .select('id, name, instructor_name, color_hex, type, is_active, label, expected_total_lectures, category_id, source_course_id(*)')
       .eq('is_active', true)
       .order('name'),
     supabase

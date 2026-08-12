@@ -6,9 +6,11 @@ import { getAppClient } from "@/lib/supabase-client"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { 
   Sparkles, CheckCircle2, AlertTriangle, ShieldCheck, 
-  CreditCard, Loader2, ArrowRight, RefreshCw, Clock
+  CreditCard, Loader2, ArrowRight, RefreshCw, Clock, Ticket
 } from "lucide-react"
 import { toast } from "sonner"
 import { m } from "motion/react"
@@ -17,6 +19,7 @@ interface Subscription {
   id?: string
   status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired'
   plan_type?: 'monthly' | 'yearly' | null
+  razorpay_subscription_id?: string | null
   trial_start?: string | null
   trial_end?: string | null
   current_period_end?: string | null
@@ -29,6 +32,9 @@ export default function SubscriptionPage() {
   const [loading, setLoading] = useState(true)
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
   const [processingPay, setProcessingPay] = useState(false)
+  const [canceling, setCanceling] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
+  const [redeemingInvite, setRedeemingInvite] = useState(false)
 
   const fetchSubscription = async () => {
     try {
@@ -94,7 +100,7 @@ export default function SubscriptionPage() {
               })
             })
             if (verifyRes.ok) {
-              toast.success('Subscription activated! Pro access unlocked.')
+              toast.success('Subscription activated! Auto-Pay set up.')
               await fetchSubscription()
               router.refresh()
             } else {
@@ -122,6 +128,56 @@ export default function SubscriptionPage() {
     }
   }
 
+  const handleCancelAutoPay = async () => {
+    if (!confirm("Are you sure you want to cancel auto-pay? You can re-activate anytime.")) return
+    setCanceling(true)
+    try {
+      const res = await fetch('/api/razorpay/cancel-subscription', {
+        method: 'POST'
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Auto-pay canceled successfully.')
+        await fetchSubscription()
+      } else {
+        toast.error(data.error || 'Failed to cancel auto-pay')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('An error occurred')
+    } finally {
+      setCanceling(false)
+    }
+  }
+
+  const handleRedeemInviteCode = async () => {
+    if (!inviteCode.trim()) {
+      toast.error('Please enter an invite code')
+      return
+    }
+    setRedeemingInvite(true)
+    try {
+      const res = await fetch('/api/invite/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode.trim() })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Free access granted!')
+        setInviteCode('')
+        await fetchSubscription()
+      } else {
+        toast.error(data.error || 'Invalid invite code')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('An error occurred')
+    } finally {
+      setRedeemingInvite(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 flex items-center justify-center">
@@ -134,6 +190,9 @@ export default function SubscriptionPage() {
   const trialEnd = subscription?.trial_end ? new Date(subscription.trial_end) : null
   const isTrialing = subscription?.status === 'trialing' && trialEnd && trialEnd > now
   const trialDaysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0
+
+  const isLifetime = subscription?.razorpay_subscription_id === 'admin_free_lifetime' || subscription?.razorpay_subscription_id?.startsWith('invite_') || (subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() > 2090)
+  const is1Year = subscription?.razorpay_subscription_id === 'admin_free_1year'
 
   const isActive = subscription?.status === 'active'
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null
@@ -158,7 +217,17 @@ export default function SubscriptionPage() {
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                {isActive && (
+                {isLifetime && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                    <Sparkles className="w-3.5 h-3.5" /> Free Lifetime Access
+                  </span>
+                )}
+                {is1Year && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                    <Sparkles className="w-3.5 h-3.5" /> Free 1-Year Access
+                  </span>
+                )}
+                {isActive && !isLifetime && !is1Year && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Active Pro Plan
                   </span>
@@ -176,7 +245,11 @@ export default function SubscriptionPage() {
               </div>
 
               <h2 className="text-xl font-bold tracking-tight mt-3">
-                {isActive 
+                {isLifetime
+                  ? `Ryu Medha Pro (Lifetime Unlocked)`
+                  : is1Year
+                  ? `Ryu Medha Pro (1-Year Unlocked)`
+                  : isActive 
                   ? `Ryu Medha Pro (${subscription?.plan_type === 'yearly' ? 'Yearly Plan' : 'Monthly Plan'})`
                   : isTrialing 
                   ? `Free Trial Active (${trialDaysLeft} Days Remaining)` 
@@ -184,7 +257,9 @@ export default function SubscriptionPage() {
               </h2>
 
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {isActive && `Your subscription is active and set for auto-renewal on ${periodEndStr}.`}
+                {isLifetime && `Full unlimited access granted for life.`}
+                {is1Year && `Full unlimited access valid until ${periodEndStr}.`}
+                {isActive && !isLifetime && !is1Year && `Your subscription is active and set for auto-renewal on ${periodEndStr}.`}
                 {isTrialing && `Your 30-day trial expires on ${trialEnd?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}. Set up auto-pay below to continue seamlessly.`}
                 {isExpired && `Access to dashboard features is locked. Data retention active until ${deletionDateStr} (${deletionDaysLeft} days left).`}
               </p>
@@ -198,6 +273,48 @@ export default function SubscriptionPage() {
               title="Refresh Subscription"
             >
               <RefreshCw className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Cancel Auto-Pay option if active auto-pay */}
+          {isActive && !isLifetime && !is1Year && (
+            <div className="mt-4 pt-4 border-t flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 rounded-xl"
+                onClick={handleCancelAutoPay}
+                disabled={canceling}
+              >
+                {canceling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Cancel Auto-Pay'}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── REDEEM INVITE CODE CARD ── */}
+      <Card className="overflow-hidden border-border/60 shadow-sm bg-card/60">
+        <CardContent className="p-4 sm:p-6 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-foreground">
+            <Ticket className="w-4 h-4 text-primary" /> Have an Invite Code?
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Enter an invite code provided by an admin to unlock 1-Year or Lifetime free access.
+          </p>
+          <div className="flex gap-2 max-w-md">
+            <Input
+              placeholder="e.g. RYULIFETIME"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+              className="h-10 text-xs font-mono uppercase bg-background"
+            />
+            <Button
+              className="h-10 px-5 font-bold text-xs rounded-xl shrink-0"
+              onClick={handleRedeemInviteCode}
+              disabled={redeemingInvite || !inviteCode.trim()}
+            >
+              {redeemingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Redeem Code'}
             </Button>
           </div>
         </CardContent>

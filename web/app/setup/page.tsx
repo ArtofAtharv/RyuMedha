@@ -967,6 +967,20 @@ function CourseSelectionList({
 function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
   const [loadingPay, setLoadingPay] = useState(false)
+  const [inviteCode, setInviteCode] = useState('')
+  const [loadingInvite, setLoadingInvite] = useState(false)
+  const [showInviteInput, setShowInviteInput] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const codeParam = params.get('invite') || params.get('code')
+      if (codeParam) {
+        setInviteCode(codeParam)
+        setShowInviteInput(true)
+      }
+    }
+  }, [])
 
   const handleSubscribe = async () => {
     setLoadingPay(true)
@@ -1006,7 +1020,7 @@ function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
               })
             })
             if (verifyRes.ok) {
-              toast.success('Subscription activated! Welcome to Ryu Medha Pro.')
+              toast.success('Auto-Pay set up successfully! Welcome to Ryu Medha.')
               onComplete()
             } else {
               toast.error('Payment verification failed')
@@ -1033,6 +1047,34 @@ function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
     }
   }
 
+  const handleRedeemInviteCode = async () => {
+    if (!inviteCode.trim()) {
+      toast.error('Please enter an invite code')
+      return
+    }
+    setLoadingInvite(true)
+    try {
+      const res = await fetch('/api/invite/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: inviteCode.trim() })
+      })
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Free access granted!')
+        onComplete()
+      } else {
+        toast.error(data.error || 'Failed to redeem invite code')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('Error redeeming invite code')
+    } finally {
+      setLoadingInvite(false)
+    }
+  }
+
   return (
     <m.div
       key="step4"
@@ -1045,9 +1087,9 @@ function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <CheckCircle2 className="w-7 h-7" />
         </div>
-        <CardTitle className="text-2xl font-bold tracking-tight">1-Month Free Trial Ready!</CardTitle>
+        <CardTitle className="text-2xl font-bold tracking-tight">Set Up Auto-Pay</CardTitle>
         <CardDescription>
-          Your 30-day free trial is activated. Set up auto-pay to seamlessly continue after trial ends.
+          Auto-pay setup is required to start your 30-day free trial. You won&apos;t be charged today—billing starts only after your trial ends. Cancel anytime.
         </CardDescription>
       </CardHeader>
 
@@ -1090,22 +1132,51 @@ function SetupStep4Card({ onComplete }: Readonly<{ onComplete: () => void }>) {
           <p>If unsubscribed after trial, data is retained for 60 days before automatic permanent deletion.</p>
         </div>
 
-        <div className="space-y-2 pt-2">
+        <div className="space-y-3 pt-2">
           <Button
             className="w-full h-12 rounded-full font-bold text-base shadow-md"
             onClick={handleSubscribe}
-            disabled={loadingPay}
+            disabled={loadingPay || loadingInvite}
           >
             {loadingPay ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Set Up Auto-Pay (Razorpay)'}
           </Button>
 
-          <Button
-            variant="ghost"
-            className="w-full text-xs text-muted-foreground hover:text-foreground"
-            onClick={onComplete}
-          >
-            Continue with 1-Month Free Trial →
-          </Button>
+          <div className="relative flex py-1 items-center">
+            <div className="flex-grow border-t border-border/50"></div>
+            <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">OR</span>
+            <div className="flex-grow border-t border-border/50"></div>
+          </div>
+
+          {!showInviteInput ? (
+            <Button
+              variant="outline"
+              className="w-full h-10 rounded-full text-xs font-semibold border-border/60 text-muted-foreground hover:text-foreground"
+              onClick={() => setShowInviteInput(true)}
+            >
+              Have an Invite Code / Link?
+            </Button>
+          ) : (
+            <div className="p-3 border rounded-2xl bg-muted/20 space-y-2 animate-in fade-in duration-200">
+              <Label htmlFor="inviteCodeInput" className="text-xs font-bold">Enter Invite Code</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="inviteCodeInput"
+                  placeholder="e.g. RYULIFETIME"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  className="h-10 text-xs font-mono uppercase bg-background"
+                />
+                <Button
+                  size="sm"
+                  className="h-10 px-4 rounded-xl font-bold shrink-0"
+                  onClick={handleRedeemInviteCode}
+                  disabled={loadingInvite || !inviteCode.trim()}
+                >
+                  {loadingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Redeem'}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </CardContent>
     </m.div>
