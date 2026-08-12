@@ -122,7 +122,6 @@ export default function SetupPage() {
         setAcademicsEnabled(profile.academics_enabled ?? false)
         setPersonalEnabled(profile.personal_enabled ?? false)
         setTargetAttendance(profile.target_attendance_pct?.toString() || "75")
-      } else {
         // If profile is missing, auto-create it on the fly
         const user = activeSession.user
         const { data: newProfile, error: insertError } = await supabase
@@ -130,6 +129,7 @@ export default function SetupPage() {
           .insert({
             id: user.id,
             email: user.email,
+            whatsapp_number: user.phone || user.user_metadata?.whatsapp_number || user.user_metadata?.phone || null,
             display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
             academics_enabled: null,
             personal_enabled: null,
