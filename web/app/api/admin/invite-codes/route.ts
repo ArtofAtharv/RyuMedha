@@ -20,7 +20,15 @@ async function checkAdmin() {
     }
   )
 
-  const { data: profile } = await supabase.from('profiles').select('id, is_admin').single()
+  const { data: { user }, error: userErr } = await supabase.auth.getUser(accessToken)
+  if (userErr || !user) return null
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
   return profile?.is_admin ? profile : null
 }
 
@@ -73,15 +81,32 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Access denied: Admin privileges required' }, { status: 403 })
     }
 
-    const body = await req.json()
-    const { codeId } = body
+    let codeId: string | null = null
+    const url = new URL(req.url)
+    codeId = url.searchParams.get('codeId') || url.searchParams.get('id')
 
     if (!codeId) {
-      return NextResponse.json({ error: 'Missing codeId' }, { status: 400 })
+      try {
+        const body = await req.json()
+        codeId = body.codeId || body.id || body.code || null
+      } catch {
+        // body may be empty
+      }
     }
 
+    if (!codeId) {
+      return NextResponse.json({ error: 'Missing codeId parameter' }, { status: 400 })
+    }
+
+    const targetId = String(codeId).trim()
     let codes = getInviteCodes()
-    codes = codes.filter(c => c.id !== codeId)
+    const initialLength = codes.length
+    codes = codes.filter(c => c.id !== targetId && c.code.toUpperCase() !== targetId.toUpperCase())
+
+    if (codes.length === initialLength) {
+      return NextResponse.json({ error: 'Invite code not found' }, { status: 444 })
+    }
+
     saveInviteCodes(codes)
 
     return NextResponse.json({ success: true })

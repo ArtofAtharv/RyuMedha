@@ -14,6 +14,7 @@ import {
   School, GraduationCap, Calendar, Loader2, ChevronLeft,
   Plus, Trash2, X, Check
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { m, AnimatePresence } from "motion/react"
 
@@ -59,12 +60,28 @@ export default function SetupPage() {
   const [newProgName, setNewProgName] = useState("")
   const [isAddingSem, setIsAddingSem] = useState(false)
   const [newSemName, setNewSemName] = useState("")
-  const [newSemNumber, setNewSemNumber] = useState("")
   
   // Step 3: Subjects
   const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
   const [newCourseName, setNewCourseName] = useState("")
+  const [customCourses, setCustomCourses] = useState<string[]>([])
+
+  const handleAddCustomCourse = () => {
+    const trimmed = newCourseName.trim()
+    if (!trimmed) return
+    if (customCourses.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+      toast.error("This subject is already in your list")
+      return
+    }
+    setCustomCourses(prev => [...prev, trimmed])
+    setNewCourseName("")
+    toast.success(`Added '${trimmed}'`)
+  }
+
+  const handleRemoveCustomCourse = (indexToRemove: number) => {
+    setCustomCourses(prev => prev.filter((_, idx) => idx !== indexToRemove))
+  }
   
   const toggleCourseSelection = (courseId: string) => {
     setSelectedCourseIds(prev => prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId])
@@ -263,12 +280,18 @@ export default function SetupPage() {
   }
 
   async function handleCreateSem() {
-    if (!newSemName.trim() || !newSemNumber || !selectedProgId || !supabaseClient) return
+    if (!newSemName.trim() || !selectedProgId || !supabaseClient) return
     setIsSubmitting(true)
+    
+    // Auto-extract semester number from semester name (e.g. "Semester 5" -> 5)
+    const semNameStr = newSemName.trim()
+    const digitMatch = semNameStr.match(/\d+/)
+    const parsedNumber = digitMatch ? Number.parseInt(digitMatch[0], 10) : (semesters.length + 1)
+
     const { data, error } = await supabaseClient.from('semesters').insert([{ 
-      name: newSemName.trim(), 
+      name: semNameStr, 
       program_id: selectedProgId,
-      semester_number: Number.parseInt(newSemNumber, 10)
+      semester_number: parsedNumber
     }]).select().single()
     setIsSubmitting(false)
     if (error) {
@@ -279,8 +302,7 @@ export default function SetupPage() {
       setSelectedSemId(data.id)
       setIsAddingSem(false)
       setNewSemName("")
-      setNewSemNumber("")
-      toast.success("Semester added!")
+      toast.success(`Semester '${data.name}' added (Sem #${parsedNumber})!`)
     }
   }
 
@@ -418,27 +440,33 @@ export default function SetupPage() {
       }
     }
 
-    // 3. Add New Course if provided
-    if (academicsEnabled && newCourseName.trim()) {
-      // First create the academic course
-      const { data: newCourse, error: courseError } = await supabaseClient
-        .from('academic_courses')
-        .insert([{
-          semester_id: selectedSemId,
-          course_name: newCourseName.trim()
-        }])
-        .select()
-        .single()
-      
-      if (!courseError && newCourse) {
-        await supabaseClient.from('subjects').insert([{
-          profile_id: profileId,
-          name: newCourse.course_name,
-          type: 'academic',
-          source_course_id: newCourse.id,
-          color_hex: '#3b82f6',
-          is_active: true
-        }])
+    // 3. Add Custom Courses if provided
+    const allCustomNames = [...customCourses]
+    if (newCourseName.trim() && !allCustomNames.some(c => c.toLowerCase() === newCourseName.trim().toLowerCase())) {
+      allCustomNames.push(newCourseName.trim())
+    }
+
+    if (academicsEnabled && allCustomNames.length > 0) {
+      for (const customName of allCustomNames) {
+        const { data: newCourse, error: courseError } = await supabaseClient
+          .from('academic_courses')
+          .insert([{
+            semester_id: selectedSemId,
+            course_name: customName
+          }])
+          .select()
+          .single()
+        
+        if (!courseError && newCourse) {
+          await supabaseClient.from('subjects').insert([{
+            profile_id: profileId,
+            name: newCourse.course_name,
+            type: 'academic',
+            source_course_id: newCourse.id,
+            color_hex: '#3b82f6',
+            is_active: true
+          }])
+        }
       }
     }
 
@@ -450,12 +478,12 @@ export default function SetupPage() {
   const step2Bundle = {
     isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
     isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
-    isAddingSem, setIsAddingSem, newSemName, setNewSemName, newSemNumber, setNewSemNumber, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
+    isAddingSem, setIsAddingSem, newSemName, setNewSemName, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
     errorMsg, setStep, handleStep2Next, isSubmitting
   };
   const step3Bundle = {
     availableCourses, semesters, selectedSemId, universities, selectedUniId, academicsEnabled,
-    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
+    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, customCourses, handleAddCustomCourse, handleRemoveCustomCourse, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
   };
 
   return (
@@ -574,8 +602,6 @@ interface Step2CardProps {
   setIsAddingSem: (val: boolean) => void
   newSemName: string
   setNewSemName: (val: string) => void
-  newSemNumber: string
-  setNewSemNumber: (val: string) => void
   handleCreateSem: () => void
   selectedSemId: string
   setSelectedSemId: (val: string) => void
@@ -591,7 +617,7 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
   const {
     isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
     isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
-    isAddingSem, setIsAddingSem, newSemName, setNewSemName, newSemNumber, setNewSemNumber, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
+    isAddingSem, setIsAddingSem, newSemName, setNewSemName, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
     errorMsg, setStep, handleStep2Next, isSubmitting
   } = props;
 
@@ -741,23 +767,16 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
             <div className="flex gap-2 animate-in slide-in-from-top-1">
               <Input 
                 autoFocus
-                placeholder="Name (e.g. Sem 3)" 
+                placeholder="Semester Name (e.g. Semester 5 or Sem 3)" 
                 className="h-10 bg-background flex-1"
                 value={newSemName}
                 onChange={(e) => setNewSemName(e.target.value)}
-              />
-              <Input 
-                type="number"
-                placeholder="No." 
-                className="h-10 bg-background w-20"
-                value={newSemNumber}
-                onChange={(e) => setNewSemNumber(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateSem()}
               />
-              <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateSem} disabled={isSubmitting}>
+              <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateSem} disabled={isSubmitting || !newSemName.trim()}>
                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               </Button>
-              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingSem(false)}>
+              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => { setIsAddingSem(false); setNewSemName(""); }}>
                 <X className="w-4 h-4" />
               </Button>
             </div>
@@ -827,6 +846,9 @@ interface Step3CardProps {
   toggleCourseSelection: (id: string) => void
   newCourseName: string
   setNewCourseName: (val: string) => void
+  customCourses: string[]
+  handleAddCustomCourse: () => void
+  handleRemoveCustomCourse: (idx: number) => void
   handleFinalSave: (e: React.SyntheticEvent) => void
   isSubmitting: boolean
   setSelectedCourseIds: React.Dispatch<React.SetStateAction<string[]>>
@@ -837,7 +859,7 @@ interface Step3CardProps {
 function SetupStep3Card(props: Readonly<Step3CardProps>) {
   const {
     availableCourses, semesters, selectedSemId, universities, selectedUniId, academicsEnabled,
-    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
+    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, customCourses, handleAddCustomCourse, handleRemoveCustomCourse, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
   } = props;
 
   return (
@@ -855,7 +877,7 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
         <CardTitle className="text-3xl font-semibold tracking-tight">Select your courses</CardTitle>
         <CardDescription>
           {availableCourses.length > 0 
-            ? "Choose the subjects you're studying this semester."
+            ? "Choose existing courses or add your custom subjects below."
             : "Be the first user from " + 
               (semesters.find(s => s.id === selectedSemId)?.name || "this semester") + 
               " of " + 
@@ -878,16 +900,57 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label className="font-bold">{availableCourses.length > 0 ? "Don't see your course?" : "Add your first course"}</Label>
+            <div className="space-y-3">
+              <Label className="font-bold">
+                {availableCourses.length > 0 ? "Add Custom Subjects" : "Add Your Subjects"}
+              </Label>
               <div className="flex gap-2">
                 <Input 
-                  placeholder="Course name (e.g. Contract Law)" 
+                  placeholder="Enter subject name (e.g. Contract Law)" 
                   value={newCourseName}
                   onChange={(e) => setNewCourseName(e.target.value)}
-                  className="h-10 bg-background"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddCustomCourse()
+                    }
+                  }}
+                  className="h-10 bg-background flex-1"
                 />
+                <Button 
+                  type="button" 
+                  onClick={handleAddCustomCourse}
+                  disabled={!newCourseName.trim()}
+                  className="h-10 px-4 font-bold text-xs shrink-0 rounded-xl gap-1"
+                >
+                  <Plus className="w-4 h-4" /> Add Subject
+                </Button>
               </div>
+
+              {/* Added Custom Courses Chips / List */}
+              {customCourses.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-xs text-muted-foreground font-semibold">Custom Subjects to Add ({customCourses.length}):</span>
+                  <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto">
+                    {customCourses.map((course, idx) => (
+                      <Badge 
+                        key={idx} 
+                        variant="secondary" 
+                        className="py-1 px-3 text-xs flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded-xl"
+                      >
+                        <span>{course}</span>
+                        <button 
+                          type="button" 
+                          onClick={() => handleRemoveCustomCourse(idx)}
+                          className="hover:bg-primary/20 rounded-full p-0.5"
+                        >
+                          <X className="w-3 h-3 text-primary" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -901,7 +964,7 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
           <Button 
             className="h-12 flex-1 rounded-full text-base font-semibold"
             onClick={handleFinalSave}
-            disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && !newCourseName.trim())}
+            disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && customCourses.length === 0 && !newCourseName.trim())}
           >
             {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finish Setup"}
           </Button>

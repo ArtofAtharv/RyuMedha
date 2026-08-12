@@ -24,10 +24,16 @@ export async function POST(req: Request) {
     )
 
     // Verify caller is admin
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(accessToken)
+    if (userErr || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const { data: callerProfile } = await supabase
       .from('profiles')
       .select('id, is_admin')
-      .single()
+      .eq('id', user.id)
+      .maybeSingle()
 
     if (!callerProfile || !callerProfile.is_admin) {
       return NextResponse.json({ error: 'Access denied: Admin privileges required' }, { status: 403 })

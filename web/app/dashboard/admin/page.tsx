@@ -11,10 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, 
   Zap, Loader2, BellRing, FolderOpen, ShieldCheck, Users, 
-  Ticket, Search, Copy, Check, Trash2, Plus, Sparkles, RefreshCw
+  Ticket, Search, Copy, Check, Trash2, Plus, Sparkles, RefreshCw, AlertTriangle
 } from "lucide-react"
 import { useProfile } from '@/components/dashboard/profile-context'
 import { toast } from "sonner"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog"
 
 interface WindowStatusRow {
   profile_id: string
@@ -81,6 +89,20 @@ function getStatusBadge(user: UserSubData) {
   return <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">Expired / Canceled</Badge>
 }
 
+function checkActiveSubscription(user: UserSubData): { isActive: boolean; type: string } {
+  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || user.razorpaySubscriptionId?.startsWith('invite_') || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
+  const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
+  const isAutopay = user.status === 'active' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date())
+
+  if (isLifetime) return { isActive: true, type: 'Free Lifetime Access' }
+  if (is1Year) return { isActive: true, type: 'Free 1-Year Access' }
+  if (isAutopay) return { isActive: true, type: `Active Subscription (${user.planType || 'Pro'})` }
+  if (user.status === 'trialing' && user.trialEnd && new Date(user.trialEnd) > new Date()) {
+    return { isActive: true, type: 'Free Trial' }
+  }
+  return { isActive: false, type: 'Expired / None' }
+}
+
 export default function AdminPage() {
   const { profile } = useProfile()
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'invite_codes' | 'whatsapp'>('subscriptions')
@@ -113,6 +135,10 @@ export default function AdminPage() {
   const [newMaxUses, setNewMaxUses] = useState('')
   const [isCreatingCode, setIsCreatingCode] = useState(false)
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null)
+
+  // Delete user account dialog state
+  const [userToDelete, setUserToDelete] = useState<UserSubData | null>(null)
+  const [isDeletingUser, setIsDeletingUser] = useState(false)
 
   const [_isPending, startTransition] = useTransition()
 
@@ -180,6 +206,31 @@ export default function AdminPage() {
     } catch (err) {
       console.error(err)
       toast.error('An error occurred')
+    }
+  }
+
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return
+    setIsDeletingUser(true)
+    try {
+      const res = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profileId: userToDelete.profileId })
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        toast.success(data.message || `Deleted ${userToDelete.displayName}`)
+        setUserToDelete(null)
+        if (supabaseClient) fetchAdminData(supabaseClient)
+      } else {
+        toast.error(data.error || 'Failed to delete user account')
+      }
+    } catch (err) {
+      console.error(err)
+      toast.error('An error occurred while deleting user account')
+    } finally {
+      setIsDeletingUser(false)
     }
   }
 
@@ -573,6 +624,16 @@ export default function AdminPage() {
                             >
                               Revoke
                             </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/20 border border-destructive/30 rounded-lg gap-1 px-2"
+                              onClick={() => setUserToDelete(u)}
+                              title={u.profileId === profile?.id ? "You cannot delete your own admin account" : "Delete User Account"}
+                              disabled={u.profileId === profile?.id}
+                            >
+                              <Trash2 className="w-3 h-3" /> Delete
+                            </Button>
                           </div>
                         </td>
                       </tr>
@@ -827,6 +888,64 @@ export default function AdminPage() {
           </Card>
         </div>
       )}
+
+      {/* Delete User Account Confirmation Dialog */}
+      <Dialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null) }}>
+        <DialogContent className="sm:max-w-md rounded-3xl border-destructive/30">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-destructive flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive animate-bounce" /> Delete User Account
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Are you sure you want to delete the user account for <strong className="text-foreground">{userToDelete?.displayName}</strong> ({userToDelete?.email || userToDelete?.whatsappNumber || 'No contact info'})?
+            </DialogDescription>
+          </DialogHeader>
+
+          {userToDelete && checkActiveSubscription(userToDelete).isActive && (
+            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 text-destructive text-xs space-y-1.5">
+              <div className="font-bold flex items-center gap-1.5 text-destructive">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>WARNING: Active Subscription Detected</span>
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                This user currently has an <strong className="underline font-bold">{checkActiveSubscription(userToDelete).type}</strong>! Deleting this user account will immediately revoke their access and permanently delete all their database records.
+              </p>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-xl border border-border/40">
+            <p className="font-semibold text-foreground mb-1">Impact of Deletion:</p>
+            <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+              <li>Permanent removal of profile data &amp; preferences</li>
+              <li>Deletion of all subject categories, attendance logs &amp; grades</li>
+              <li>Deletion of study timers, tasks &amp; WhatsApp message logs</li>
+              <li>This action cannot be undone.</li>
+            </ul>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => setUserToDelete(null)}
+              disabled={isDeletingUser}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="rounded-xl font-bold gap-1.5 bg-destructive hover:bg-destructive/90"
+              onClick={handleConfirmDeleteUser}
+              disabled={isDeletingUser}
+            >
+              {isDeletingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              Confirm Delete Account
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   )

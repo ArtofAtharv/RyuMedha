@@ -300,7 +300,7 @@ export default function SubscriptionPage() {
             <Ticket className="w-4 h-4 text-primary" /> Have an Invite Code?
           </div>
           <p className="text-xs text-muted-foreground">
-            Enter an invite code provided by an admin to unlock 1-Year or Lifetime free access.
+            Enter an invite code to get the benifits
           </p>
           <div className="flex gap-2 max-w-md">
             <Input

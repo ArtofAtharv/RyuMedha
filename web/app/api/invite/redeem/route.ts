@@ -24,7 +24,16 @@ export async function POST(req: Request) {
       }
     )
 
-    const { data: profile } = await supabase.from('profiles').select('id, display_name').single()
+    const { data: { user }, error: userErr } = await supabase.auth.getUser(accessToken)
+    if (userErr || !user) {
+      return NextResponse.json({ error: 'Unauthorized: Session invalid' }, { status: 401 })
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, display_name')
+      .eq('id', user.id)
+      .maybeSingle()
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
