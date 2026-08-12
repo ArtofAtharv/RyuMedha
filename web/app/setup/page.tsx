@@ -1148,6 +1148,8 @@ function SetupStep4Card(props: Readonly<Step4CardProps>) {
             })
             if (verifyRes.ok) {
               toast.success('Auto-Pay set up successfully! Welcome to Ryu Medha.')
+              window.dispatchEvent(new CustomEvent('subscription-updated'))
+              router.refresh()
               onComplete()
             } else {
               toast.error('Payment verification failed')
@@ -1190,6 +1192,8 @@ function SetupStep4Card(props: Readonly<Step4CardProps>) {
 
       if (res.ok && data.success) {
         toast.success(data.message || 'Free access granted!')
+        window.dispatchEvent(new CustomEvent('subscription-updated'))
+        router.refresh()
         onComplete()
       } else {
         toast.error(data.error || 'Failed to redeem invite code')

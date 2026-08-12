@@ -122,6 +122,7 @@ export default function SubscriptionPage() {
             if (verifyRes.ok) {
               toast.success('Subscription activated! Auto-Pay set up.')
               await fetchSubscription()
+              window.dispatchEvent(new CustomEvent('subscription-updated'))
               router.refresh()
             } else {
               toast.error('Payment verification failed')
@@ -159,6 +160,8 @@ export default function SubscriptionPage() {
       if (res.ok && data.success) {
         toast.success(data.message || 'Auto-pay canceled successfully.')
         await fetchSubscription()
+        window.dispatchEvent(new CustomEvent('subscription-updated'))
+        router.refresh()
       } else {
         toast.error(data.error || 'Failed to cancel auto-pay')
       }
@@ -187,6 +190,8 @@ export default function SubscriptionPage() {
         toast.success(data.message || 'Free access granted!')
         setInviteCode('')
         await fetchSubscription()
+        window.dispatchEvent(new CustomEvent('subscription-updated'))
+        router.refresh()
       } else {
         toast.error(data.error || 'Invalid invite code')
       }

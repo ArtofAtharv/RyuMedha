@@ -40,6 +40,17 @@ export function SubscriptionBanner({ subscription }: { subscription: Subscriptio
     }
   }, [isExpired, pathname, router])
 
+  // Listen for client-side subscription updates and trigger instant router refresh
+  useEffect(() => {
+    const handleUpdate = () => {
+      router.refresh()
+    }
+    window.addEventListener('subscription-updated', handleUpdate)
+    return () => {
+      window.removeEventListener('subscription-updated', handleUpdate)
+    }
+  }, [router])
+
   // Don't render banner if active paid subscription
   if (isActivePaid) {
     return null

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -72,6 +73,10 @@ interface InviteCodeData {
 }
 
 function getStatusBadge(user: UserSubData) {
+  if (user.status === 'canceled' || user.status === 'expired') {
+    return <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">Expired / Canceled</Badge>
+  }
+
   const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || user.razorpaySubscriptionId?.startsWith('invite_') || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
   const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
 
@@ -91,6 +96,10 @@ function getStatusBadge(user: UserSubData) {
 }
 
 function checkActiveSubscription(user: UserSubData): { isActive: boolean; type: string } {
+  if (user.status === 'canceled' || user.status === 'expired') {
+    return { isActive: false, type: 'Expired / Canceled' }
+  }
+
   const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || user.razorpaySubscriptionId?.startsWith('invite_') || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
   const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
   const isAutopay = user.status === 'active' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date())
@@ -105,6 +114,7 @@ function checkActiveSubscription(user: UserSubData): { isActive: boolean; type: 
 }
 
 export default function AdminPage() {
+  const router = useRouter()
   const { profile } = useProfile()
   const [activeTab, setActiveTab] = useState<'subscriptions' | 'invite_codes' | 'whatsapp'>('subscriptions')
   const [loading, setLoading] = useState(true)
@@ -200,7 +210,8 @@ export default function AdminPage() {
       const data = await res.json()
       if (res.ok && data.success) {
         toast.success(data.message)
-        if (supabaseClient) fetchAdminData(supabaseClient)
+        if (supabaseClient) await fetchAdminData(supabaseClient)
+        router.refresh()
       } else {
         toast.error(data.error || 'Failed to update access')
       }

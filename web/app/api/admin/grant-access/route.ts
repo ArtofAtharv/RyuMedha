@@ -112,6 +112,12 @@ export async function POST(req: Request) {
       subPayload = {
         profile_id: profileId,
         status: 'canceled',
+        plan_type: null,
+        razorpay_subscription_id: null,
+        razorpay_plan_id: null,
+        razorpay_customer_id: null,
+        current_period_start: now.toISOString(),
+        current_period_end: now.toISOString(),
         scheduled_deletion_at: deletionDate.toISOString(),
         updated_at: now.toISOString()
       }
