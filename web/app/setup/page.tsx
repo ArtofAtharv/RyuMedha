@@ -203,7 +203,9 @@ export default function SetupPage() {
         }
 
         const isProfileSetupDone = profile && (profile.academics_enabled !== null || profile.personal_enabled !== null)
-        const isSubActive = subData?.status === 'active' || subData?.razorpay_subscription_id === 'admin_free_lifetime' || subData?.razorpay_subscription_id === 'admin_free_1year'
+        const isSubActive = subData?.status === 'active' || 
+          Boolean(subData?.razorpay_subscription_id?.startsWith('admin_free_')) || 
+          Boolean(subData?.razorpay_subscription_id?.startsWith('invite_'))
 
         if (isProfileSetupDone) {
           if (isSubActive) {

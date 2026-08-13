@@ -131,13 +131,16 @@ export interface InviteEmailOptions {
   to: string
   displayName?: string
   code: string
-  durationType: '1_year' | 'lifetime'
+  durationType: '1_month' | '6_months' | '1_year' | 'lifetime'
 }
 
 export async function sendInviteAccessEmail(options: InviteEmailOptions): Promise<boolean> {
   const { to, displayName, code, durationType } = options
   const name = displayName || 'Valued User'
-  const durationLabel = durationType === 'lifetime' ? 'Free Lifetime Access' : 'Free 1-Year Access'
+  const durationLabel = 
+    durationType === 'lifetime' ? 'Free Lifetime Access' :
+    durationType === '6_months' ? 'Free 6-Months Access' :
+    durationType === '1_month' ? 'Free 1-Month Access' : 'Free 1-Year Access'
 
   const html = `
     <!DOCTYPE html>

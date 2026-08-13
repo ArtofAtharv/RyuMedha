@@ -58,10 +58,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This invite code already exists' }, { status: 400 })
     }
 
+    const validDurations: Array<'1_month' | '6_months' | '1_year' | 'lifetime'> = ['1_month', '6_months', '1_year', 'lifetime']
+    const finalDuration = validDurations.includes(durationType) ? durationType : 'lifetime'
+
     const newCode: InviteCode = {
       id: `code_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       code: cleanCode,
-      durationType: durationType === '1_year' ? '1_year' : 'lifetime',
+      durationType: finalDuration,
       maxUses: maxUses && Number(maxUses) > 0 ? Number(maxUses) : null,
       usesCount: 0,
       isActive: true,

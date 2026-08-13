@@ -108,8 +108,10 @@ export async function GET(_req: Request) {
     // Calculate aggregate metrics
     const totalUsers = userSubscriptions.length
     const activeAutopayCount = userSubscriptions.filter(u => u.status === 'active' && u.razorpaySubscriptionId?.startsWith('sub_')).length
-    const freeLifetimeCount = userSubscriptions.filter(u => u.status === 'active' && (u.razorpaySubscriptionId === 'admin_free_lifetime' || u.razorpaySubscriptionId?.startsWith('invite_') || (u.currentPeriodEnd && new Date(u.currentPeriodEnd).getFullYear() > 2090))).length
+    const freeLifetimeCount = userSubscriptions.filter(u => u.status === 'active' && (u.razorpaySubscriptionId === 'admin_free_lifetime' || (u.currentPeriodEnd && new Date(u.currentPeriodEnd).getFullYear() > 2090))).length
     const free1YearCount = userSubscriptions.filter(u => u.status === 'active' && u.razorpaySubscriptionId === 'admin_free_1year').length
+    const free6MonthsCount = userSubscriptions.filter(u => u.status === 'active' && u.razorpaySubscriptionId === 'admin_free_6months').length
+    const free1MonthCount = userSubscriptions.filter(u => u.status === 'active' && u.razorpaySubscriptionId === 'admin_free_1month').length
     const trialingCount = userSubscriptions.filter(u => u.status === 'trialing' && u.trialEnd && new Date(u.trialEnd) > now).length
     const expiredCount = userSubscriptions.filter(u => u.status === 'expired' || u.status === 'canceled').length
 
@@ -121,6 +123,8 @@ export async function GET(_req: Request) {
         activeAutopayCount,
         freeLifetimeCount,
         free1YearCount,
+        free6MonthsCount,
+        free1MonthCount,
         trialingCount,
         expiredCount
       },

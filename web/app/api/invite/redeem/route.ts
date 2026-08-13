@@ -67,6 +67,14 @@ export async function POST(req: Request) {
     let periodEnd: string
     if (target.durationType === 'lifetime') {
       periodEnd = '2099-12-31T23:59:59.999Z'
+    } else if (target.durationType === '6_months') {
+      const sixMonths = new Date(now)
+      sixMonths.setMonth(sixMonths.getMonth() + 6)
+      periodEnd = sixMonths.toISOString()
+    } else if (target.durationType === '1_month') {
+      const oneMonth = new Date(now)
+      oneMonth.setMonth(oneMonth.getMonth() + 1)
+      periodEnd = oneMonth.toISOString()
     } else {
       const oneYear = new Date(now)
       oneYear.setFullYear(oneYear.getFullYear() + 1)
@@ -77,7 +85,7 @@ export async function POST(req: Request) {
     const subPayload = {
       profile_id: profile.id,
       status: 'active',
-      plan_type: 'yearly',
+      plan_type: target.durationType === '1_month' ? 'monthly' : 'yearly',
       razorpay_subscription_id: `invite_${rawCode}`,
       current_period_start: now.toISOString(),
       current_period_end: periodEnd,
@@ -110,9 +118,14 @@ export async function POST(req: Request) {
       })
     }
 
+    const durationLabel = 
+      target.durationType === 'lifetime' ? 'Lifetime' :
+      target.durationType === '6_months' ? '6-Months' :
+      target.durationType === '1_month' ? '1-Month' : '1-Year'
+
     return NextResponse.json({
       success: true,
-      message: `Free ${target.durationType === 'lifetime' ? 'Lifetime' : '1-Year'} access activated!`,
+      message: `Free ${durationLabel} access activated!`,
       durationType: target.durationType
     })
   } catch (err: unknown) {

@@ -65,7 +65,7 @@ interface UserSubData {
 interface InviteCodeData {
   id: string
   code: string
-  durationType: '1_year' | 'lifetime'
+  durationType: '1_month' | '6_months' | '1_year' | 'lifetime'
   maxUses: number | null
   usesCount: number
   isActive: boolean
@@ -77,14 +77,26 @@ function getStatusBadge(user: UserSubData) {
     return <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">Expired / Canceled</Badge>
   }
 
-  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || user.razorpaySubscriptionId?.startsWith('invite_') || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
+  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
   const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
+  const is6Months = user.razorpaySubscriptionId === 'admin_free_6months'
+  const is1Month = user.razorpaySubscriptionId === 'admin_free_1month'
+  const isInvite = user.razorpaySubscriptionId?.startsWith('invite_')
 
   if (isLifetime) {
     return <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30">Free Lifetime</Badge>
   }
   if (is1Year) {
     return <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30">Free 1-Year</Badge>
+  }
+  if (is6Months) {
+    return <Badge className="bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30">Free 6-Months</Badge>
+  }
+  if (is1Month) {
+    return <Badge className="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30">Free 1-Month</Badge>
+  }
+  if (isInvite) {
+    return <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">Invite Unlocked</Badge>
   }
   if (user.status === 'active') {
     return <Badge className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30">Active Auto-Pay</Badge>
@@ -100,12 +112,18 @@ function checkActiveSubscription(user: UserSubData): { isActive: boolean; type: 
     return { isActive: false, type: 'Expired / Canceled' }
   }
 
-  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || user.razorpaySubscriptionId?.startsWith('invite_') || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
+  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
   const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
+  const is6Months = user.razorpaySubscriptionId === 'admin_free_6months'
+  const is1Month = user.razorpaySubscriptionId === 'admin_free_1month'
+  const isInvite = user.razorpaySubscriptionId?.startsWith('invite_')
   const isAutopay = user.status === 'active' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date())
 
   if (isLifetime) return { isActive: true, type: 'Free Lifetime Access' }
   if (is1Year) return { isActive: true, type: 'Free 1-Year Access' }
+  if (is6Months) return { isActive: true, type: 'Free 6-Months Access' }
+  if (is1Month) return { isActive: true, type: 'Free 1-Month Access' }
+  if (isInvite) return { isActive: true, type: 'Invite Code Free Access' }
   if (isAutopay) return { isActive: true, type: `Active Subscription (${user.planType || 'Pro'})` }
   if (user.status === 'trialing' && user.trialEnd && new Date(user.trialEnd) > new Date()) {
     return { isActive: true, type: 'Free Trial' }
@@ -128,6 +146,8 @@ export default function AdminPage() {
     activeAutopayCount: 0,
     freeLifetimeCount: 0,
     free1YearCount: 0,
+    free6MonthsCount: 0,
+    free1MonthCount: 0,
     trialingCount: 0,
     expiredCount: 0
   })
@@ -142,7 +162,7 @@ export default function AdminPage() {
 
   // New Invite Code form
   const [newCode, setNewCode] = useState('')
-  const [newDuration, setNewDuration] = useState<'lifetime' | '1_year'>('lifetime')
+  const [newDuration, setNewDuration] = useState<'lifetime' | '1_year' | '6_months' | '1_month'>('lifetime')
   const [newMaxUses, setNewMaxUses] = useState('')
   const [isCreatingCode, setIsCreatingCode] = useState(false)
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null)
@@ -482,9 +502,11 @@ export default function AdminPage() {
             <Sparkles className="w-4 h-4 text-purple-500" /> Free Access
           </div>
           <p className="text-3xl font-black mt-2 text-purple-600 dark:text-purple-400">
-            {stats.freeLifetimeCount + stats.free1YearCount}
+            {stats.freeLifetimeCount + stats.free1YearCount + (stats.free6MonthsCount || 0) + (stats.free1MonthCount || 0)}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{stats.freeLifetimeCount} Lifetime • {stats.free1YearCount} 1-Yr</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {stats.freeLifetimeCount} Life • {stats.free1YearCount} 1-Yr • {stats.free6MonthsCount || 0} 6-Mo • {stats.free1MonthCount || 0} 1-Mo
+          </p>
         </div>
         <div className="relative overflow-hidden p-4 rounded-2xl bg-card/60 border border-border/50 shadow-sm">
           <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-xs font-bold uppercase tracking-wider">
@@ -601,11 +623,11 @@ export default function AdminPage() {
                           )}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1 flex-wrap">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-purple-600 border-purple-500/30 hover:bg-purple-500/10 rounded-lg"
+                              className="h-7 text-[10px] font-bold text-purple-600 border-purple-500/30 hover:bg-purple-500/10 rounded-lg px-2"
                               onClick={() => handleGrantAccess(u.profileId, 'grant_lifetime')}
                               title="Grant Lifetime Free Access"
                             >
@@ -614,7 +636,7 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-blue-600 border-blue-500/30 hover:bg-blue-500/10 rounded-lg"
+                              className="h-7 text-[10px] font-bold text-blue-600 border-blue-500/30 hover:bg-blue-500/10 rounded-lg px-2"
                               onClick={() => handleGrantAccess(u.profileId, 'grant_1year')}
                               title="Grant 1-Year Free Access"
                             >
@@ -623,7 +645,25 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-green-600 border-green-500/30 hover:bg-green-500/10 rounded-lg"
+                              className="h-7 text-[10px] font-bold text-cyan-600 border-cyan-500/30 hover:bg-cyan-500/10 rounded-lg px-2"
+                              onClick={() => handleGrantAccess(u.profileId, 'grant_6months')}
+                              title="Grant 6-Months Free Access"
+                            >
+                              📅 6-Mo
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[10px] font-bold text-indigo-600 border-indigo-500/30 hover:bg-indigo-500/10 rounded-lg px-2"
+                              onClick={() => handleGrantAccess(u.profileId, 'grant_1month')}
+                              title="Grant 1-Month Free Access"
+                            >
+                              ⚡ 1-Mo
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[10px] font-bold text-green-600 border-green-500/30 hover:bg-green-500/10 rounded-lg px-2"
                               onClick={() => handleGrantAccess(u.profileId, 'extend_30days')}
                               title="Renew / Extend +30 Days"
                             >
@@ -632,7 +672,7 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/10 rounded-lg"
+                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/10 rounded-lg px-1.5"
                               onClick={() => handleGrantAccess(u.profileId, 'revoke')}
                               title="Revoke Access"
                             >
@@ -641,12 +681,12 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/20 border border-destructive/30 rounded-lg gap-1 px-2"
+                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/20 border border-destructive/30 rounded-lg gap-1 px-1.5"
                               onClick={() => setUserToDelete(u)}
                               title={u.profileId === profile?.id ? "You cannot delete your own admin account" : "Delete User Account"}
                               disabled={u.profileId === profile?.id}
                             >
-                              <Trash2 className="w-3 h-3" /> Delete
+                              <Trash2 className="w-3 h-3" />
                             </Button>
                           </div>
                         </td>
@@ -705,13 +745,15 @@ export default function AdminPage() {
 
                 <div className="space-y-1">
                   <Label className="text-xs font-bold">Access Duration</Label>
-                  <Select value={newDuration} onValueChange={(val: 'lifetime' | '1_year') => setNewDuration(val)}>
+                  <Select value={newDuration} onValueChange={(val: 'lifetime' | '1_year' | '6_months' | '1_month') => setNewDuration(val)}>
                     <SelectTrigger className="h-10 bg-background text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="lifetime">♾️ Lifetime Free Access</SelectItem>
                       <SelectItem value="1_year">📅 1-Year Free Access</SelectItem>
+                      <SelectItem value="6_months">📅 6-Months Free Access</SelectItem>
+                      <SelectItem value="1_month">⚡ 1-Month Free Access</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -750,7 +792,7 @@ export default function AdminPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-mono font-black text-base tracking-wider text-foreground">{c.code}</span>
                       <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {c.durationType === 'lifetime' ? '♾️ Lifetime' : '📅 1 Year'}
+                        {c.durationType === 'lifetime' ? '♾️ Lifetime' : c.durationType === '6_months' ? '📅 6 Months' : c.durationType === '1_month' ? '⚡ 1 Month' : '📅 1 Year'}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground">
                         Uses: <strong className="text-foreground">{c.usesCount}</strong> / {c.maxUses === null ? '∞' : c.maxUses}

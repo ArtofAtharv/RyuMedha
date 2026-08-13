@@ -217,7 +217,10 @@ export default function SubscriptionPage() {
   const trialDaysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0
 
   const isLifetime = Boolean(subscription?.razorpay_subscription_id === 'admin_free_lifetime' || (subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() > 2090))
-  const is1Year = Boolean(subscription?.razorpay_subscription_id === 'admin_free_1year' || (subscription?.razorpay_subscription_id?.startsWith('invite_') && subscription?.current_period_end && new Date(subscription.current_period_end).getFullYear() <= 2090))
+  const is1Year = Boolean(subscription?.razorpay_subscription_id === 'admin_free_1year')
+  const is6Months = Boolean(subscription?.razorpay_subscription_id === 'admin_free_6months')
+  const is1Month = Boolean(subscription?.razorpay_subscription_id === 'admin_free_1month')
+  const isInvite = Boolean(subscription?.razorpay_subscription_id?.startsWith('invite_'))
 
   const isActive = subscription?.status === 'active'
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null
@@ -252,7 +255,22 @@ export default function SubscriptionPage() {
                     <Sparkles className="w-3.5 h-3.5" /> Free 1-Year Access
                   </span>
                 )}
-                {isActive && !isLifetime && !is1Year && (
+                {is6Months && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                    <Sparkles className="w-3.5 h-3.5" /> Free 6-Months Access
+                  </span>
+                )}
+                {is1Month && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                    <Sparkles className="w-3.5 h-3.5" /> Free 1-Month Access
+                  </span>
+                )}
+                {isInvite && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                    <Sparkles className="w-3.5 h-3.5" /> Invite Code Unlocked
+                  </span>
+                )}
+                {isActive && !isLifetime && !is1Year && !is6Months && !is1Month && !isInvite && (
                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20">
                     <CheckCircle2 className="w-3.5 h-3.5" /> Active Pro Plan
                   </span>
@@ -274,6 +292,12 @@ export default function SubscriptionPage() {
                   ? `Ryu Medha Pro (Lifetime Unlocked)`
                   : is1Year
                   ? `Ryu Medha Pro (1-Year Unlocked)`
+                  : is6Months
+                  ? `Ryu Medha Pro (6-Months Unlocked)`
+                  : is1Month
+                  ? `Ryu Medha Pro (1-Month Unlocked)`
+                  : isInvite
+                  ? `Ryu Medha Pro (Invite Access Unlocked)`
                   : isActive 
                   ? `Ryu Medha Pro (${subscription?.plan_type === 'yearly' ? 'Yearly Plan' : 'Monthly Plan'})`
                   : isTrialing 
@@ -283,8 +307,8 @@ export default function SubscriptionPage() {
 
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {isLifetime && `Full unlimited access granted for life.`}
-                {is1Year && `Full unlimited access valid until ${periodEndStr}.`}
-                {isActive && !isLifetime && !is1Year && `Your subscription is active and set for auto-renewal on ${periodEndStr}.`}
+                {(is1Year || is6Months || is1Month || isInvite) && `Full unlimited access valid until ${periodEndStr}.`}
+                {isActive && !isLifetime && !is1Year && !is6Months && !is1Month && !isInvite && `Your subscription is active and set for auto-renewal on ${periodEndStr}.`}
                 {isTrialing && `Your 30-day trial expires on ${trialEnd?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}. Set up auto-pay below to continue seamlessly.`}
                 {isExpired && `Access to dashboard features is locked. Data retention active until ${deletionDateStr} (${deletionDaysLeft} days left).`}
               </p>

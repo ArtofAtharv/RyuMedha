@@ -6,7 +6,7 @@ import os from 'os'
 export interface InviteCode {
   id: string
   code: string
-  durationType: '1_year' | 'lifetime'
+  durationType: '1_month' | '6_months' | '1_year' | 'lifetime'
   maxUses: number | null // null = unlimited
   usesCount: number
   isActive: boolean
@@ -49,7 +49,7 @@ export async function getInviteCodesAsync(): Promise<InviteCode[]> {
       return data.map((row: {
         id: string
         code: string
-        duration_type: '1_year' | 'lifetime'
+        duration_type: '1_month' | '6_months' | '1_year' | 'lifetime'
         max_uses: number | null
         uses_count: number
         is_active: boolean

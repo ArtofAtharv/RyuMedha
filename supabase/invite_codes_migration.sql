@@ -6,13 +6,17 @@
 CREATE TABLE IF NOT EXISTS invite_codes (
     id TEXT PRIMARY KEY,
     code TEXT NOT NULL UNIQUE,
-    duration_type TEXT NOT NULL CHECK (duration_type IN ('1_year', 'lifetime')),
+    duration_type TEXT NOT NULL CHECK (duration_type IN ('1_month', '6_months', '1_year', 'lifetime')),
     max_uses INT, -- NULL = unlimited
     uses_count INT NOT NULL DEFAULT 0,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     created_by UUID REFERENCES profiles(id) ON DELETE SET NULL
 );
+
+-- Update check constraint if table already exists
+ALTER TABLE invite_codes DROP CONSTRAINT IF EXISTS invite_codes_duration_type_check;
+ALTER TABLE invite_codes ADD CONSTRAINT invite_codes_duration_type_check CHECK (duration_type IN ('1_month', '6_months', '1_year', 'lifetime'));
 
 -- 2. Indexes
 CREATE INDEX IF NOT EXISTS idx_invite_codes_code ON invite_codes(code);

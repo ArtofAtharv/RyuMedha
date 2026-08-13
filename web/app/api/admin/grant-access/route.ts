@@ -76,6 +76,34 @@ export async function POST(req: Request) {
         updated_at: now.toISOString()
       }
       message = '1-Year free access granted!'
+    } else if (action === 'grant_6months') {
+      const sixMo = new Date(now)
+      sixMo.setMonth(sixMo.getMonth() + 6)
+      subPayload = {
+        profile_id: profileId,
+        status: 'active',
+        plan_type: 'yearly',
+        razorpay_subscription_id: 'admin_free_6months',
+        current_period_start: now.toISOString(),
+        current_period_end: sixMo.toISOString(),
+        scheduled_deletion_at: null,
+        updated_at: now.toISOString()
+      }
+      message = '6-Months free access granted!'
+    } else if (action === 'grant_1month') {
+      const oneMo = new Date(now)
+      oneMo.setMonth(oneMo.getMonth() + 1)
+      subPayload = {
+        profile_id: profileId,
+        status: 'active',
+        plan_type: 'monthly',
+        razorpay_subscription_id: 'admin_free_1month',
+        current_period_start: now.toISOString(),
+        current_period_end: oneMo.toISOString(),
+        scheduled_deletion_at: null,
+        updated_at: now.toISOString()
+      }
+      message = '1-Month free access granted!'
     } else if (action === 'extend_30days' || action === 'extend_1year') {
       const { data: existingSub } = await supabase
         .from('subscriptions')
