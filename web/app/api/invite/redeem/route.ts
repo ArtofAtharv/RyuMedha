@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
 import { getInviteCodesAsync, saveInviteCodeToDb, saveInviteCodesFile } from '@/lib/invite-codes-store'
 import { sendInviteAccessEmail } from '@/lib/email'
+import { cancelUserRazorpaySubscriptions } from '@/lib/razorpay'
 
 export async function POST(req: Request) {
   try {
@@ -62,23 +63,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This invite code has reached its maximum uses' }, { status: 400 })
     }
 
-    // Calculate subscription period
+    // Fetch existing user subscription to check for active Razorpay Autopay or period end
+    const { data: existingSub } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('profile_id', profile.id)
+      .maybeSingle()
+
+    // 1. Cancel any active Razorpay recurring subscription so Razorpay WILL NOT bill the bank account next month
+    await cancelUserRazorpaySubscriptions(profile.id, existingSub?.razorpay_subscription_id)
+
+    // 2. Calculate subscription period (extending existing current_period_end if active in future)
     const now = new Date()
+    const baseDate = (existingSub?.current_period_end && new Date(existingSub.current_period_end) > now)
+      ? new Date(existingSub.current_period_end)
+      : now
+
     let periodEnd: string
     if (target.durationType === 'lifetime') {
       periodEnd = '2099-12-31T23:59:59.999Z'
     } else if (target.durationType === '6_months') {
-      const sixMonths = new Date(now)
-      sixMonths.setMonth(sixMonths.getMonth() + 6)
-      periodEnd = sixMonths.toISOString()
+      const d = new Date(baseDate)
+      d.setMonth(d.getMonth() + 6)
+      periodEnd = d.toISOString()
     } else if (target.durationType === '1_month') {
-      const oneMonth = new Date(now)
-      oneMonth.setMonth(oneMonth.getMonth() + 1)
-      periodEnd = oneMonth.toISOString()
+      const d = new Date(baseDate)
+      d.setMonth(d.getMonth() + 1)
+      periodEnd = d.toISOString()
     } else {
-      const oneYear = new Date(now)
-      oneYear.setFullYear(oneYear.getFullYear() + 1)
-      periodEnd = oneYear.toISOString()
+      const d = new Date(baseDate)
+      d.setFullYear(d.getFullYear() + 1)
+      periodEnd = d.toISOString()
     }
 
     // Update user subscription in database

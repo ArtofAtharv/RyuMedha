@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { cancelUserRazorpaySubscriptions } from '@/lib/razorpay'
 
 export async function POST(req: Request) {
   try {
@@ -44,6 +45,18 @@ export async function POST(req: Request) {
 
     if (!profileId || !action) {
       return NextResponse.json({ error: 'Missing profileId or action' }, { status: 400 })
+    }
+
+    // Fetch existing user subscription
+    const { data: existingSub } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('profile_id', profileId)
+      .maybeSingle()
+
+    // If granting free access or revoking, cancel any active Razorpay subscription on Razorpay
+    if (action.startsWith('grant_') || action === 'revoke') {
+      await cancelUserRazorpaySubscriptions(profileId, existingSub?.razorpay_subscription_id)
     }
 
     const now = new Date()

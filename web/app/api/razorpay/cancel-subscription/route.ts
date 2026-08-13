@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
-import Razorpay from 'razorpay'
+import { cancelUserRazorpaySubscriptions } from '@/lib/razorpay'
 
 export async function POST(_req: Request) {
   try {
@@ -40,20 +40,8 @@ export async function POST(_req: Request) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
-    // Try canceling on Razorpay if it's a real sub_ ID
-    if (sub.razorpay_subscription_id?.startsWith('sub_')) {
-      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID
-      const keySecret = process.env.RAZORPAY_KEY_SECRET
-
-      if (keyId && keySecret) {
-        try {
-          const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret })
-          await razorpay.subscriptions.cancel(sub.razorpay_subscription_id, false) // cancel_at_cycle_end = false
-        } catch (rzpErr) {
-          console.warn('Razorpay SDK cancel warning (ignoring if test or already canceled):', rzpErr)
-        }
-      }
-    }
+    // Cancel active subscription on Razorpay
+    await cancelUserRazorpaySubscriptions(profile.id, sub.razorpay_subscription_id)
 
     // Update status in DB to canceled
     const deletionDate = new Date()

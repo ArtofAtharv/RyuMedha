@@ -397,13 +397,13 @@ export default function SubscriptionPage() {
               </p>
             </div>
           </div>
-        ) : is1Year ? (
+        ) : (is1Year || is6Months || is1Month || isInvite) ? (
           <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-700 dark:text-blue-300 text-xs flex items-center gap-3 mb-2">
             <Sparkles className="w-5 h-5 text-blue-500 shrink-0" />
             <div>
-              <p className="font-bold">Free 1-Year Access Active (Expires: {periodEndStr})</p>
+              <p className="font-bold">Free Access Active (Expires: {periodEndStr})</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">
-                Setting up auto-pay authorizes your payment mandate today with <strong className="text-foreground">₹0 charged now</strong>. Your first payment of {selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'} will occur on <strong className="text-foreground">{periodEndStr}</strong> when your free year ends.
+                Setting up auto-pay authorizes your payment mandate today with <strong className="text-foreground">₹0 charged now</strong>. Your first payment of {selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'} will occur on <strong className="text-foreground">{periodEndStr}</strong> when your free access ends.
               </p>
             </div>
           </div>
@@ -516,7 +516,7 @@ export default function SubscriptionPage() {
           ) : (
             <>
               <CreditCard className="w-5 h-5" />
-              {isActive ? (is1Year ? 'Set Up Auto-Pay Mandate (Deferred)' : 'Manage / Change Auto-Pay') : 'Activate Auto-Pay (Razorpay)'}
+              {isActive && subscription?.razorpay_subscription_id?.startsWith('sub_') ? 'Manage Auto-Pay' : 'Set Up Auto-Pay'}
               <ArrowRight className="w-5 h-5" />
             </>
           )}

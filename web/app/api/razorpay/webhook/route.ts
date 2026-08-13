@@ -56,6 +56,23 @@ export async function POST(req: Request) {
 
     const targetProfileId = profileId || subData.profile_id
 
+    // Safeguard: Check if the user currently holds active invite access or admin free access,
+    // or if the subscription ID in DB does not match this incoming webhook's razorpaySubId.
+    const isInviteOrAdminFree = Boolean(
+      subData?.razorpay_subscription_id?.startsWith('invite_') ||
+      subData?.razorpay_subscription_id?.startsWith('admin_free_')
+    )
+
+    if (isInviteOrAdminFree && (event === 'subscription.cancelled' || event === 'subscription.halted')) {
+      console.log(`[Webhook] Ignored ${event} for ${razorpaySubId} because profile currently has active invite/admin access (${subData.razorpay_subscription_id})`)
+      return NextResponse.json({ status: 'ignored: user has active invite/admin access' })
+    }
+
+    if (subData?.razorpay_subscription_id && subData.razorpay_subscription_id !== razorpaySubId && (event === 'subscription.cancelled' || event === 'subscription.halted')) {
+      console.log(`[Webhook] Ignored ${event} for ${razorpaySubId} because profile currently uses a different subscription ID (${subData.razorpay_subscription_id})`)
+      return NextResponse.json({ status: 'ignored: non-matching subscription id' })
+    }
+
     if (event === 'subscription.charged' || event === 'subscription.activated') {
       const currentEnd = new Date()
       if (subData?.plan_type === 'yearly') {

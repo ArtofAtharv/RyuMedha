@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import crypto from 'crypto'
 
 import { sendPaymentConfirmationEmail } from '@/lib/email'
+import { cancelUserRazorpaySubscriptions } from '@/lib/razorpay'
 
 export async function POST(req: Request) {
   try {
@@ -52,9 +53,14 @@ export async function POST(req: Request) {
     // Fetch existing subscription to preserve free 1-year or trial period end date if active
     const { data: existingSub } = await supabase
       .from('subscriptions')
-      .select('current_period_end, trial_end, status')
+      .select('current_period_end, trial_end, status, razorpay_subscription_id')
       .eq('profile_id', profile.id)
       .maybeSingle()
+
+    // If user previously had a different active Razorpay subscription, cancel it on Razorpay
+    if (existingSub?.razorpay_subscription_id && existingSub.razorpay_subscription_id !== razorpay_subscription_id) {
+      await cancelUserRazorpaySubscriptions(profile.id, existingSub.razorpay_subscription_id)
+    }
 
     const now = new Date()
     let periodEnd: Date
