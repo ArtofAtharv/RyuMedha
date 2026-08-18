@@ -1,8 +1,7 @@
 import { ReactNode } from "react"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { DashboardNav } from "@/components/dashboard/dashboard-nav"
-import { SubscriptionBanner } from "@/components/dashboard/subscription-banner"
+import { DashboardLayoutWrapper } from "@/components/dashboard/dashboard-layout-wrapper"
 import { createClient } from "@supabase/supabase-js"
 
 import { GamificationProvider } from "@/components/dashboard/gamification-context"
@@ -16,18 +15,14 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   }
 
   // Create server-side authenticated Supabase client
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
       },
-    }
-  )
+      fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+    },
+  })
 
   // Fetch the user's profile on the server with retries to handle database cold starts/transient connection errors
   let profile = null
@@ -35,16 +30,13 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const res = await supabase
-        .from('profiles')
-        .select('*')
-        .single()
+      const res = await supabase.from("profiles").select("*").single()
 
       profile = res.data
       error = res.error
 
       // If we got a profile, or it's a known PGRST116 (profile doesn't exist, setup needed), stop retrying
-      if (profile || error?.code === 'PGRST116') {
+      if (profile || error?.code === "PGRST116") {
         break
       }
 
@@ -56,7 +48,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
 
     if (attempt < 3) {
       // Delay before next attempt (exponential backoff)
-      await new Promise(resolve => setTimeout(resolve, 300 * attempt))
+      await new Promise((resolve) => setTimeout(resolve, 300 * attempt))
     }
   }
 
@@ -66,10 +58,10 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
       code: error?.code,
       details: error?.details,
       hint: error?.hint,
-      errorObj: error
+      errorObj: error,
     })
 
-    if (error?.code === 'PGRST116') {
+    if (error?.code === "PGRST116") {
       redirect("/setup")
     }
 
@@ -79,21 +71,18 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   }
 
   // Check if account setup is complete
-  const isSetup = (profile.academics_enabled !== null || profile.personal_enabled !== null) &&
-    (!profile.academics_enabled || !!profile.current_semester_id);
+  const isSetup =
+    (profile.academics_enabled !== null || profile.personal_enabled !== null) &&
+    (!profile.academics_enabled || !!profile.current_semester_id)
 
   if (!isSetup) {
-    redirect('/setup')
+    redirect("/setup")
   }
 
   // Check subscription status
   let subscription = null
   try {
-    const { data: subData } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('profile_id', profile.id)
-      .single()
+    const { data: subData } = await supabase.from("subscriptions").select("*").eq("profile_id", profile.id).single()
     subscription = subData
   } catch (err) {
     console.warn("Subscription fetch warning:", err)
@@ -101,18 +90,7 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
 
   return (
     <GamificationProvider>
-      <div className="flex flex-col min-h-screen bg-background text-foreground">
-        {/* Subscription Notice Banner */}
-        <SubscriptionBanner subscription={subscription} />
-
-        {/* Animated Dashboard Navigation */}
-        <DashboardNav />
-
-        {/* Main Content Area */}
-        <div className="flex-1 pb-24">
-          {children}
-        </div>
-      </div>
+      <DashboardLayoutWrapper subscription={subscription}>{children}</DashboardLayoutWrapper>
     </GamificationProvider>
   )
 }

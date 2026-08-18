@@ -1,2 +1,3 @@
 # Dependencies
+
 `next`, `react`, `tailwindcss`.

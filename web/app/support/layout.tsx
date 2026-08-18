@@ -1,8 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   title: "Support & Help — Ryu Medha",
-  description: "Get assistance, report issues, or contact the Ryu Medha team directly. We are here to help you succeed with your academic workflow.",
+  description:
+    "Get assistance, report issues, or contact the Ryu Medha team directly. We are here to help you succeed with your academic workflow.",
   openGraph: {
     title: "Support & Help — Ryu Medha",
     description: "Get assistance, report issues, or contact the Ryu Medha team directly.",
@@ -10,12 +11,12 @@ export const metadata: Metadata = {
     siteName: "Ryu Medha",
     type: "website",
   },
-};
+}
 
 export default function SupportLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
-  return <>{children}</>;
+  return <>{children}</>
 }

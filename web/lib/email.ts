@@ -1,27 +1,29 @@
-import nodemailer from 'nodemailer'
+import nodemailer from "nodemailer"
 
-const SMTP_USER = process.env.SMTP_USER || 'ryumedha@gmail.com'
+const SMTP_USER = process.env.SMTP_USER || "ryumedha@gmail.com"
 const SMTP_PASS = process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS
 
 function getTransporter() {
   if (!SMTP_PASS) {
-    console.warn('Email warning: Neither GMAIL_APP_PASSWORD nor SMTP_PASS is configured in .env. Emails will log in console.')
+    console.warn(
+      "Email warning: Neither GMAIL_APP_PASSWORD nor SMTP_PASS is configured in .env. Emails will log in console."
+    )
     return null
   }
 
   return nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
       user: SMTP_USER,
-      pass: SMTP_PASS
-    }
+      pass: SMTP_PASS,
+    },
   })
 }
 
 export interface PaymentEmailOptions {
   to: string
   displayName?: string
-  planType: 'monthly' | 'yearly'
+  planType: "monthly" | "yearly"
   razorpaySubId?: string
   amountFormatted?: string
   periodEnd?: string
@@ -29,9 +31,9 @@ export interface PaymentEmailOptions {
 
 export async function sendPaymentConfirmationEmail(options: PaymentEmailOptions): Promise<boolean> {
   const { to, displayName, planType, razorpaySubId, amountFormatted, periodEnd } = options
-  const name = displayName || 'Valued User'
-  const planName = planType === 'yearly' ? 'Yearly Plan (₹399/yr)' : 'Monthly Plan (₹39/mo)'
-  const price = amountFormatted || (planType === 'yearly' ? '₹399' : '₹39')
+  const name = displayName || "Valued User"
+  const planName = planType === "yearly" ? "Yearly Plan (₹399/yr)" : "Monthly Plan (₹39/mo)"
+  const price = amountFormatted || (planType === "yearly" ? "₹399" : "₹39")
 
   const html = `
     <!DOCTYPE html>
@@ -75,18 +77,26 @@ export async function sendPaymentConfirmationEmail(options: PaymentEmailOptions)
                 <span>Recurring Billing Rate:</span>
                 <span><strong>${price}</strong></span>
               </div>
-              ${razorpaySubId ? `
+              ${
+                razorpaySubId
+                  ? `
               <div class="receipt-row">
                 <span>Razorpay Subscription ID:</span>
                 <span style="font-family: monospace;">${razorpaySubId}</span>
               </div>
-              ` : ''}
-              ${periodEnd ? `
+              `
+                  : ""
+              }
+              ${
+                periodEnd
+                  ? `
               <div class="receipt-row">
                 <span>Next Renewal Date:</span>
                 <span>${periodEnd}</span>
               </div>
-              ` : ''}
+              `
+                  : ""
+              }
             </div>
 
             <p>You can manage your subscription, view billing history, or cancel anytime with 1-click from your account settings.</p>
@@ -115,14 +125,14 @@ export async function sendPaymentConfirmationEmail(options: PaymentEmailOptions)
     await transporter.sendMail({
       from: `"Ryu Medha" <${SMTP_USER}>`,
       to,
-      subject: `Payment Mandate Confirmed — Ryu Medha ${planType === 'yearly' ? 'Yearly' : 'Monthly'} Subscription`,
-      html
+      subject: `Payment Mandate Confirmed — Ryu Medha ${planType === "yearly" ? "Yearly" : "Monthly"} Subscription`,
+      html,
     })
 
     console.log(`Payment confirmation email sent successfully to ${to}`)
     return true
   } catch (err) {
-    console.error('Failed to send payment confirmation email:', err)
+    console.error("Failed to send payment confirmation email:", err)
     return false
   }
 }
@@ -131,16 +141,20 @@ export interface InviteEmailOptions {
   to: string
   displayName?: string
   code: string
-  durationType: '1_month' | '6_months' | '1_year' | 'lifetime'
+  durationType: "1_month" | "6_months" | "1_year" | "lifetime"
 }
 
 export async function sendInviteAccessEmail(options: InviteEmailOptions): Promise<boolean> {
   const { to, displayName, code, durationType } = options
-  const name = displayName || 'Valued User'
-  const durationLabel = 
-    durationType === 'lifetime' ? 'Free Lifetime Access' :
-    durationType === '6_months' ? 'Free 6-Months Access' :
-    durationType === '1_month' ? 'Free 1-Month Access' : 'Free 1-Year Access'
+  const name = displayName || "Valued User"
+  const durationLabel =
+    durationType === "lifetime"
+      ? "Free Lifetime Access"
+      : durationType === "6_months"
+        ? "Free 6-Months Access"
+        : durationType === "1_month"
+          ? "Free 1-Month Access"
+          : "Free 1-Year Access"
 
   const html = `
     <!DOCTYPE html>
@@ -213,13 +227,13 @@ export async function sendInviteAccessEmail(options: InviteEmailOptions): Promis
       from: `"Ryu Medha" <${SMTP_USER}>`,
       to,
       subject: `Invite Code Redeemed (${durationLabel}) — Ryu Medha`,
-      html
+      html,
     })
 
     console.log(`Invite access email sent successfully to ${to}`)
     return true
   } catch (err) {
-    console.error('Failed to send invite access email:', err)
+    console.error("Failed to send invite access email:", err)
     return false
   }
 }

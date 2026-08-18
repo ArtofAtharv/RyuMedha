@@ -12,27 +12,27 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Trash2, FolderOpen, BookOpen, Plus, Folder, Check, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import { m, Variants } from "motion/react"
-import { SubjectGridCard } from '@/components/dashboard/subject-grid-card'
+import { SubjectGridCard } from "@/components/dashboard/subject-grid-card"
 import { hexToGradient } from "@/lib/gradient"
 
 import type { DashboardSubject } from "@/lib/dashboard-types"
 import { getSourceCourse } from "@/lib/source-course"
 // import { SegmentedControl } from '@/components/dashboard/segmented-control'
-import { PageHeader } from '@/components/dashboard/page-header'
-import { useProfile } from '@/components/dashboard/profile-context'
+import { PageHeader } from "@/components/dashboard/page-header"
+import { useProfile } from "@/components/dashboard/profile-context"
 import { createReminder } from "@/app/actions/google-tasks"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+    transition: { staggerChildren: 0.12 },
+  },
 }
 
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 } }
+  hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
+  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
 }
 
 type SubjectRecord = DashboardSubject
@@ -53,28 +53,28 @@ interface CourseRecord {
 function formatOutputDate(d: Date) {
   // Return YYYY-MM-DD for database
   // we need to offset timezone issues
-  const offsetDate = new Date(d.getTime() - (d.getTimezoneOffset() * 60000))
-  return offsetDate.toISOString().split('T')[0]
+  const offsetDate = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+  return offsetDate.toISOString().split("T")[0]
 }
 
 export default function SubjectsPage() {
   const { profile, activeTrack } = useProfile()
-  const [profileId, setProfileId] = useState<string|null>(null)
+  const [profileId, setProfileId] = useState<string | null>(null)
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
-  
+
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>("all")
 
   const [subjects, setSubjects] = useState<SubjectRecord[]>([])
   const [categories, setCategories] = useState<CategoryRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState("")
-  
+
   const tab = activeTrack
   const type = activeTrack === "academics" ? "academic" : "personal"
-  
+
   const [name, setName] = useState("")
   const [categoryId, setCategoryId] = useState("none")
-  
+
   const [editingSubject, setEditingSubject] = useState<SubjectRecord | null>(null)
   const [subjectToDelete, setSubjectToDelete] = useState<SubjectRecord | null>(null)
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false)
@@ -92,23 +92,20 @@ export default function SubjectsPage() {
     async function init() {
       const supabase = getAppClient()
       setSupabaseClient(supabase)
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, current_semester_id')
-        .single()
-        
+
+      const { data: profile } = await supabase.from("profiles").select("id, current_semester_id").single()
+
       if (profile) {
         setProfileId(profile.id)
         await fetchSubjects(supabase)
         await fetchCategories(supabase, profile.id)
-        
+
         if (profile.current_semester_id) {
           const { data: courses } = await supabase
-            .from('academic_courses')
-            .select('id, course_name, instructor_name, expected_total_lectures')
-            .eq('semester_id', profile.current_semester_id)
-            .order('course_name')
+            .from("academic_courses")
+            .select("id, course_name, instructor_name, expected_total_lectures")
+            .eq("semester_id", profile.current_semester_id)
+            .order("course_name")
           setAvailableCourses(courses || [])
         }
       }
@@ -119,81 +116,80 @@ export default function SubjectsPage() {
   async function fetchSubjects(supabase: AppSupabaseClient) {
     setLoading(true)
     const { data: subjectsData } = await supabase
-      .from('subjects')
-      .select('*, source_course_id(*)')
-      .eq('is_active', true)
-      .order('name')
+      .from("subjects")
+      .select("*, source_course_id(*)")
+      .eq("is_active", true)
+      .order("name")
 
     // Fetch active, incomplete tasks (both exam and regular if linked) to match card display
-    const { data: activeTasks } = await supabase
-      .from('tasks')
-      .select('title, subject_id')
-      .eq('is_completed', false)
+    const { data: activeTasks } = await supabase.from("tasks").select("title, subject_id").eq("is_completed", false)
 
-    const processedSubjects = await Promise.all((subjectsData || []).map(async sub => {
-      const sourceCourse = getSourceCourse(sub.source_course_id)
-      if (sub.type === 'academic' && sourceCourse?.exam_dates) {
-        const filteredDates: Record<string, string> = {}
-        const updatedDatesInDb = { ...sourceCourse.exam_dates }
-        let dbCleanupNeeded = false
+    const processedSubjects = await Promise.all(
+      (subjectsData || []).map(async (sub) => {
+        const sourceCourse = getSourceCourse(sub.source_course_id)
+        if (sub.type === "academic" && sourceCourse?.exam_dates) {
+          const filteredDates: Record<string, string> = {}
+          const updatedDatesInDb = { ...sourceCourse.exam_dates }
+          let dbCleanupNeeded = false
 
-        Object.entries(sourceCourse.exam_dates).forEach(([label, date]) => {
-          const cleanLabel = label.trim().toLowerCase()
-          const hasActiveTask = activeTasks?.some(t => {
-            if (t.subject_id !== sub.id) return false
-            const cleanTaskTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
-            return cleanTaskTitle === cleanLabel
+          Object.entries(sourceCourse.exam_dates).forEach(([label, date]) => {
+            const cleanLabel = label.trim().toLowerCase()
+            const hasActiveTask = activeTasks?.some((t) => {
+              if (t.subject_id !== sub.id) return false
+              const cleanTaskTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
+              return cleanTaskTitle === cleanLabel
+            })
+            if (hasActiveTask) {
+              filteredDates[label] = date as string
+            } else {
+              dbCleanupNeeded = true
+              delete updatedDatesInDb[label]
+            }
           })
-          if (hasActiveTask) {
-            filteredDates[label] = date as string
-          } else {
-            dbCleanupNeeded = true
-            delete updatedDatesInDb[label]
-          }
-        })
-        
-        if (dbCleanupNeeded) {
-          const courseId = typeof sub.source_course_id === 'object' 
-            ? (sub.source_course_id as { id?: string })?.id 
-            : (sub.source_course_id as string)
-          if (courseId) {
-            await supabase
-              .from('academic_courses')
-              .update({ exam_dates: updatedDatesInDb })
-              .eq('id', courseId)
-          }
-        }
 
-        return {
-          ...sub,
-          source_course_id: {
-            ...sourceCourse,
-            exam_dates: filteredDates
+          if (dbCleanupNeeded) {
+            const courseId =
+              typeof sub.source_course_id === "object"
+                ? (sub.source_course_id as { id?: string })?.id
+                : (sub.source_course_id as string)
+            if (courseId) {
+              await supabase.from("academic_courses").update({ exam_dates: updatedDatesInDb }).eq("id", courseId)
+            }
+          }
+
+          return {
+            ...sub,
+            source_course_id: {
+              ...sourceCourse,
+              exam_dates: filteredDates,
+            },
           }
         }
-      }
-      return sub
-    }))
-    
+        return sub
+      })
+    )
+
     setSubjects((processedSubjects as SubjectRecord[]) || [])
     setLoading(false)
   }
 
-  const enrolledCourseIds = useMemo(() => new Set(subjects
-    .filter(s => s.source_course_id)
-    .map(s => {
-      if (typeof s.source_course_id === 'string') return s.source_course_id
-      return getSourceCourse(s.source_course_id)?.id
-    })
-    .filter((id): id is string => Boolean(id))), [subjects])
+  const enrolledCourseIds = useMemo(
+    () =>
+      new Set(
+        subjects
+          .filter((s) => s.source_course_id)
+          .map((s) => {
+            if (typeof s.source_course_id === "string") return s.source_course_id
+            return getSourceCourse(s.source_course_id)?.id
+          })
+          .filter((id): id is string => Boolean(id))
+      ),
+    [subjects]
+  )
 
   async function fetchCategories(supabase: AppSupabaseClient, pid: string) {
     if (!pid) return
-    const { data } = await supabase
-      .from('subject_categories')
-      .select('*')
-      .eq('profile_id', pid)
-      .order('name')
+    const { data } = await supabase.from("subject_categories").select("*").eq("profile_id", pid).order("name")
     setCategories(data || [])
   }
 
@@ -202,29 +198,33 @@ export default function SubjectsPage() {
   /* -------------------------------------------------------------------------- */
 
   async function processBulkCourses() {
-    if (selectedCourseIds.length === 0 || !supabaseClient || !profileId) return;
+    if (selectedCourseIds.length === 0 || !supabaseClient || !profileId) return
 
-    const existingIds = new Set(subjects
-      .map(s => typeof s.source_course_id === 'string' ? s.source_course_id : getSourceCourse(s.source_course_id)?.id)
-      .filter((id): id is string => Boolean(id)))
-    const deduplicatedIds = selectedCourseIds.filter(cid => !existingIds.has(cid))
+    const existingIds = new Set(
+      subjects
+        .map((s) =>
+          typeof s.source_course_id === "string" ? s.source_course_id : getSourceCourse(s.source_course_id)?.id
+        )
+        .filter((id): id is string => Boolean(id))
+    )
+    const deduplicatedIds = selectedCourseIds.filter((cid) => !existingIds.has(cid))
     const skippedCount = selectedCourseIds.length - deduplicatedIds.length
 
     if (deduplicatedIds.length > 0) {
-      const toInsert = deduplicatedIds.map(cid => {
-        const course = availableCourses.find(c => c.id === cid)
+      const toInsert = deduplicatedIds.map((cid) => {
+        const course = availableCourses.find((c) => c.id === cid)
         return {
           profile_id: profileId,
           name: course?.course_name || "Unknown",
-          type: 'academic',
+          type: "academic",
           source_course_id: cid,
           instructor_name: course?.instructor_name || null,
           expected_total_lectures: course?.expected_total_lectures || 0,
-          color_hex: '#3b82f6',
-          is_active: true
+          color_hex: "#3b82f6",
+          is_active: true,
         }
       })
-      const { error } = await supabaseClient.from('subjects').insert(toInsert)
+      const { error } = await supabaseClient.from("subjects").insert(toInsert)
       if (error) throw error
       toast.success(`Succesfully added ${deduplicatedIds.length} course(s)!`)
     }
@@ -235,28 +235,32 @@ export default function SubjectsPage() {
   }
 
   async function processNewCourse() {
-    if (!newCourseName.trim() || !supabaseClient || !profileId || !profile?.current_semester_id) return;
+    if (!newCourseName.trim() || !supabaseClient || !profileId || !profile?.current_semester_id) return
 
     const { data: newCourse, error: courseErr } = await supabaseClient
-      .from('academic_courses')
-      .insert([{
-        semester_id: profile.current_semester_id,
-        course_name: newCourseName.trim()
-      }])
+      .from("academic_courses")
+      .insert([
+        {
+          semester_id: profile.current_semester_id,
+          course_name: newCourseName.trim(),
+        },
+      ])
       .select()
       .single()
-    
+
     if (courseErr) throw courseErr
 
     if (newCourse) {
-      const { error: subErr } = await supabaseClient.from('subjects').insert([{
-        profile_id: profileId,
-        name: newCourse.course_name,
-        type: 'academic',
-        source_course_id: newCourse.id,
-        color_hex: '#3b82f6',
-        is_active: true
-      }])
+      const { error: subErr } = await supabaseClient.from("subjects").insert([
+        {
+          profile_id: profileId,
+          name: newCourse.course_name,
+          type: "academic",
+          source_course_id: newCourse.id,
+          color_hex: "#3b82f6",
+          is_active: true,
+        },
+      ])
       if (subErr) throw subErr
       toast.success(`Created and added "${newCourse.course_name}"`)
     }
@@ -286,17 +290,17 @@ export default function SubjectsPage() {
 
   async function handleAddPersonalSubject() {
     if (!supabaseClient || !profileId) return
-    const colorHex = categoryId === 'none' ? '#8b5cf6' : categories.find(c => c.id === categoryId)?.color_hex
-    const { error } = await supabaseClient
-      .from('subjects')
-      .insert([{
+    const colorHex = categoryId === "none" ? "#8b5cf6" : categories.find((c) => c.id === categoryId)?.color_hex
+    const { error } = await supabaseClient.from("subjects").insert([
+      {
         profile_id: profileId,
         name: name.trim(),
         type: type,
         source_course_id: null,
-        category_id: type === 'personal' && categoryId !== "none" ? categoryId : null,
-        color_hex: colorHex
-      }])
+        category_id: type === "personal" && categoryId !== "none" ? categoryId : null,
+        color_hex: colorHex,
+      },
+    ])
 
     if (error) {
       setErrorMsg(`Failed to add subject: ${error.message}`)
@@ -311,20 +315,22 @@ export default function SubjectsPage() {
   async function handleAddSubject(e: React.SyntheticEvent) {
     e.preventDefault()
     if (!supabaseClient || !profileId) return
-    
+
     // Fixed validation: personal needs name, academic needs selected courses or a new name
-    if (type === 'personal' && !name.trim()) return
-    if (type === 'academic' && selectedCourseIds.length === 0 && !newCourseName.trim()) return
+    if (type === "personal" && !name.trim()) return
+    if (type === "academic" && selectedCourseIds.length === 0 && !newCourseName.trim()) return
 
     setErrorMsg("")
 
-    const duplicate = subjects.find(s => s.name.toLowerCase() === name.trim().toLowerCase())
+    const duplicate = subjects.find((s) => s.name.toLowerCase() === name.trim().toLowerCase())
     if (duplicate) {
-      setErrorMsg(`A subject named "${duplicate.name}" already exists (${duplicate.type}). Please choose a different name.`)
+      setErrorMsg(
+        `A subject named "${duplicate.name}" already exists (${duplicate.type}). Please choose a different name.`
+      )
       return
     }
 
-    if (type === 'academic') {
+    if (type === "academic") {
       await handleAddAcademicSubject()
     } else {
       await handleAddPersonalSubject()
@@ -333,7 +339,7 @@ export default function SubjectsPage() {
 
   async function confirmDelete() {
     if (!subjectToDelete || !supabaseClient) return
-    await supabaseClient.from('subjects').delete().eq('id', subjectToDelete.id)
+    await supabaseClient.from("subjects").delete().eq("id", subjectToDelete.id)
     setSubjectToDelete(null)
     fetchSubjects(supabaseClient)
   }
@@ -343,35 +349,36 @@ export default function SubjectsPage() {
     const supabase = supabaseClient
 
     // Handle shared data if academic
-    if (editingSubject.type === 'academic' && editingSubject.source_course_id) {
-      const courseId = typeof editingSubject.source_course_id === 'string'
-        ? editingSubject.source_course_id
-        : getSourceCourse(editingSubject.source_course_id)?.id
+    if (editingSubject.type === "academic" && editingSubject.source_course_id) {
+      const courseId =
+        typeof editingSubject.source_course_id === "string"
+          ? editingSubject.source_course_id
+          : getSourceCourse(editingSubject.source_course_id)?.id
 
       if (!courseId) return
 
       await supabase
-        .from('academic_courses')
-        .update({ 
+        .from("academic_courses")
+        .update({
           instructor_name: editingSubject.instructor_name,
-          expected_total_lectures: Number(editingSubject.expected_total_lectures || 0)
+          expected_total_lectures: Number(editingSubject.expected_total_lectures || 0),
         })
-        .eq('id', courseId)
+        .eq("id", courseId)
     }
 
-    const updates: Record<string, string | number | null | boolean> = { 
-        name: editingSubject.name.trim(),
-        label: editingSubject.label ?? null,
-        color_hex: editingSubject.color_hex ?? null,
-        category_id: editingSubject.type === 'personal' && editingSubject.category_id !== "none" ? (editingSubject.category_id ?? null) : null,
-        expected_total_lectures: Number(editingSubject.expected_total_lectures || 0),
-        instructor_name: editingSubject.instructor_name ?? null
+    const updates: Record<string, string | number | null | boolean> = {
+      name: editingSubject.name.trim(),
+      label: editingSubject.label ?? null,
+      color_hex: editingSubject.color_hex ?? null,
+      category_id:
+        editingSubject.type === "personal" && editingSubject.category_id !== "none"
+          ? (editingSubject.category_id ?? null)
+          : null,
+      expected_total_lectures: Number(editingSubject.expected_total_lectures || 0),
+      instructor_name: editingSubject.instructor_name ?? null,
     }
 
-    await supabase
-      .from('subjects')
-      .update(updates)
-      .eq('id', editingSubject.id)
+    await supabase.from("subjects").update(updates).eq("id", editingSubject.id)
 
     setEditingSubject(null)
     fetchSubjects(supabase)
@@ -386,27 +393,33 @@ export default function SubjectsPage() {
 
     // 1. Try to update academic_courses so it is shared with everyone
     const { data: subjectData } = await supabaseClient
-      .from('subjects')
-      .select('type, source_course_id(id, exam_dates)')
-      .eq('id', subject_id)
+      .from("subjects")
+      .select("type, source_course_id(id, exam_dates)")
+      .eq("id", subject_id)
       .single()
 
-    if (subjectData?.type === 'academic' && subjectData.source_course_id) {
-      const courseId = typeof subjectData.source_course_id === 'object' ? (subjectData.source_course_id as {id?: string})?.id : (subjectData.source_course_id as string);
-      const existingDates: Record<string, string> = typeof subjectData.source_course_id === 'object' && !Array.isArray(subjectData.source_course_id) ? ((subjectData.source_course_id as {exam_dates?: Record<string, string>})?.exam_dates || {}) : {};
-       
-      const updatedDates = { ...existingDates, [label]: formatOutputDate(date) };
+    if (subjectData?.type === "academic" && subjectData.source_course_id) {
+      const courseId =
+        typeof subjectData.source_course_id === "object"
+          ? (subjectData.source_course_id as { id?: string })?.id
+          : (subjectData.source_course_id as string)
+      const existingDates: Record<string, string> =
+        typeof subjectData.source_course_id === "object" && !Array.isArray(subjectData.source_course_id)
+          ? (subjectData.source_course_id as { exam_dates?: Record<string, string> })?.exam_dates || {}
+          : {}
+
+      const updatedDates = { ...existingDates, [label]: formatOutputDate(date) }
 
       const { error: courseError } = await supabaseClient
-        .from('academic_courses')
+        .from("academic_courses")
         .update({ exam_dates: updatedDates })
-        .eq('id', courseId)
-       
+        .eq("id", courseId)
+
       if (courseError) {
         toast.error("Failed to add shared exam date to course", { description: courseError.message })
         return
       }
-      
+
       // Refresh subjects so the UI picks up the new exam_date object
       fetchSubjects(supabaseClient)
     }
@@ -427,8 +440,8 @@ export default function SubjectsPage() {
           twoDaysPrior: false,
           oneWeekPrior: true,
           twoWeeksPrior: false,
-          customPrior: false
-        }
+          customPrior: false,
+        },
       })
     } catch (googleError) {
       console.warn("Google Tasks sync failed inside subjects tab, falling back to direct db insert:", googleError)
@@ -436,19 +449,21 @@ export default function SubjectsPage() {
 
     if (!createdTask) {
       const { error } = await supabaseClient
-        .from('tasks')
-        .insert([{
-          profile_id: profileId,
-          subject_id: subject_id,
-          title: titleWithPrefix,
-          due_date: dateStr,
-          priority: 'high',
-          is_completed: false,
-          is_exam: true
-        }])
+        .from("tasks")
+        .insert([
+          {
+            profile_id: profileId,
+            subject_id: subject_id,
+            title: titleWithPrefix,
+            due_date: dateStr,
+            priority: "high",
+            is_completed: false,
+            is_exam: true,
+          },
+        ])
         .select()
         .single()
-      
+
       if (error) {
         setErrorMsg(`Failed to add custom date: ${error.message}`)
         toast.error("Failed to add exam date", { description: error.message })
@@ -457,14 +472,14 @@ export default function SubjectsPage() {
     } else {
       // Mark as is_exam: true
       await supabaseClient
-        .from('tasks')
+        .from("tasks")
         .update({ is_exam: true })
-        .eq('title', titleWithPrefix)
-        .eq('profile_id', profileId)
+        .eq("title", titleWithPrefix)
+        .eq("profile_id", profileId)
     }
 
-    toast.success("Exam Date Added", { 
-      description: `"${label}" has been added. It is synced to Google Calendar & Tasks.` 
+    toast.success("Exam Date Added", {
+      description: `"${label}" has been added. It is synced to Google Calendar & Tasks.`,
     })
   }
 
@@ -473,23 +488,29 @@ export default function SubjectsPage() {
 
     // 1. Update academic_courses to delete the exam date
     const { data: subjectData } = await supabaseClient
-      .from('subjects')
-      .select('type, source_course_id(id, exam_dates)')
-      .eq('id', subject_id)
+      .from("subjects")
+      .select("type, source_course_id(id, exam_dates)")
+      .eq("id", subject_id)
       .single()
 
-    if (subjectData?.type === 'academic' && subjectData.source_course_id) {
-      const courseId = typeof subjectData.source_course_id === 'object' ? (subjectData.source_course_id as {id?: string})?.id : (subjectData.source_course_id as string);
-      const existingDates: Record<string, string> = typeof subjectData.source_course_id === 'object' && !Array.isArray(subjectData.source_course_id) ? ((subjectData.source_course_id as {exam_dates?: Record<string, string>})?.exam_dates || {}) : {};
-       
-      const updatedDates = { ...existingDates };
-      delete updatedDates[label];
+    if (subjectData?.type === "academic" && subjectData.source_course_id) {
+      const courseId =
+        typeof subjectData.source_course_id === "object"
+          ? (subjectData.source_course_id as { id?: string })?.id
+          : (subjectData.source_course_id as string)
+      const existingDates: Record<string, string> =
+        typeof subjectData.source_course_id === "object" && !Array.isArray(subjectData.source_course_id)
+          ? (subjectData.source_course_id as { exam_dates?: Record<string, string> })?.exam_dates || {}
+          : {}
+
+      const updatedDates = { ...existingDates }
+      delete updatedDates[label]
 
       const { error: courseError } = await supabaseClient
-        .from('academic_courses')
+        .from("academic_courses")
         .update({ exam_dates: updatedDates })
-        .eq('id', courseId)
-       
+        .eq("id", courseId)
+
       if (courseError) {
         toast.error("Failed to delete exam date", { description: courseError.message })
         return
@@ -499,12 +520,12 @@ export default function SubjectsPage() {
     // 2. Try to find and delete matching task
     try {
       const { data: matchedTasks } = await supabaseClient
-        .from('tasks')
-        .select('id, title')
-        .eq('subject_id', subject_id)
-        .eq('profile_id', profileId)
+        .from("tasks")
+        .select("id, title")
+        .eq("subject_id", subject_id)
+        .eq("profile_id", profileId)
 
-      const match = matchedTasks?.find(t => {
+      const match = matchedTasks?.find((t) => {
         const cleanTitle = t.title.replace("[Exam] ", "").trim().toLowerCase()
         return cleanTitle === label.trim().toLowerCase()
       })
@@ -521,20 +542,19 @@ export default function SubjectsPage() {
     fetchSubjects(supabaseClient)
   }
 
-
   /* -------------------------------------------------------------------------- */
   /*                            CATEGORY MANAGEMENT                             */
   /* -------------------------------------------------------------------------- */
 
   async function handleCreateCategory() {
     if (!newCategoryName.trim() || !profileId || !supabaseClient) return
-    await supabaseClient
-      .from('subject_categories')
-      .insert([{
+    await supabaseClient.from("subject_categories").insert([
+      {
         profile_id: profileId,
         name: newCategoryName.trim(),
-        color_hex: newCategoryColor
-      }])
+        color_hex: newCategoryColor,
+      },
+    ])
     setNewCategoryName("")
     setNewCategoryColor("#8b5cf6")
     fetchCategories(supabaseClient, profileId)
@@ -543,21 +563,20 @@ export default function SubjectsPage() {
   async function handleDeleteCategory(id: string) {
     if (!profileId || !supabaseClient) return
     // Setting subjects with this category to NULL category first (handled conditionally by FK constraint IF ON DELETE SET NULL, but doing it safely anyway)
-    await supabaseClient.from('subjects').update({ category_id: null }).eq('category_id', id)
-    await supabaseClient.from('subject_categories').delete().eq('id', id)
+    await supabaseClient.from("subjects").update({ category_id: null }).eq("category_id", id)
+    await supabaseClient.from("subject_categories").delete().eq("id", id)
     fetchCategories(supabaseClient, profileId)
     fetchSubjects(supabaseClient) // Refresh to show uncategorized subjects
   }
-
 
   /* -------------------------------------------------------------------------- */
   /*                                RENDER LOOP                                 */
   /* -------------------------------------------------------------------------- */
 
   const filteredSubjects = useMemo(() => {
-    return subjects.filter(s => {
+    return subjects.filter((s) => {
       // 1. Filter by Academic Hierarchy (active semester)
-      if (s.type === 'academic') {
+      if (s.type === "academic") {
         const semId = Array.isArray(s.source_course_id)
           ? s.source_course_id[0]?.semester_id
           : s.source_course_id?.semester_id
@@ -571,8 +590,8 @@ export default function SubjectsPage() {
     })
   }, [subjects, selectedCategoryFilter, profile?.current_semester_id])
 
-  const academicSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'academic'), [filteredSubjects])
-  const personalSubjects = useMemo(() => filteredSubjects.filter(s => s.type === 'personal'), [filteredSubjects])
+  const academicSubjects = useMemo(() => filteredSubjects.filter((s) => s.type === "academic"), [filteredSubjects])
+  const personalSubjects = useMemo(() => filteredSubjects.filter((s) => s.type === "personal"), [filteredSubjects])
 
   const sortedCourses = useMemo(() => {
     return [...availableCourses].sort((a, b) => {
@@ -584,40 +603,38 @@ export default function SubjectsPage() {
   }, [availableCourses, enrolledCourseIds])
 
   function toggleCourseSelection(courseId: string, isEnrolled: boolean) {
-    if (isEnrolled) return;
-    setSelectedCourseIds(prev => 
-      prev.includes(courseId) 
-        ? prev.filter(id => id !== courseId) 
-        : [...prev, courseId]
-    );
+    if (isEnrolled) return
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    )
   }
 
   if (loading && subjects.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-10 animate-in fade-in duration-500">
+      <div className="animate-in fade-in mx-auto w-full max-w-[1600px] space-y-10 px-4 py-8 duration-500 md:px-6 lg:px-8">
         {/* Header Skeleton */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
           <div className="space-y-2">
-            <div className="h-9 w-48 bg-muted animate-pulse rounded-md" />
-            <div className="h-4 w-72 bg-muted/60 animate-pulse rounded-md" />
+            <div className="bg-muted h-9 w-48 animate-pulse rounded-md" />
+            <div className="bg-muted/60 h-4 w-72 animate-pulse rounded-md" />
           </div>
         </div>
 
         {/* Add Form Skeleton */}
-        <Card className="bg-card/60 backdrop-blur-2xl border-none shadow-sm rounded-3xl">
+        <Card className="bg-card/60 rounded-3xl border-none shadow-sm backdrop-blur-2xl">
           <CardContent className="p-4">
-            <div className="h-4 w-32 bg-muted animate-pulse rounded-md mb-4" />
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-end">
+            <div className="bg-muted mb-4 h-4 w-32 animate-pulse rounded-md" />
+            <div className="grid grid-cols-1 items-end gap-4 sm:grid-cols-12">
               <div className="space-y-2 sm:col-span-5">
-                <div className="h-3 w-20 bg-muted/60 animate-pulse rounded-md" />
-                <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                <div className="bg-muted/60 h-3 w-20 animate-pulse rounded-md" />
+                <div className="bg-muted h-10 w-full animate-pulse rounded-md" />
               </div>
               <div className="space-y-2 sm:col-span-4">
-                <div className="h-3 w-12 bg-muted/60 animate-pulse rounded-md" />
-                <div className="h-10 w-full bg-muted animate-pulse rounded-md" />
+                <div className="bg-muted/60 h-3 w-12 animate-pulse rounded-md" />
+                <div className="bg-muted h-10 w-full animate-pulse rounded-md" />
               </div>
               <div className="sm:col-span-3">
-                <div className="h-10 w-full bg-primary/20 animate-pulse rounded-md" />
+                <div className="bg-primary/20 h-10 w-full animate-pulse rounded-md" />
               </div>
             </div>
           </CardContent>
@@ -625,11 +642,14 @@ export default function SubjectsPage() {
 
         {/* Categories Skeleton */}
         <div className="space-y-4">
-          <div className="h-6 w-40 bg-muted animate-pulse rounded-md" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-muted h-6 w-40 animate-pulse rounded-md" />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {[1, 2, 3].map((val) => (
               // NOSONAR
-              <div key={`skeleton-category-${val}`} className="rounded-3xl border bg-card text-card-foreground shadow-sm h-64 overflow-hidden relative isolate p-6" />
+              <div
+                key={`skeleton-category-${val}`}
+                className="bg-card text-card-foreground relative isolate h-64 overflow-hidden rounded-3xl border p-6 shadow-sm"
+              />
             ))}
           </div>
         </div>
@@ -639,23 +659,24 @@ export default function SubjectsPage() {
 
   if (!loading && !profile?.academics_enabled && !profile?.personal_enabled) {
     return (
-      <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        <PageHeader 
-          title="Subjects" 
-          description="Manage your active academic courses and personal learning tracks." 
-        />
-        <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg rounded-3xl">
-          <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-            <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
-              <FolderOpen className="w-10 h-10 text-muted-foreground/60" />
+      <div className="mx-auto w-full max-w-[1600px] space-y-8 px-4 py-8 md:px-6 lg:px-8">
+        <PageHeader title="Subjects" description="Manage your active academic courses and personal learning tracks." />
+        <Card className="bg-card/60 rounded-3xl border-none shadow-lg backdrop-blur-2xl">
+          <CardContent className="flex flex-col items-center justify-center space-y-6 py-20 text-center">
+            <div className="bg-muted flex h-20 w-20 items-center justify-center rounded-full">
+              <FolderOpen className="text-muted-foreground/60 h-10 w-10" />
             </div>
-            <div className="space-y-2 max-w-sm">
+            <div className="max-w-sm space-y-2">
               <CardTitle className="text-2xl font-semibold tracking-tight">Tracks Disabled</CardTitle>
-              <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
-                Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to start managing subjects.
+              <CardDescription className="text-muted-foreground/80 text-base leading-relaxed font-medium">
+                Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to
+                start managing subjects.
               </CardDescription>
             </div>
-            <Button onClick={() => window.location.href = '/dashboard/profile'} className="font-semibold h-12 px-8 text-base rounded-2xl">
+            <Button
+              onClick={() => (window.location.href = "/dashboard/profile")}
+              className="h-12 rounded-2xl px-8 text-base font-semibold"
+            >
               Go to Settings
             </Button>
           </CardContent>
@@ -665,16 +686,18 @@ export default function SubjectsPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-      
+    <div className="mx-auto max-w-[1600px] space-y-8 px-6 py-8">
       {/* Header section */}
-      <PageHeader 
-        title="Subjects" 
-        description="Manage your active academic courses and personal learning tracks." 
+      <PageHeader
+        title="Subjects"
+        description="Manage your active academic courses and personal learning tracks."
         action={
           <div className="flex items-center gap-2">
-            <Button onClick={() => setIsAddSubjectModalOpen(true)} className="gap-2 rounded-full font-bold shadow-sm h-9 cursor-pointer">
-              <Plus className="w-4 h-4" /> Add
+            <Button
+              onClick={() => setIsAddSubjectModalOpen(true)}
+              className="h-9 cursor-pointer gap-2 rounded-full font-bold shadow-sm"
+            >
+              <Plus className="h-4 w-4" /> Add
             </Button>
           </div>
         }
@@ -683,25 +706,31 @@ export default function SubjectsPage() {
       {/* --- ACADEMIC SUBJECTS --- */}
       {profile?.academics_enabled && tab === "academics" && (
         <section className="space-y-4">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-primary" /> Academic Track
+          <h2 className="flex items-center gap-2 text-xl font-bold">
+            <BookOpen className="text-primary h-5 w-5" /> Academic Track
           </h2>
           {academicSubjects.length === 0 ? (
-            <div className="p-8 text-center border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-2xl bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
+            <div className="bg-card/60 bg-card/60 rounded-2xl rounded-3xl border-none p-8 text-center shadow-sm backdrop-blur-2xl">
               <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
             </div>
           ) : (
-            <m.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {academicSubjects.map(sub => (
+            <m.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
+            >
+              {academicSubjects.map((sub) => (
                 <m.div key={sub.id} variants={itemVariants}>
-                  <SubjectGridCard 
-                    subject={sub} 
+                  <SubjectGridCard
+                    subject={sub}
                     onEdit={() => {
                       const sourceCourse = getSourceCourse(sub.source_course_id)
                       setEditingSubject({
-                        ...sub, 
+                        ...sub,
                         instructor_name: sourceCourse?.instructor_name || sub.instructor_name || "",
-                        expected_total_lectures: sourceCourse?.expected_total_lectures || sub.expected_total_lectures || 0
+                        expected_total_lectures:
+                          sourceCourse?.expected_total_lectures || sub.expected_total_lectures || 0,
                       })
                     }}
                     onDelete={() => setSubjectToDelete(sub)}
@@ -716,70 +745,87 @@ export default function SubjectsPage() {
 
       {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
       {profile?.personal_enabled && tab === "personal" && (
-        <section className="space-y-6 pt-4 border-t">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <FolderOpen className="w-5 h-5 text-primary" /> Personal Learning
+        <section className="space-y-6 border-t pt-4">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <h2 className="flex items-center gap-2 text-xl font-bold">
+              <FolderOpen className="text-primary h-5 w-5" /> Personal Learning
             </h2>
-            
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+
+            <div className="flex w-full items-center gap-2 sm:w-auto">
               <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                <SelectTrigger className="h-8 w-full sm:w-45 text-xs font-bold border-black/10 dark:border-white/10 shadow-sm bg-muted/20">
+                <SelectTrigger className="bg-muted/20 h-8 w-full border-black/10 text-xs font-bold shadow-sm sm:w-45 dark:border-white/10">
                   <SelectValue placeholder="All Categories" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
                   <SelectItem value="uncategorized">Uncategorized</SelectItem>
-                  {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
 
-              <Button variant="outline" size="sm" onClick={() => setIsCategoryModalOpen(true)} className="h-8 shrink-0 font-bold border-black/10 dark:border-white/10 shadow-sm text-xs px-2 sm:px-3">
-                <Folder className="w-3.5 h-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="h-8 shrink-0 border-black/10 px-2 text-xs font-bold shadow-sm sm:px-3 dark:border-white/10"
+              >
+                <Folder className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
               </Button>
             </div>
           </div>
 
           {personalSubjects.length === 0 ? (
-            <div className="p-8 text-center border-none bg-card/60 backdrop-blur-2xl shadow-sm rounded-2xl bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
+            <div className="bg-card/60 bg-card/60 rounded-2xl rounded-3xl border-none p-8 text-center shadow-sm backdrop-blur-2xl">
               <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
             </div>
           ) : (
-            <m.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <m.div
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
+            >
               {filteredSubjects
-                .filter(s => s.type === 'personal')
-                .map(sub => {
-                  const subCategory = categories.find(c => c.id === sub.category_id)
+                .filter((s) => s.type === "personal")
+                .map((sub) => {
+                  const subCategory = categories.find((c) => c.id === sub.category_id)
                   return (
                     <m.div key={sub.id} variants={itemVariants}>
-                      <SubjectGridCard 
-                        subject={{...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex}} 
+                      <SubjectGridCard
+                        subject={{ ...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex }}
                         category={subCategory}
-                        onEdit={() => setEditingSubject({
-                          ...sub,
-                          instructor_name: sub.instructor_name || "",
-                          expected_total_lectures: sub.expected_total_lectures || 0
-                        })}
+                        onEdit={() =>
+                          setEditingSubject({
+                            ...sub,
+                            instructor_name: sub.instructor_name || "",
+                            expected_total_lectures: sub.expected_total_lectures || 0,
+                          })
+                        }
                         onDelete={() => setSubjectToDelete(sub)}
                         onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
                       />
                     </m.div>
                   )
-              })}
+                })}
             </m.div>
           )}
-
         </section>
       )}
 
       {/* --- ADD SUBJECT MODAL --- */}
       <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
-          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
+        <DialogContent className="border-border/50 overflow-hidden p-0 outline-none sm:max-w-md">
+          <DialogHeader className="bg-muted/20 border-b px-6 pt-6 pb-2">
             <DialogTitle>Add New Subject</DialogTitle>
-            <DialogDescription className="sr-only">Add a new academic or personal subject to your curriculum</DialogDescription>
+            <DialogDescription className="sr-only">
+              Add a new academic or personal subject to your curriculum
+            </DialogDescription>
           </DialogHeader>
-          <div className="p-6 max-h-[75vh] overflow-y-auto">
+          <div className="max-h-[75dvh] overflow-y-auto p-6">
             <form onSubmit={handleAddSubject} className="grid grid-cols-1 gap-4">
               {errorMsg && (
                 <div className="col-span-1">
@@ -789,95 +835,132 @@ export default function SubjectsPage() {
                   </Alert>
                 </div>
               )}
-              
+
               <m.div layout className="space-y-4">
                 {tab === "academics" ? (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-muted-foreground">Select Course(s)</Label>
-                      
+                      <Label className="text-muted-foreground text-sm font-semibold">Select Course(s)</Label>
+
                       <div className="space-y-2">
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setIsPopoverOpen(!isPopoverOpen)} 
-                          className="w-full h-10 justify-between bg-background border-muted-foreground/20 text-xs font-bold px-3 cursor-pointer"
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setIsPopoverOpen(!isPopoverOpen)}
+                          className="bg-background border-muted-foreground/20 h-10 w-full cursor-pointer justify-between px-3 text-xs font-bold"
                         >
-                          {selectedCourseIds.length > 0 
-                            ? `${selectedCourseIds.length} course(s) selected` 
+                          {selectedCourseIds.length > 0
+                            ? `${selectedCourseIds.length} course(s) selected`
                             : "Select academic courses..."}
-                          <ChevronDown className={`w-4 h-4 ml-2 opacity-50 transition-transform duration-200 ${isPopoverOpen ? "rotate-180" : ""}`} />
+                          <ChevronDown
+                            className={`ml-2 h-4 w-4 opacity-50 transition-transform duration-200 ${isPopoverOpen ? "rotate-180" : ""}`}
+                          />
                         </Button>
-                        
+
                         {isPopoverOpen && (
-                          <div className="border border-border/50 rounded-xl bg-card shadow-sm overflow-hidden animate-in fade-in-50 duration-200">
-                            <div className="p-2 border-b bg-muted/20 flex justify-between items-center">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 py-1">Semester Curriculum</p>
-                              <Button type="button" variant="ghost" size="sm" className="h-6 text-[10px] font-bold px-2 tracking-wider uppercase cursor-pointer" onClick={() => setIsPopoverOpen(false)}>
+                          <div className="border-border/50 bg-card animate-in fade-in-50 overflow-hidden rounded-xl border shadow-sm duration-200">
+                            <div className="bg-muted/20 flex items-center justify-between border-b p-2">
+                              <p className="text-muted-foreground px-2 py-1 text-[10px] font-bold tracking-widest uppercase">
+                                Semester Curriculum
+                              </p>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 cursor-pointer px-2 text-[10px] font-bold tracking-wider uppercase"
+                                onClick={() => setIsPopoverOpen(false)}
+                              >
                                 Done
                               </Button>
                             </div>
-                            <div className="max-h-60 overflow-y-auto overscroll-contain touch-pan-y p-1.5">
+                            <div className="max-h-60 touch-pan-y overflow-y-auto overscroll-contain p-1.5">
                               {availableCourses.length > 0 ? (
-                                sortedCourses.map(c => {
+                                sortedCourses.map((c) => {
                                   const isEnrolled = enrolledCourseIds.has(c.id)
                                   const isSelected = selectedCourseIds.includes(c.id)
                                   return (
-                                    <button 
+                                    <button
                                       key={c.id}
                                       type="button"
                                       onClick={() => toggleCourseSelection(c.id, isEnrolled)}
-                                      className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm cursor-pointer transition-all hover:bg-muted/50 mb-0.5 ${isEnrolled ? 'opacity-50 cursor-not-allowed bg-muted/20' : ''} ${isSelected ? 'bg-primary/5 text-primary' : ''}`}
+                                      className={`hover:bg-muted/50 mb-0.5 flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-sm transition-all ${isEnrolled ? "bg-muted/20 cursor-not-allowed opacity-50" : ""} ${isSelected ? "bg-primary/5 text-primary" : ""}`}
                                     >
-                                      <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${isSelected || isEnrolled ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground/30'}`}>
-                                        {(isSelected || isEnrolled) && <Check className="w-3 h-3" />}
+                                      <div
+                                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${isSelected || isEnrolled ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"}`}
+                                      >
+                                        {(isSelected || isEnrolled) && <Check className="h-3 w-3" />}
                                       </div>
                                       <div className="flex flex-col truncate">
-                                        <span className={`font-bold text-xs truncate ${isSelected ? 'text-primary' : ''}`}>{c.course_name}</span>
-                                        {isEnrolled && <span className="text-[9px] font-medium text-muted-foreground">Already enrolled</span>}
+                                        <span
+                                          className={`truncate text-xs font-bold ${isSelected ? "text-primary" : ""}`}
+                                        >
+                                          {c.course_name}
+                                        </span>
+                                        {isEnrolled && (
+                                          <span className="text-muted-foreground text-[9px] font-medium">
+                                            Already enrolled
+                                          </span>
+                                        )}
                                       </div>
                                     </button>
                                   )
                                 })
                               ) : (
-                                <p className="text-xs text-muted-foreground font-medium p-4 text-center">No shared courses found for your semester.</p>
+                                <p className="text-muted-foreground p-4 text-center text-xs font-medium">
+                                  No shared courses found for your semester.
+                                </p>
                               )}
                             </div>
                           </div>
                         )}
                       </div>
                       {availableCourses.length === 0 && (
-                        <p className="text-[10px] text-muted-foreground font-medium mb-2">
+                        <p className="text-muted-foreground mb-2 text-[10px] font-medium">
                           Be the first from this semester to add courses!
                         </p>
                       )}
                     </div>
-                    
+
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-muted-foreground">Or Create Custom</Label>
-                      <Input 
-                        value={newCourseName} 
-                        onChange={(e) => setNewCourseName(e.target.value)} 
-                        placeholder="Type new course name..." 
-                        className="h-10 bg-background shadow-sm border-muted-foreground/20"
+                      <Label className="text-muted-foreground text-sm font-semibold">Or Create Custom</Label>
+                      <Input
+                        value={newCourseName}
+                        onChange={(e) => setNewCourseName(e.target.value)}
+                        placeholder="Type new course name..."
+                        className="bg-background border-muted-foreground/20 h-10 shadow-sm"
                       />
                     </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="name" className="text-sm font-semibold text-muted-foreground">Subject Name</Label>
-                      <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Personal Development" className="h-10 bg-background shadow-sm border-muted-foreground/20" required />
+                      <Label htmlFor="name" className="text-muted-foreground text-sm font-semibold">
+                        Subject Name
+                      </Label>
+                      <Input
+                        id="name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Personal Development"
+                        className="bg-background border-muted-foreground/20 h-10 shadow-sm"
+                        required
+                      />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="category" className="text-sm font-semibold text-muted-foreground">Category</Label>
+                      <Label htmlFor="category" className="text-muted-foreground text-sm font-semibold">
+                        Category
+                      </Label>
                       <Select value={categoryId} onValueChange={setCategoryId}>
-                        <SelectTrigger className="h-10 w-full bg-background shadow-sm border-muted-foreground/20">
+                        <SelectTrigger className="bg-background border-muted-foreground/20 h-10 w-full shadow-sm">
                           <SelectValue placeholder="No Category" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Uncategorized</SelectItem>
-                          {categories.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -885,10 +968,17 @@ export default function SubjectsPage() {
                 )}
               </m.div>
 
-              <div className="pt-4 flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsAddSubjectModalOpen(false)} className="flex-1">Cancel</Button>
+              <div className="flex gap-2 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddSubjectModalOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
                 <Button type="submit" className="flex-1 font-bold tracking-tight shadow-sm">
-                  Add {type === 'academic' && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : '')}
+                  Add {type === "academic" && (selectedCourseIds.length > 1 ? `(${selectedCourseIds.length})` : "")}
                 </Button>
               </div>
             </form>
@@ -898,46 +988,74 @@ export default function SubjectsPage() {
 
       {/* --- EDIT SUBJECT MODAL --- */}
       <Dialog open={!!editingSubject} onOpenChange={(open: boolean) => !open && setEditingSubject(null)}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
-          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-muted/20">
+        <DialogContent className="border-border/50 overflow-hidden p-0 outline-none sm:max-w-md">
+          <DialogHeader className="bg-muted/20 border-b px-6 pt-6 pb-2">
             <DialogTitle>Edit Subject</DialogTitle>
             <DialogDescription className="sr-only">Edit details of your curriculum subject</DialogDescription>
           </DialogHeader>
           {editingSubject && (
-            <div className="space-y-4 px-6 pb-6 pt-4 max-h-[75vh] overflow-y-auto">
-              
+            <div className="max-h-[75dvh] space-y-4 overflow-y-auto px-6 pt-4 pb-6">
               <div className="space-y-1.5">
                 <Label>Subject Name</Label>
-                <Input value={editingSubject.name} onChange={e => setEditingSubject({...editingSubject, name: e.target.value})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
+                <Input
+                  value={editingSubject.name}
+                  onChange={(e) => setEditingSubject({ ...editingSubject, name: e.target.value })}
+                  className="bg-card/60 rounded-3xl shadow-sm backdrop-blur-2xl"
+                />
               </div>
 
               <div className="space-y-1.5">
                 <Label>Instructor Name</Label>
-                <Input 
-                  value={editingSubject.instructor_name || ""} 
-                  onChange={e => setEditingSubject({...editingSubject, instructor_name: e.target.value})} 
-                  placeholder={editingSubject.type === 'academic' ? "Shared with everyone in your semester" : "Instructor name"} 
-                  className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl"
+                <Input
+                  value={editingSubject.instructor_name || ""}
+                  onChange={(e) => setEditingSubject({ ...editingSubject, instructor_name: e.target.value })}
+                  placeholder={
+                    editingSubject.type === "academic" ? "Shared with everyone in your semester" : "Instructor name"
+                  }
+                  className="bg-card/60 rounded-3xl shadow-sm backdrop-blur-2xl"
                 />
-                {editingSubject.type === 'academic' && (
-                  <p className="text-[10px] text-muted-foreground font-medium">Updating this changes it for all students in this semester.</p>
+                {editingSubject.type === "academic" && (
+                  <p className="text-muted-foreground text-[10px] font-medium">
+                    Updating this changes it for all students in this semester.
+                  </p>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs font-bold text-muted-foreground">Expected Total Lectures</Label>
-                <Input type="number" min="0" value={editingSubject.expected_total_lectures || 0} onChange={e => setEditingSubject({...editingSubject, expected_total_lectures: Number(e.target.value) || 0})} className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
+                <Label className="text-muted-foreground text-xs font-bold">Expected Total Lectures</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={editingSubject.expected_total_lectures || 0}
+                  onChange={(e) =>
+                    setEditingSubject({ ...editingSubject, expected_total_lectures: Number(e.target.value) || 0 })
+                  }
+                  className="bg-card/60 rounded-3xl shadow-sm backdrop-blur-2xl"
+                />
               </div>
-              
+
               <div className="space-y-1.5">
                 <Label>Color Identity</Label>
                 <div className="flex flex-wrap gap-2 pt-1">
-                  {['#3b82f6','#ef4444','#22c55e','#f59e0b','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1','#84cc16','#a855f7'].map(hex => (
+                  {[
+                    "#3b82f6",
+                    "#ef4444",
+                    "#22c55e",
+                    "#f59e0b",
+                    "#8b5cf6",
+                    "#ec4899",
+                    "#06b6d4",
+                    "#f97316",
+                    "#14b8a6",
+                    "#6366f1",
+                    "#84cc16",
+                    "#a855f7",
+                  ].map((hex) => (
                     <button
                       key={hex}
                       type="button"
-                      onClick={() => setEditingSubject({...editingSubject, color_hex: hex})}
-                      className={`w-8 h-8 rounded-full border-2 transition-all shrink-0 shadow-sm ${editingSubject.color_hex === hex ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'border-transparent hover:scale-110'}`}
+                      onClick={() => setEditingSubject({ ...editingSubject, color_hex: hex })}
+                      className={`h-8 w-8 shrink-0 rounded-full border-2 shadow-sm transition-all ${editingSubject.color_hex === hex ? "ring-primary scale-110 ring-2 ring-offset-2" : "border-transparent hover:scale-110"}`}
                       style={hexToGradient(hex)}
                       title={hex}
                     />
@@ -945,9 +1063,13 @@ export default function SubjectsPage() {
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-2 w-full">
-                <Button variant="outline" onClick={() => setEditingSubject(null)} className="flex-1">Cancel</Button>
-                <Button onClick={saveEdit} className="flex-1 font-bold tracking-wider">Save Changes</Button>
+              <div className="flex w-full gap-2 pt-4">
+                <Button variant="outline" onClick={() => setEditingSubject(null)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button onClick={saveEdit} className="flex-1 font-bold tracking-wider">
+                  Save Changes
+                </Button>
               </div>
             </div>
           )}
@@ -958,18 +1080,25 @@ export default function SubjectsPage() {
       <Dialog open={!!subjectToDelete} onOpenChange={(open: boolean) => !open && setSubjectToDelete(null)}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader className="text-center">
-            <div className="w-12 h-12 bg-destructive/10 text-destructive rounded-full flex items-center justify-center mx-auto mb-2">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="bg-destructive/10 text-destructive mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full">
+              <AlertTriangle className="h-6 w-6" />
             </div>
             <DialogTitle className="text-xl">Delete Subject?</DialogTitle>
             <DialogDescription className="sr-only">Confirm deletion of this subject</DialogDescription>
           </DialogHeader>
           {subjectToDelete && (
-            <div className="text-center space-y-4">
-              <p className="text-sm">Are you sure you want to completely delete <strong>{subjectToDelete.name}</strong>? This will also remove any tasks, grades, or attendance logs linked to it.</p>
-              <div className="flex gap-2 w-full pt-2">
-                <Button variant="outline" onClick={() => setSubjectToDelete(null)} className="flex-1">Cancel</Button>
-                <Button variant="destructive" onClick={confirmDelete} className="flex-1">Delete Permanently</Button>
+            <div className="space-y-4 text-center">
+              <p className="text-sm">
+                Are you sure you want to completely delete <strong>{subjectToDelete.name}</strong>? This will also
+                remove any tasks, grades, or attendance logs linked to it.
+              </p>
+              <div className="flex w-full gap-2 pt-2">
+                <Button variant="outline" onClick={() => setSubjectToDelete(null)} className="flex-1">
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={confirmDelete} className="flex-1">
+                  Delete Permanently
+                </Button>
               </div>
             </div>
           )}
@@ -978,41 +1107,65 @@ export default function SubjectsPage() {
 
       {/* --- MANAGE CATEGORIES MODAL --- */}
       <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden outline-none border-border/50">
-          <DialogHeader className="pt-6 px-6 pb-2 border-b bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl">
+        <DialogContent className="border-border/50 overflow-hidden p-0 outline-none sm:max-w-md">
+          <DialogHeader className="bg-card/60 rounded-3xl border-b px-6 pt-6 pb-2 shadow-sm backdrop-blur-2xl">
             <DialogTitle>Manage Categories</DialogTitle>
             <DialogDescription className="sr-only">Create and manage subject categories</DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 px-6 pb-6 pt-4">
-            
+          <div className="space-y-6 px-6 pt-4 pb-6">
             {/* Add category form */}
-            <div className="flex gap-2 items-end bg-card">
-              <div className="space-y-1.5 flex-1">
-                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">New Category</Label>
-                <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Competitive Exams" className="bg-card/60 backdrop-blur-2xl shadow-sm rounded-3xl" />
+            <div className="bg-card flex items-end gap-2">
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">New Category</Label>
+                <Input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="e.g. Competitive Exams"
+                  className="bg-card/60 rounded-3xl shadow-sm backdrop-blur-2xl"
+                />
               </div>
-              <div className="space-y-1.5 w-12.5">
-                <Label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Color</Label>
-                <Input type="color" value={newCategoryColor} onChange={e => setNewCategoryColor(e.target.value)} className="h-10 w-full p-1 cursor-pointer" />
+              <div className="w-12.5 space-y-1.5">
+                <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Color</Label>
+                <Input
+                  type="color"
+                  value={newCategoryColor}
+                  onChange={(e) => setNewCategoryColor(e.target.value)}
+                  className="h-10 w-full cursor-pointer p-1"
+                />
               </div>
-              <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} className="h-10 font-bold px-4">Add</Button>
+              <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} className="h-10 px-4 font-bold">
+                Add
+              </Button>
             </div>
 
             {/* List categories */}
             <div className="space-y-3 pt-2">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b pb-1">Existing Categories</h3>
+              <h3 className="text-muted-foreground border-b pb-1 text-xs font-bold tracking-widest uppercase">
+                Existing Categories
+              </h3>
               {categories.length === 0 ? (
-                <p className="text-sm text-muted-foreground font-medium text-center py-4">No categories created yet.</p>
+                <p className="text-muted-foreground py-4 text-center text-sm font-medium">No categories created yet.</p>
               ) : (
-                <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-1">
-                  {categories.map(cat => (
-                    <div key={cat.id} className="flex items-center justify-between p-3 rounded-xl border border-border/50 bg-muted/20">
+                <div className="max-h-[40dvh] space-y-2 overflow-y-auto pr-1">
+                  {categories.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="border-border/50 bg-muted/20 flex items-center justify-between rounded-xl border p-3"
+                    >
                       <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full shadow-sm" style={hexToGradient(cat.color_hex ?? '#8b5cf6')} />
-                        <span className="font-bold text-sm tracking-tight">{cat.name}</span>
+                        <div
+                          className="h-4 w-4 rounded-full shadow-sm"
+                          style={hexToGradient(cat.color_hex ?? "#8b5cf6")}
+                        />
+                        <span className="text-sm font-bold tracking-tight">{cat.name}</span>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteCategory(cat.id)} className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg">
-                        <Trash2 className="w-4 h-4" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteCategory(cat.id)}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-lg"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ))}
@@ -1022,13 +1175,27 @@ export default function SubjectsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }
 
-function AlertTriangle({className}: Readonly<{className?: string}>) {
+function AlertTriangle({ className }: Readonly<{ className?: string }>) {
   return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+    <svg
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+    </svg>
   )
 }

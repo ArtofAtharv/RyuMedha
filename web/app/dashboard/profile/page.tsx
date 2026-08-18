@@ -5,20 +5,36 @@ import { useSupabaseSession } from "@/lib/supabase-auth"
 import { useRouter } from "next/navigation"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { m, AnimatePresence } from "motion/react"
-import { 
-  User, Phone, GraduationCap, Target, BookOpen, 
-  Check, X, Loader2, CreditCard,
-  School, FolderOpen, Trash2, Plus, ChevronRight
+import {
+  User,
+  Phone,
+  GraduationCap,
+  Target,
+  BookOpen,
+  Check,
+  X,
+  Loader2,
+  CreditCard,
+  School,
+  FolderOpen,
+  Trash2,
+  Plus,
+  ChevronRight,
 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { PageHeader } from '@/components/dashboard/page-header'
+import { PageHeader } from "@/components/dashboard/page-header"
 
-interface IdName { id: string; name: string }
-interface SessionData { user: { phone?: string; supabaseToken?: string; name?: string | null } }
+interface IdName {
+  id: string
+  name: string
+}
+interface SessionData {
+  user: { phone?: string; supabaseToken?: string; name?: string | null }
+}
 
 interface ProfileData {
   id: string
@@ -46,7 +62,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const { session } = useSupabaseSession()
   const [profile, setProfile] = useState<ProfileData | null>(null)
-  
+
   const [universities, setUniversities] = useState<IdName[]>([])
   const [programs, setPrograms] = useState<IdName[]>([])
   const [semesters, setSemesters] = useState<(IdName & { semester_number: number })[]>([])
@@ -54,7 +70,7 @@ export default function ProfilePage() {
   const [uniName, setUniName] = useState("Not Set")
   const [progName, setProgName] = useState("Not Set")
   const [semName, setSemName] = useState("Not Set")
-  
+
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -64,7 +80,7 @@ export default function ProfilePage() {
 
   const [isAddingUni, setIsAddingUni] = useState(false)
   const [newUniName, setNewUniName] = useState("")
-  
+
   const [isAddingProg, setIsAddingProg] = useState(false)
   const [newProgName, setNewProgName] = useState("")
 
@@ -85,24 +101,24 @@ export default function ProfilePage() {
         return
       }
       const { data: subs } = await supabaseClient
-        .from('subjects')
-        .select('id, is_active, source_course_id(semester_id)')
-        .eq('profile_id', profile.id)
-        .eq('type', 'academic')
-      
+        .from("subjects")
+        .select("id, is_active, source_course_id(semester_id)")
+        .eq("profile_id", profile.id)
+        .eq("type", "academic")
+
       let activeCount = 0
       let archivedCount = 0
-      
+
       ;(subs || []).forEach((s: SubjectRow) => {
-        const semId = Array.isArray(s.source_course_id) 
-          ? s.source_course_id[0]?.semester_id 
+        const semId = Array.isArray(s.source_course_id)
+          ? s.source_course_id[0]?.semester_id
           : (s.source_course_id as { semester_id?: string })?.semester_id
         if (semId === profile.current_semester_id) {
           if (s.is_active) activeCount++
           else archivedCount++
         }
       })
-      
+
       setHasActiveSubjects(activeCount > 0)
       setHasArchivedSubjects(archivedCount > 0)
     }
@@ -111,9 +127,9 @@ export default function ProfilePage() {
 
   async function fetchUniversityData(supabase: AppSupabaseClient, id: string | null | undefined) {
     if (id) {
-      const { data: u } = await supabase.from('universities').select('name').eq('id', id).single()
+      const { data: u } = await supabase.from("universities").select("name").eq("id", id).single()
       if (u) setUniName(u.name)
-      const { data: progs } = await supabase.from('programs').select('id, name').eq('university_id', id).order('name')
+      const { data: progs } = await supabase.from("programs").select("id, name").eq("university_id", id).order("name")
       if (progs) setPrograms(progs)
     } else {
       setUniName("Not Set")
@@ -123,9 +139,13 @@ export default function ProfilePage() {
 
   async function fetchProgramData(supabase: AppSupabaseClient, id: string | null | undefined) {
     if (id) {
-      const { data: p } = await supabase.from('programs').select('name').eq('id', id).single()
+      const { data: p } = await supabase.from("programs").select("name").eq("id", id).single()
       if (p) setProgName(p.name)
-      const { data: sems } = await supabase.from('semesters').select('id, name, semester_number').eq('program_id', id).order('semester_number')
+      const { data: sems } = await supabase
+        .from("semesters")
+        .select("id, name, semester_number")
+        .eq("program_id", id)
+        .order("semester_number")
       if (sems) setSemesters(sems)
     } else {
       setProgName("Not Set")
@@ -135,7 +155,7 @@ export default function ProfilePage() {
 
   async function fetchSemesterData(supabase: AppSupabaseClient, id: string | null | undefined) {
     if (id) {
-      const { data: s } = await supabase.from('semesters').select('name').eq('id', id).single()
+      const { data: s } = await supabase.from("semesters").select("name").eq("id", id).single()
       if (s) setSemName(s.name)
     } else {
       setSemName("Not Set")
@@ -146,16 +166,16 @@ export default function ProfilePage() {
     await Promise.all([
       fetchUniversityData(supabase, prof.current_university_id),
       fetchProgramData(supabase, prof.current_program_id),
-      fetchSemesterData(supabase, prof.current_semester_id)
+      fetchSemesterData(supabase, prof.current_semester_id),
     ])
   }
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async function fetchInitialData(supabase: AppSupabaseClient, sess: SessionData) {
+    async function fetchInitialData(supabase: AppSupabaseClient, sess: SessionData) {
       const [{ data: prof }, { data: unis }] = await Promise.all([
-        supabase.from('profiles').select('*').eq('whatsapp_number', sess.user.phone).single(),
-        supabase.from('universities').select('id, name').order('name')
+        supabase.from("profiles").select("*").eq("whatsapp_number", sess.user.phone).single(),
+        supabase.from("universities").select("id, name").order("name"),
       ])
 
       if (unis) setUniversities(unis)
@@ -165,7 +185,7 @@ export default function ProfilePage() {
         await Promise.all([
           fetchUniversityData(supabase, prof.current_university_id),
           fetchProgramData(supabase, prof.current_program_id),
-          fetchSemesterData(supabase, prof.current_semester_id)
+          fetchSemesterData(supabase, prof.current_semester_id),
         ])
       }
       setLoading(false)
@@ -177,8 +197,8 @@ export default function ProfilePage() {
 
       // Fetch initial data (RLS scopes profiles to caller)
       const [{ data: prof }, { data: unis }] = await Promise.all([
-        supabase.from('profiles').select('*').single(),
-        supabase.from('universities').select('id, name').order('name')
+        supabase.from("profiles").select("*").single(),
+        supabase.from("universities").select("id, name").order("name"),
       ])
 
       if (unis) setUniversities(unis)
@@ -188,7 +208,7 @@ export default function ProfilePage() {
         await Promise.all([
           fetchUniversityData(supabase, prof.current_university_id),
           fetchProgramData(supabase, prof.current_program_id),
-          fetchSemesterData(supabase, prof.current_semester_id)
+          fetchSemesterData(supabase, prof.current_semester_id),
         ])
       }
       setLoading(false)
@@ -196,11 +216,10 @@ export default function ProfilePage() {
     init()
   }, [])
 
-
   // Refetch just the profile and names
   async function refreshProfileData() {
     if (!supabaseClient) return
-    const { data: prof } = await supabaseClient.from('profiles').select('*').single()
+    const { data: prof } = await supabaseClient.from("profiles").select("*").single()
     if (prof) {
       setProfile(prof)
       await fetchNamesAndDropdowns(supabaseClient, prof)
@@ -213,41 +232,47 @@ export default function ProfilePage() {
     setSaving(true)
 
     const updates: Record<string, string | null> = {}
-    
-    if (field === 'current_university_id') {
+
+    if (field === "current_university_id") {
       updates.current_university_id = newId || null
       // Reset downstream
       updates.current_program_id = null
       updates.current_semester_id = null
-      
+
       if (newId) {
-        const { data: progs } = await supabaseClient.from('programs').select('id, name').eq('university_id', newId).order('name')
+        const { data: progs } = await supabaseClient
+          .from("programs")
+          .select("id, name")
+          .eq("university_id", newId)
+          .order("name")
         setPrograms(progs || [])
       } else {
         setPrograms([])
       }
       setSemesters([])
-    } 
-    else if (field === 'current_program_id') {
+    } else if (field === "current_program_id") {
       updates.current_program_id = newId || null
       // Reset downstream
       updates.current_semester_id = null
-      
+
       if (newId) {
-        const { data: sems } = await supabaseClient.from('semesters').select('id, name, semester_number').eq('program_id', newId).order('semester_number')
+        const { data: sems } = await supabaseClient
+          .from("semesters")
+          .select("id, name, semester_number")
+          .eq("program_id", newId)
+          .order("semester_number")
         setSemesters(sems || [])
       } else {
         setSemesters([])
       }
-    }
-    else if (field === 'current_semester_id') {
+    } else if (field === "current_semester_id") {
       updates.current_semester_id = newId || null
     }
 
-    await supabaseClient.from('profiles').update(updates).eq('id', profile.id)
+    await supabaseClient.from("profiles").update(updates).eq("id", profile.id)
     await refreshProfileData()
     router.refresh()
-    
+
     setSaving(false)
     setEditField(null)
   }
@@ -256,7 +281,10 @@ export default function ProfilePage() {
   async function saveField(field: string, value: string | number | boolean) {
     if (!profile || !supabaseClient) return
     setSaving(true)
-    await supabaseClient.from('profiles').update({ [field]: value }).eq('id', profile.id)
+    await supabaseClient
+      .from("profiles")
+      .update({ [field]: value })
+      .eq("id", profile.id)
     await refreshProfileData()
     router.refresh()
     setSaving(false)
@@ -277,42 +305,42 @@ export default function ProfilePage() {
     if (!profile || !supabaseClient) return
     const confirmed = globalThis.confirm(
       "⚠️ Are you sure you want to permanently delete your account?\n\n" +
-      "This will delete ALL your data including subjects, attendance, grades, tasks, and timers.\n\n" +
-      "This action CANNOT be undone."
+        "This will delete ALL your data including subjects, attendance, grades, tasks, and timers.\n\n" +
+        "This action CANNOT be undone."
     )
     if (!confirmed) return
 
-    const doubleConfirm = globalThis.prompt(
-      "Type DELETE to confirm account deletion:"
-    )
+    const doubleConfirm = globalThis.prompt("Type DELETE to confirm account deletion:")
     if (doubleConfirm !== "DELETE") return
 
     setDeleting(true)
     try {
       // Call RPC to completely delete the auth user and public profiles row
-      const { error } = await supabaseClient.rpc('delete_current_user')
+      const { error } = await supabaseClient.rpc("delete_current_user")
       if (error) throw error
 
       // Sign out and redirect
       await supabaseClient.auth.signOut()
-      window.location.href = '/login'
+      window.location.href = "/login"
     } catch (err: unknown) {
       console.error("Failed to call delete_current_user RPC:", err)
-      
+
       // Fallback: Delete all user data in order (foreign key constraints) if RPC fails or isn't installed
       try {
-        await supabaseClient.from('study_timers').delete().eq('profile_id', profile.id)
-        await supabaseClient.from('tasks').delete().eq('profile_id', profile.id)
-        await supabaseClient.from('grades').delete().eq('profile_id', profile.id)
-        await supabaseClient.from('attendance_logs').delete().eq('profile_id', profile.id)
-        await supabaseClient.from('subjects').delete().eq('profile_id', profile.id)
-        await supabaseClient.from('profiles').delete().eq('id', profile.id)
-        
+        await supabaseClient.from("study_timers").delete().eq("profile_id", profile.id)
+        await supabaseClient.from("tasks").delete().eq("profile_id", profile.id)
+        await supabaseClient.from("grades").delete().eq("profile_id", profile.id)
+        await supabaseClient.from("attendance_logs").delete().eq("profile_id", profile.id)
+        await supabaseClient.from("subjects").delete().eq("profile_id", profile.id)
+        await supabaseClient.from("profiles").delete().eq("id", profile.id)
+
         await supabaseClient.auth.signOut()
-        window.location.href = '/login'
+        window.location.href = "/login"
       } catch (fallbackErr: unknown) {
         console.error("Deletion fallback failed:", fallbackErr)
-        toast.error("Failed to delete account. Please ensure the 'delete_current_user' SQL function is created in your Supabase SQL Editor.")
+        toast.error(
+          "Failed to delete account. Please ensure the 'delete_current_user' SQL function is created in your Supabase SQL Editor."
+        )
         setDeleting(false)
       }
     }
@@ -322,21 +350,21 @@ export default function ProfilePage() {
     if (!profile || !supabaseClient) return
     try {
       toast.info("Preparing your data export...")
-      
+
       const [
         { data: subjects },
         { data: attendance },
         { data: grades },
         { data: timers },
         { data: tasks },
-        { data: reminders }
+        { data: reminders },
       ] = await Promise.all([
-        supabaseClient.from('subjects').select('*').eq('profile_id', profile.id),
-        supabaseClient.from('attendance_logs').select('*').eq('profile_id', profile.id),
-        supabaseClient.from('grades').select('*').eq('profile_id', profile.id),
-        supabaseClient.from('study_timers').select('*').eq('profile_id', profile.id),
-        supabaseClient.from('tasks').select('*').eq('profile_id', profile.id),
-        supabaseClient.from('task_reminders').select('*').eq('profile_id', profile.id),
+        supabaseClient.from("subjects").select("*").eq("profile_id", profile.id),
+        supabaseClient.from("attendance_logs").select("*").eq("profile_id", profile.id),
+        supabaseClient.from("grades").select("*").eq("profile_id", profile.id),
+        supabaseClient.from("study_timers").select("*").eq("profile_id", profile.id),
+        supabaseClient.from("tasks").select("*").eq("profile_id", profile.id),
+        supabaseClient.from("task_reminders").select("*").eq("profile_id", profile.id),
       ])
 
       const exportData = {
@@ -347,13 +375,16 @@ export default function ProfilePage() {
         grades: grades || [],
         study_timers: timers || [],
         tasks: tasks || [],
-        task_reminders: reminders || []
+        task_reminders: reminders || [],
       }
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2))
-      const downloadAnchor = document.createElement('a')
+      const downloadAnchor = document.createElement("a")
       downloadAnchor.setAttribute("href", dataStr)
-      downloadAnchor.setAttribute("download", `ryumedha_export_${profile.display_name || 'user'}_${new Date().toISOString().split('T')[0]}.json`)
+      downloadAnchor.setAttribute(
+        "download",
+        `ryumedha_export_${profile.display_name || "user"}_${new Date().toISOString().split("T")[0]}.json`
+      )
       document.body.appendChild(downloadAnchor)
       downloadAnchor.click()
       downloadAnchor.remove()
@@ -367,13 +398,17 @@ export default function ProfilePage() {
   // Institutional Management Functions
   async function handleCreateUni() {
     if (!newUniName.trim() || !supabaseClient) return
-    const { data, error } = await supabaseClient.from('universities').insert([{ name: newUniName.trim() }]).select().single()
+    const { data, error } = await supabaseClient
+      .from("universities")
+      .insert([{ name: newUniName.trim() }])
+      .select()
+      .single()
     if (error) {
       console.error("handleCreateUni error:", error)
       toast.error(`Failed to add university: ${error.message || "Unknown error"}`)
     } else {
-      setUniversities(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
-      handleRelationalChange('current_university_id', data.id)
+      setUniversities((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      handleRelationalChange("current_university_id", data.id)
       setIsAddingUni(false)
       setNewUniName("")
       toast.success("University added!")
@@ -384,15 +419,15 @@ export default function ProfilePage() {
     e.stopPropagation()
     if (!supabaseClient) return
     if (!confirm("Are you sure? This will remove the university for everyone.")) return
-    
-    const { error } = await supabaseClient.from('universities').delete().eq('id', id)
-    
+
+    const { error } = await supabaseClient.from("universities").delete().eq("id", id)
+
     if (error) {
       toast.error("Cannot delete university (likely has linked programs)")
     } else {
-      setUniversities(prev => prev.filter(u => u.id !== id))
+      setUniversities((prev) => prev.filter((u) => u.id !== id))
       if (profile?.current_university_id === id) {
-        handleRelationalChange('current_university_id', "")
+        handleRelationalChange("current_university_id", "")
       }
       toast.success("University removed")
     }
@@ -400,16 +435,22 @@ export default function ProfilePage() {
 
   async function handleCreateProg() {
     if (!newProgName.trim() || !profile?.current_university_id || !supabaseClient) return
-    const { data, error } = await supabaseClient.from('programs').insert([{ 
-      name: newProgName.trim(), 
-      university_id: profile.current_university_id 
-    }]).select().single()
+    const { data, error } = await supabaseClient
+      .from("programs")
+      .insert([
+        {
+          name: newProgName.trim(),
+          university_id: profile.current_university_id,
+        },
+      ])
+      .select()
+      .single()
     if (error) {
       console.error("handleCreateProg error:", error)
       toast.error(`Failed to add program: ${error.message || "Unknown error"}`)
     } else {
-      setPrograms(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
-      handleRelationalChange('current_program_id', data.id)
+      setPrograms((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      handleRelationalChange("current_program_id", data.id)
       setIsAddingProg(false)
       setNewProgName("")
       toast.success("Program added!")
@@ -420,15 +461,15 @@ export default function ProfilePage() {
     e.stopPropagation()
     if (!supabaseClient) return
     if (!confirm("Remove this program?")) return
-    
-    const { error } = await supabaseClient.from('programs').delete().eq('id', id)
-    
+
+    const { error } = await supabaseClient.from("programs").delete().eq("id", id)
+
     if (error) {
       toast.error("Cannot delete program (has linked semesters)")
     } else {
-      setPrograms(prev => prev.filter(p => p.id !== id))
+      setPrograms((prev) => prev.filter((p) => p.id !== id))
       if (profile?.current_program_id === id) {
-        handleRelationalChange('current_program_id', "")
+        handleRelationalChange("current_program_id", "")
       }
       toast.success("Program removed")
     }
@@ -436,17 +477,23 @@ export default function ProfilePage() {
 
   async function handleCreateSem() {
     if (!newSemName.trim() || !profile?.current_program_id || !supabaseClient) return
-    const { data, error } = await supabaseClient.from('semesters').insert([{ 
-      name: newSemName.trim(), 
-      semester_number: Number.parseInt(newSemNumber) || 1,
-      program_id: profile.current_program_id 
-    }]).select().single()
+    const { data, error } = await supabaseClient
+      .from("semesters")
+      .insert([
+        {
+          name: newSemName.trim(),
+          semester_number: Number.parseInt(newSemNumber) || 1,
+          program_id: profile.current_program_id,
+        },
+      ])
+      .select()
+      .single()
     if (error) {
       console.error("handleCreateSem error:", error)
       toast.error(`Failed to add semester: ${error.message || "Unknown error"}`)
     } else {
-      setSemesters(prev => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
-      handleRelationalChange('current_semester_id', data.id)
+      setSemesters((prev) => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
+      handleRelationalChange("current_semester_id", data.id)
       setIsAddingSem(false)
       setNewSemName("")
       setNewSemNumber("")
@@ -458,15 +505,15 @@ export default function ProfilePage() {
     e.stopPropagation()
     if (!supabaseClient) return
     if (!confirm("Remove this semester?")) return
-    
-    const { error } = await supabaseClient.from('semesters').delete().eq('id', id)
-    
+
+    const { error } = await supabaseClient.from("semesters").delete().eq("id", id)
+
     if (error) {
       toast.error("Cannot delete semester")
     } else {
-      setSemesters(prev => prev.filter(s => s.id !== id))
+      setSemesters((prev) => prev.filter((s) => s.id !== id))
       if (profile?.current_semester_id === id) {
-        handleRelationalChange('current_semester_id', "")
+        handleRelationalChange("current_semester_id", "")
       }
       toast.success("Semester removed")
     }
@@ -476,40 +523,36 @@ export default function ProfilePage() {
     if (!profile || !supabaseClient) return
     const confirmed = globalThis.confirm(
       "📦 Archive Current Semester?\n\n" +
-      "This will:\n" +
-      "1. Clear your current semester selection.\n" +
-      "2. Archive (hide) all your active academic subjects for this semester.\n\n" +
-      "Your history (attendance, grades) will be preserved. You can re-enroll in new subjects for your next semester."
+        "This will:\n" +
+        "1. Clear your current semester selection.\n" +
+        "2. Archive (hide) all your active academic subjects for this semester.\n\n" +
+        "Your history (attendance, grades) will be preserved. You can re-enroll in new subjects for your next semester."
     )
     if (!confirmed) return
 
     setSaving(true)
     try {
       const { data: subs } = await supabaseClient
-        .from('subjects')
-        .select('id, source_course_id(semester_id)')
-        .eq('profile_id', profile.id)
-        .eq('type', 'academic')
-        .eq('is_active', true)
+        .from("subjects")
+        .select("id, source_course_id(semester_id)")
+        .eq("profile_id", profile.id)
+        .eq("type", "academic")
+        .eq("is_active", true)
 
-      const subjectIdsToArchive = (subs || []).filter((s: SubjectRow) => {
-        const semId = Array.isArray(s.source_course_id) 
-          ? s.source_course_id[0]?.semester_id 
-          : (s.source_course_id as { semester_id?: string })?.semester_id
-        return semId === profile.current_semester_id
-      }).map((s: SubjectRow) => s.id)
+      const subjectIdsToArchive = (subs || [])
+        .filter((s: SubjectRow) => {
+          const semId = Array.isArray(s.source_course_id)
+            ? s.source_course_id[0]?.semester_id
+            : (s.source_course_id as { semester_id?: string })?.semester_id
+          return semId === profile.current_semester_id
+        })
+        .map((s: SubjectRow) => s.id)
 
       if (subjectIdsToArchive.length > 0) {
-        await supabaseClient
-          .from('subjects')
-          .update({ is_active: false })
-          .in('id', subjectIdsToArchive)
+        await supabaseClient.from("subjects").update({ is_active: false }).in("id", subjectIdsToArchive)
       }
 
-      await supabaseClient
-        .from('profiles')
-        .update({ current_semester_id: null })
-        .eq('id', profile.id)
+      await supabaseClient.from("profiles").update({ current_semester_id: null }).eq("id", profile.id)
 
       await refreshProfileData()
       toast.success("Semester archived! Setup your new semester below.")
@@ -527,24 +570,23 @@ export default function ProfilePage() {
     setSaving(true)
     try {
       const { data: subs } = await supabaseClient
-        .from('subjects')
-        .select('id, source_course_id(semester_id)')
-        .eq('profile_id', profile.id)
-        .eq('type', 'academic')
-        .eq('is_active', false)
+        .from("subjects")
+        .select("id, source_course_id(semester_id)")
+        .eq("profile_id", profile.id)
+        .eq("type", "academic")
+        .eq("is_active", false)
 
-      const subjectIdsToRestore = (subs || []).filter((s: SubjectRow) => {
-        const semId = Array.isArray(s.source_course_id) 
-          ? s.source_course_id[0]?.semester_id 
-          : (s.source_course_id as { semester_id?: string })?.semester_id
-        return semId === profile.current_semester_id
-      }).map((s: SubjectRow) => s.id)
+      const subjectIdsToRestore = (subs || [])
+        .filter((s: SubjectRow) => {
+          const semId = Array.isArray(s.source_course_id)
+            ? s.source_course_id[0]?.semester_id
+            : (s.source_course_id as { semester_id?: string })?.semester_id
+          return semId === profile.current_semester_id
+        })
+        .map((s: SubjectRow) => s.id)
 
       if (subjectIdsToRestore.length > 0) {
-        await supabaseClient
-          .from('subjects')
-          .update({ is_active: true })
-          .in('id', subjectIdsToRestore)
+        await supabaseClient.from("subjects").update({ is_active: true }).in("id", subjectIdsToRestore)
       }
 
       setHasActiveSubjects(true)
@@ -567,26 +609,29 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-8 space-y-6 animate-in fade-in duration-500">
+      <div className="animate-in fade-in mx-auto w-full max-w-7xl space-y-6 px-6 py-8 duration-500">
         {/* Hero Header Skeleton */}
-        <div className="bg-muted/40 rounded-3xl p-8 relative overflow-hidden animate-pulse h-40">
+        <div className="bg-muted/40 relative h-40 animate-pulse overflow-hidden rounded-3xl p-8">
           <div className="absolute top-8 left-8 space-y-3">
-            <div className="h-4 w-24 bg-muted/60 rounded-md" />
-            <div className="h-8 w-48 bg-muted rounded-md" />
+            <div className="bg-muted/60 h-4 w-24 rounded-md" />
+            <div className="bg-muted h-8 w-48 rounded-md" />
           </div>
         </div>
 
         {/* Form Skeleton */}
         <div className="space-y-4">
-          <div className="h-6 w-32 bg-muted animate-pulse rounded-md mb-2" />
+          <div className="bg-muted mb-2 h-6 w-32 animate-pulse rounded-md" />
           {[1, 2, 3, 4, 5].map((val) => (
             // NOSONAR
-            <div key={`skeleton-${val}`} className="flex justify-between items-center p-4 rounded-xl border bg-card animate-pulse">
+            <div
+              key={`skeleton-${val}`}
+              className="bg-card flex animate-pulse items-center justify-between rounded-xl border p-4"
+            >
               <div className="space-y-2">
-                <div className="h-3 w-16 bg-muted/60 rounded-md" />
-                <div className="h-5 w-32 bg-muted rounded-md" />
+                <div className="bg-muted/60 h-3 w-16 rounded-md" />
+                <div className="bg-muted h-5 w-32 rounded-md" />
               </div>
-              <div className="h-8 w-8 bg-muted rounded-md" />
+              <div className="bg-muted h-8 w-8 rounded-md" />
             </div>
           ))}
         </div>
@@ -596,42 +641,35 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-16 text-center">
+      <div className="mx-auto w-full max-w-7xl px-6 py-16 text-center">
         <p className="text-destructive font-bold">Failed to load profile.</p>
       </div>
     )
   }
 
-  const displayName = profile.display_name || session?.user?.email || 'User'
-
+  const displayName = profile.display_name || session?.user?.email || "User"
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pt-8 pb-4 space-y-6">
-      
-      <PageHeader 
-        title="Settings" 
-        description="Manage your account, academic details, and preferences." 
-      />
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 pt-8 pb-4">
+      <PageHeader title="Settings" description="Manage your account, academic details, and preferences." />
 
       {/* Hero Header / User Card */}
-      <div className="bg-card rounded-2xl p-4 flex items-center gap-4 shadow-sm border border-border/50">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-3xl font-medium text-primary shrink-0">
+      <div className="bg-card border-border/50 flex items-center gap-4 rounded-2xl border p-4 shadow-sm">
+        <div className="bg-primary/10 text-primary flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-3xl font-medium">
           {displayName?.charAt(0)?.toUpperCase() || "?"}
         </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-semibold tracking-tight truncate">{displayName}</h1>
-          <p className="text-muted-foreground text-sm flex items-center gap-1.5 mt-0.5">
-            {session?.user?.email}
-          </p>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-semibold tracking-tight">{displayName}</h1>
+          <p className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-sm">{session?.user?.email}</p>
         </div>
       </div>
 
       {/* Profile Section */}
       <div className="space-y-1.5">
-        <h2 className="text-[13px] uppercase tracking-wider text-muted-foreground ml-4 font-medium">Personal</h2>
-        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden divide-y divide-border/50">
+        <h2 className="text-muted-foreground ml-4 text-[13px] font-medium tracking-wider uppercase">Personal</h2>
+        <div className="bg-card border-border/30 flex flex-col gap-1 overflow-hidden rounded-2xl border p-2 shadow-sm">
           <ProfileRow
-            icon={<User className="w-4 h-4 text-white" />}
+            icon={<User className="h-4 w-4 text-white" />}
             iconBg="bg-blue-500"
             label="Display Name"
             value={displayName ?? ""}
@@ -644,47 +682,47 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          <div className="px-4 py-3 flex items-center justify-between min-h-[44px]">
+          <div className="flex min-h-[44px] items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-teal-500 flex items-center justify-center shrink-0">
-                <User className="w-4 h-4 text-white" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500">
+                <User className="h-4 w-4 text-white" />
               </div>
               <p className="text-sm font-medium">Email</p>
             </div>
-            <p className="text-sm text-muted-foreground mr-4 select-all">{profile.email ?? "Not Linked"}</p>
+            <p className="text-muted-foreground mr-4 text-sm select-all">{profile.email ?? "Not Linked"}</p>
           </div>
 
           <button
             type="button"
-            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-            onClick={() => router.push('/dashboard/whatsapp-bot')}
+            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors"
+            onClick={() => router.push("/dashboard/whatsapp-bot")}
           >
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center shrink-0">
-                <Phone className="w-4 h-4 text-white" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-500">
+                <Phone className="h-4 w-4 text-white" />
               </div>
               <p className="text-sm font-medium">WhatsApp Bot Connection</p>
             </div>
-            <div className="flex items-center gap-2 mr-1">
-              <p className="text-sm text-muted-foreground">{profile.whatsapp_number ?? "Not Linked"}</p>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            <div className="mr-1 flex items-center gap-2">
+              <p className="text-muted-foreground text-sm">{profile.whatsapp_number ?? "Not Linked"}</p>
+              <ChevronRight className="text-muted-foreground/50 h-4 w-4" />
             </div>
           </button>
 
           <button
             type="button"
-            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-            onClick={() => router.push('/dashboard/subscription')}
+            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors"
+            onClick={() => router.push("/dashboard/subscription")}
           >
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <CreditCard className="w-4 h-4 text-primary-foreground" />
+              <div className="bg-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+                <CreditCard className="text-primary-foreground h-4 w-4" />
               </div>
               <p className="text-sm font-medium">Subscription & Billing</p>
             </div>
-            <div className="flex items-center gap-2 mr-1">
-              <p className="text-sm text-muted-foreground">Manage Plan</p>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            <div className="mr-1 flex items-center gap-2">
+              <p className="text-muted-foreground text-sm">Manage Plan</p>
+              <ChevronRight className="text-muted-foreground/50 h-4 w-4" />
             </div>
           </button>
         </div>
@@ -692,10 +730,10 @@ export default function ProfilePage() {
 
       {/* Feature Tracks Section */}
       <div className="space-y-1.5">
-        <h2 className="text-[13px] uppercase tracking-wider text-muted-foreground ml-4 font-medium">Features</h2>
-        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden divide-y divide-border/50">
+        <h2 className="text-muted-foreground ml-4 text-[13px] font-medium tracking-wider uppercase">Features</h2>
+        <div className="bg-card border-border/30 flex flex-col gap-1 overflow-hidden rounded-2xl border p-2 shadow-sm">
           <TrackToggle
-            icon={<GraduationCap className="w-4 h-4 text-white" />}
+            icon={<GraduationCap className="h-4 w-4 text-white" />}
             iconBg="bg-indigo-500"
             label="Academic Features"
             enabled={profile.academics_enabled ?? false}
@@ -703,7 +741,7 @@ export default function ProfilePage() {
             onToggle={() => saveField("academics_enabled", !profile.academics_enabled)}
           />
           <TrackToggle
-            icon={<FolderOpen className="w-4 h-4 text-white" />}
+            icon={<FolderOpen className="h-4 w-4 text-white" />}
             iconBg="bg-orange-500"
             label="Personal Features"
             enabled={profile.personal_enabled ?? false}
@@ -716,10 +754,12 @@ export default function ProfilePage() {
       {/* Institutional Academic Section */}
       {profile.academics_enabled && (
         <div className="space-y-1.5">
-          <h2 className="text-[13px] uppercase tracking-wider text-muted-foreground ml-4 font-medium">Academic Profile</h2>
-          <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden divide-y divide-border/50">
+          <h2 className="text-muted-foreground ml-4 text-[13px] font-medium tracking-wider uppercase">
+            Academic Profile
+          </h2>
+          <div className="bg-card border-border/30 flex flex-col gap-1 overflow-hidden rounded-2xl border p-2 shadow-sm">
             <DropdownRow
-              icon={<School className="w-4 h-4 text-white" />}
+              icon={<School className="h-4 w-4 text-white" />}
               iconBg="bg-blue-600"
               label="University"
               value={uniName}
@@ -739,7 +779,7 @@ export default function ProfilePage() {
             />
 
             <DropdownRow
-              icon={<GraduationCap className="w-4 h-4 text-white" />}
+              icon={<GraduationCap className="h-4 w-4 text-white" />}
               iconBg="bg-indigo-600"
               label="Degree Program"
               value={progName}
@@ -761,7 +801,7 @@ export default function ProfilePage() {
             />
 
             <DropdownRow
-              icon={<BookOpen className="w-4 h-4 text-white" />}
+              icon={<BookOpen className="h-4 w-4 text-white" />}
               iconBg="bg-purple-500"
               label="Current Semester"
               value={semName}
@@ -786,7 +826,7 @@ export default function ProfilePage() {
             />
 
             <ProfileRow
-              icon={<Target className="w-4 h-4 text-white" />}
+              icon={<Target className="h-4 w-4 text-white" />}
               iconBg="bg-rose-500"
               label="Target Attendance"
               value={`${profile.target_attendance_pct ?? 70}%`}
@@ -804,23 +844,27 @@ export default function ProfilePage() {
               suffix="%"
             />
 
-            <button 
+            <button
               type="button"
-              className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+              className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors"
               onClick={hasArchivedSubjects && !hasActiveSubjects ? handleUnarchiveSemester : handleArchiveSemester}
             >
               <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
-                  <FolderOpen className="w-4 h-4 text-white" />
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500">
+                  <FolderOpen className="h-4 w-4 text-white" />
                 </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-medium">{hasArchivedSubjects && !hasActiveSubjects ? "Restore Archived Semester" : "Archive Current Semester"}</p>
+                <div className="min-w-0 flex-1 text-left">
+                  <p className="text-sm font-medium">
+                    {hasArchivedSubjects && !hasActiveSubjects
+                      ? "Restore Archived Semester"
+                      : "Archive Current Semester"}
+                  </p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+              <ChevronRight className="text-muted-foreground/50 h-4 w-4" />
             </button>
           </div>
-          <p className="text-xs text-muted-foreground ml-4 mt-1.5">
+          <p className="text-muted-foreground mt-1.5 ml-4 text-xs">
             Archiving your semester hides current subjects but preserves history.
           </p>
         </div>
@@ -828,61 +872,77 @@ export default function ProfilePage() {
 
       {/* Data Portability Section */}
       <div className="space-y-1.5">
-        <h2 className="text-[13px] uppercase tracking-wider text-muted-foreground ml-4 font-medium">Data Portability</h2>
-        <div className="bg-card rounded-2xl shadow-sm border border-border/50 overflow-hidden divide-y divide-border/50">
-          <button 
+        <h2 className="text-muted-foreground ml-4 text-[13px] font-medium tracking-wider uppercase">
+          Data Portability
+        </h2>
+        <div className="bg-card border-border/30 flex flex-col gap-1 overflow-hidden rounded-2xl border p-2 shadow-sm">
+          <button
             type="button"
-            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors"
             onClick={handleExportUserData}
           >
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
-                <FolderOpen className="w-4 h-4 text-white" />
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500">
+                <FolderOpen className="h-4 w-4 text-white" />
               </div>
-              <div className="flex-1 min-w-0 text-left">
+              <div className="min-w-0 flex-1 text-left">
                 <p className="text-sm font-medium">Export My Data</p>
-                <p className="text-xs text-muted-foreground">Download a copy of your personal data as JSON</p>
+                <p className="text-muted-foreground text-xs">Download a copy of your personal data as JSON</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+            <ChevronRight className="text-muted-foreground/50 h-4 w-4" />
           </button>
         </div>
       </div>
 
       {/* Danger Zone */}
       <div className="space-y-1.5 pt-4">
-        <div className="bg-card rounded-2xl shadow-sm border border-destructive/20 overflow-hidden divide-y divide-border/50">
-          <button 
+        <div className="bg-card border-destructive/20 flex flex-col gap-1 overflow-hidden rounded-2xl border p-2 shadow-sm">
+          <button
             type="button"
-            className="w-full flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-destructive/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+            className="hover:bg-destructive/5 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors disabled:pointer-events-none disabled:opacity-50"
             onClick={handleDeleteAccount}
             disabled={deleting}
           >
             <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-lg bg-destructive flex items-center justify-center shrink-0">
-                {deleting ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Trash2 className="w-4 h-4 text-white" />}
+              <div className="bg-destructive flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
+                {deleting ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                ) : (
+                  <Trash2 className="h-4 w-4 text-white" />
+                )}
               </div>
-              <div className="flex-1 min-w-0 text-left">
-                <p className="text-sm font-medium text-destructive">{deleting ? "Deleting..." : "Delete Account"}</p>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-destructive text-sm font-medium">{deleting ? "Deleting..." : "Delete Account"}</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-destructive/50" />
+            <ChevronRight className="text-destructive/50 h-4 w-4" />
           </button>
         </div>
-        <p className="text-xs text-muted-foreground ml-4 mt-1.5">
+        <p className="text-muted-foreground mt-1.5 ml-4 text-xs">
           Permanently delete your account and all associated data. This action cannot be undone.
         </p>
       </div>
-
     </div>
   )
 }
 
 /* ─── Reusable Inline-Edit Row (Scalars) ─── */
 function ProfileRow({
-  icon, iconBg, label, value, isEditing, editValue, saving,
-  onEdit, onCancel, onChange, onSave,
-  inputType = "text", suffix, placeholder
+  icon,
+  iconBg,
+  label,
+  value,
+  isEditing,
+  editValue,
+  saving,
+  onEdit,
+  onCancel,
+  onChange,
+  onSave,
+  inputType = "text",
+  suffix,
+  placeholder,
 }: Readonly<{
   icon: React.ReactNode
   iconBg: string
@@ -900,11 +960,9 @@ function ProfileRow({
   placeholder?: string
 }>) {
   return (
-    <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
-      <div className={`w-7 h-7 rounded-lg ${iconBg} flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0 flex items-center justify-between">
+    <div className="flex min-h-[44px] items-center gap-3 px-4 py-3">
+      <div className={`h-7 w-7 rounded-lg ${iconBg} flex shrink-0 items-center justify-center`}>{icon}</div>
+      <div className="flex min-w-0 flex-1 items-center justify-between">
         <p className="text-sm font-medium">{label}</p>
         <AnimatePresence mode="wait">
           {isEditing ? (
@@ -918,28 +976,28 @@ function ProfileRow({
               <input
                 type={inputType}
                 value={editValue}
-                onChange={e => onChange(e.target.value)}
+                onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
                 autoFocus
-                className="h-7 px-2 rounded-md bg-muted border text-sm w-[120px] outline-none focus:ring-2 focus:ring-primary/30 text-right"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') onSave()
-                  if (e.key === 'Escape') onCancel()
+                className="bg-muted focus:ring-primary/30 h-7 w-[120px] rounded-md border px-2 text-right text-sm outline-none focus:ring-2"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onSave()
+                  if (e.key === "Escape") onCancel()
                 }}
               />
-              {suffix && <span className="text-sm text-muted-foreground font-medium">{suffix}</span>}
+              {suffix && <span className="text-muted-foreground text-sm font-medium">{suffix}</span>}
               <button
                 onClick={onSave}
                 disabled={saving}
-                className="w-7 h-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors disabled:opacity-50"
               >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
               </button>
               <button
                 onClick={onCancel}
-                className="w-7 h-7 rounded-md bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0 transition-colors"
+                className="bg-muted text-muted-foreground hover:text-foreground flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </m.div>
           ) : (
@@ -947,11 +1005,11 @@ function ProfileRow({
               key="display"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex items-center gap-2 group cursor-pointer"
+              className="group flex cursor-pointer items-center gap-2"
               onClick={onEdit}
             >
-              <p className="text-sm text-muted-foreground">{value}</p>
-              <ChevronRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
+              <p className="text-muted-foreground text-sm">{value}</p>
+              <ChevronRight className="text-muted-foreground/50 group-hover:text-muted-foreground h-4 w-4 transition-colors" />
             </m.div>
           )}
         </AnimatePresence>
@@ -962,10 +1020,28 @@ function ProfileRow({
 
 /* ─── Reusable Dropdown Row (Relational FKs) ─── */
 function DropdownRow({
-  icon, iconBg, label, value: _value, options, currentId, saving: _saving,
-  onChange, disabled, disabledMessage, placeholder,
-  isAdding, onSetIsAdding, newName, onNewNameChange, onCreate, onDelete,
-  addLabel, addValue, isSemester, newNumber, onNewNumberChange
+  icon,
+  iconBg,
+  label,
+  value: _value,
+  options,
+  currentId,
+  saving: _saving,
+  onChange,
+  disabled,
+  disabledMessage,
+  placeholder,
+  isAdding,
+  onSetIsAdding,
+  newName,
+  onNewNameChange,
+  onCreate,
+  onDelete,
+  addLabel,
+  addValue,
+  isSemester,
+  newNumber,
+  onNewNumberChange,
 }: Readonly<{
   icon: React.ReactNode
   iconBg: string
@@ -991,16 +1067,14 @@ function DropdownRow({
   onNewNumberChange?: (v: string) => void
 }>) {
   return (
-    <div className="px-4 py-3 flex items-center gap-3 min-h-[44px]">
-      <div className={`w-7 h-7 rounded-lg ${iconBg} flex items-center justify-center shrink-0`}>
-        {icon}
-      </div>
-      <div className="flex-1 min-w-0 flex items-center justify-between">
+    <div className="flex min-h-[44px] items-center gap-3 px-4 py-3">
+      <div className={`h-7 w-7 rounded-lg ${iconBg} flex shrink-0 items-center justify-center`}>{icon}</div>
+      <div className="flex min-w-0 flex-1 items-center justify-between">
         <p className="text-sm font-medium">{label}</p>
         <AnimatePresence mode="wait">
           {disabled && (
             <m.div key="disabled" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <p className="text-sm text-muted-foreground/50">{disabledMessage}</p>
+              <p className="text-muted-foreground/50 text-sm">{disabledMessage}</p>
             </m.div>
           )}
           {!disabled && isAdding && (
@@ -1013,83 +1087,88 @@ function DropdownRow({
             >
               {isSemester ? (
                 <>
-                  <Input 
+                  <Input
                     autoFocus
-                    placeholder="Name" 
-                    className="h-7 text-xs px-2 w-[80px]"
+                    placeholder="Name"
+                    className="h-7 w-[80px] px-2 text-xs"
                     value={newName}
                     onChange={(e) => onNewNameChange(e.target.value)}
                   />
-                  <Input 
+                  <Input
                     type="number"
-                    placeholder="#" 
-                    className="h-7 text-xs px-2 w-[40px]"
+                    placeholder="#"
+                    className="h-7 w-[40px] px-2 text-xs"
                     value={newNumber}
                     onChange={(e) => onNewNumberChange?.(e.target.value)}
                   />
                   <Button size="icon" className="h-7 w-7 shrink-0" onClick={onCreate}>
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSetIsAdding(false)}>
-                    <X className="w-3.5 h-3.5" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </>
               ) : (
                 <>
-                  <Input 
+                  <Input
                     autoFocus
-                    placeholder={placeholder} 
-                    className="h-7 text-xs px-2 w-[120px]"
+                    placeholder={placeholder}
+                    className="h-7 w-[120px] px-2 text-xs"
                     value={newName}
                     onChange={(e) => onNewNameChange(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && onCreate()}
+                    onKeyDown={(e) => e.key === "Enter" && onCreate()}
                   />
                   <Button size="icon" className="h-7 w-7 shrink-0" onClick={onCreate}>
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => onSetIsAdding(false)}>
-                    <X className="w-3.5 h-3.5" />
+                    <X className="h-3.5 w-3.5" />
                   </Button>
                 </>
               )}
             </m.div>
           )}
           {!disabled && !isAdding && (
-            <m.div
-              key="display"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex items-center gap-2"
-            >
-              <Select 
-                value={currentId || ""} 
+            <m.div key="display" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
+              <Select
+                value={currentId || ""}
                 onValueChange={(val) => {
                   if (val === addValue) onSetIsAdding(true)
                   else onChange(val)
                 }}
               >
-                <SelectTrigger className="h-7 border-0 bg-transparent text-sm text-muted-foreground shadow-none px-4 gap-1 focus:ring-0 w-auto justify-end hover:bg-transparent">
+                <SelectTrigger className="text-muted-foreground h-7 w-auto justify-end gap-1 border-0 bg-transparent px-4 text-sm shadow-none hover:bg-transparent focus:ring-0">
                   <SelectValue placeholder={placeholder || "Select"} />
                 </SelectTrigger>
                 <SelectContent position="popper" align="end" alignOffset={-16} sideOffset={8}>
-                  {options.map(opt => (
-                    <div key={opt.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                      <SelectItem value={opt.id} className="flex-1">{opt.name}</SelectItem>
+                  {options.map((opt) => (
+                    <div
+                      key={opt.id}
+                      className="group/item hover:bg-muted/50 flex items-center justify-between rounded-md px-2"
+                    >
+                      <SelectItem value={opt.id} className="flex-1">
+                        {opt.name}
+                      </SelectItem>
                       {opt.id !== currentId && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-6 w-6 text-destructive/80 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive/80 hover:text-destructive hover:bg-destructive/10 h-6 w-6 shrink-0 transition-colors"
                           onClick={(e) => onDelete(e, opt.id)}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       )}
                     </div>
                   ))}
-                  <div className="border-t mt-1 pt-1">
-                    <SelectItem value={addValue} className="text-primary font-medium focus:bg-primary/10 focus:text-primary">
-                      <span className="flex items-center gap-2"><Plus className="w-3.5 h-3.5" /> {addLabel}</span>
+                  <div className="mt-1 border-t pt-1">
+                    <SelectItem
+                      value={addValue}
+                      className="text-primary focus:bg-primary/10 focus:text-primary font-medium"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Plus className="h-3.5 w-3.5" /> {addLabel}
+                      </span>
                     </SelectItem>
                   </div>
                 </SelectContent>
@@ -1104,7 +1183,12 @@ function DropdownRow({
 
 /* ─── Track Toggle Button ─── */
 function TrackToggle({
-  icon, iconBg, label, enabled, saving, onToggle
+  icon,
+  iconBg,
+  label,
+  enabled,
+  saving,
+  onToggle,
 }: Readonly<{
   icon: React.ReactNode
   iconBg: string
@@ -1114,18 +1198,12 @@ function TrackToggle({
   onToggle: () => void
 }>) {
   return (
-    <div className="px-4 py-3 flex items-center justify-between min-h-[44px]">
+    <div className="flex min-h-[44px] items-center justify-between px-4 py-3">
       <div className="flex items-center gap-3">
-        <div className={`w-7 h-7 rounded-lg ${iconBg} flex items-center justify-center shrink-0`}>
-          {icon}
-        </div>
+        <div className={`h-7 w-7 rounded-lg ${iconBg} flex shrink-0 items-center justify-center`}>{icon}</div>
         <p className="text-sm font-medium">{label}</p>
       </div>
-      <Switch 
-        checked={enabled} 
-        onCheckedChange={onToggle} 
-        disabled={saving}
-      />
+      <Switch checked={enabled} onCheckedChange={onToggle} disabled={saving} />
     </div>
   )
 }

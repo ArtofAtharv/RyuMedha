@@ -1,127 +1,126 @@
-import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createClient } from '@supabase/supabase-js'
-import { cancelUserRazorpaySubscriptions } from '@/lib/razorpay'
+import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
+import { createClient } from "@supabase/supabase-js"
+import { cancelUserRazorpaySubscriptions } from "@/lib/razorpay"
 
 export async function POST(req: Request) {
   try {
     const cookieStore = await cookies()
-    const accessToken = cookieStore.get('sb-access-token')?.value
+    const accessToken = cookieStore.get("sb-access-token")?.value
 
     if (!accessToken) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
-      }
-    )
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    })
 
     // Verify caller is admin
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(accessToken)
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser(accessToken)
     if (userErr || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const { data: callerProfile } = await supabase
-      .from('profiles')
-      .select('id, is_admin')
-      .eq('id', user.id)
+      .from("profiles")
+      .select("id, is_admin")
+      .eq("id", user.id)
       .maybeSingle()
 
     if (!callerProfile || !callerProfile.is_admin) {
-      return NextResponse.json({ error: 'Access denied: Admin privileges required' }, { status: 403 })
+      return NextResponse.json({ error: "Access denied: Admin privileges required" }, { status: 403 })
     }
 
     const body = await req.json()
     const { profileId, action } = body
 
     if (!profileId || !action) {
-      return NextResponse.json({ error: 'Missing profileId or action' }, { status: 400 })
+      return NextResponse.json({ error: "Missing profileId or action" }, { status: 400 })
     }
 
     // Fetch existing user subscription
     const { data: existingSub } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('profile_id', profileId)
+      .from("subscriptions")
+      .select("*")
+      .eq("profile_id", profileId)
       .maybeSingle()
 
     // If granting free access or revoking, cancel any active Razorpay subscription on Razorpay
-    if (action.startsWith('grant_') || action === 'revoke') {
+    if (action.startsWith("grant_") || action === "revoke") {
       await cancelUserRazorpaySubscriptions(profileId, existingSub?.razorpay_subscription_id)
     }
 
     const now = new Date()
     let subPayload: Record<string, unknown> = {}
-    let message = ''
+    let message = ""
 
-    if (action === 'grant_lifetime') {
+    if (action === "grant_lifetime") {
       subPayload = {
         profile_id: profileId,
-        status: 'active',
-        plan_type: 'yearly',
-        razorpay_subscription_id: 'admin_free_lifetime',
+        status: "active",
+        plan_type: "yearly",
+        razorpay_subscription_id: "admin_free_lifetime",
         current_period_start: now.toISOString(),
-        current_period_end: '2099-12-31T23:59:59.999Z',
+        current_period_end: "2099-12-31T23:59:59.999Z",
         scheduled_deletion_at: null,
-        updated_at: now.toISOString()
+        updated_at: now.toISOString(),
       }
-      message = 'Lifetime free access granted!'
-    } else if (action === 'grant_1year') {
+      message = "Lifetime free access granted!"
+    } else if (action === "grant_1year") {
       const oneYr = new Date(now)
       oneYr.setFullYear(oneYr.getFullYear() + 1)
       subPayload = {
         profile_id: profileId,
-        status: 'active',
-        plan_type: 'yearly',
-        razorpay_subscription_id: 'admin_free_1year',
+        status: "active",
+        plan_type: "yearly",
+        razorpay_subscription_id: "admin_free_1year",
         current_period_start: now.toISOString(),
         current_period_end: oneYr.toISOString(),
         scheduled_deletion_at: null,
-        updated_at: now.toISOString()
+        updated_at: now.toISOString(),
       }
-      message = '1-Year free access granted!'
-    } else if (action === 'grant_6months') {
+      message = "1-Year free access granted!"
+    } else if (action === "grant_6months") {
       const sixMo = new Date(now)
       sixMo.setMonth(sixMo.getMonth() + 6)
       subPayload = {
         profile_id: profileId,
-        status: 'active',
-        plan_type: 'yearly',
-        razorpay_subscription_id: 'admin_free_6months',
+        status: "active",
+        plan_type: "yearly",
+        razorpay_subscription_id: "admin_free_6months",
         current_period_start: now.toISOString(),
         current_period_end: sixMo.toISOString(),
         scheduled_deletion_at: null,
-        updated_at: now.toISOString()
+        updated_at: now.toISOString(),
       }
-      message = '6-Months free access granted!'
-    } else if (action === 'grant_1month') {
+      message = "6-Months free access granted!"
+    } else if (action === "grant_1month") {
       const oneMo = new Date(now)
       oneMo.setMonth(oneMo.getMonth() + 1)
       subPayload = {
         profile_id: profileId,
-        status: 'active',
-        plan_type: 'monthly',
-        razorpay_subscription_id: 'admin_free_1month',
+        status: "active",
+        plan_type: "monthly",
+        razorpay_subscription_id: "admin_free_1month",
         current_period_start: now.toISOString(),
         current_period_end: oneMo.toISOString(),
         scheduled_deletion_at: null,
-        updated_at: now.toISOString()
+        updated_at: now.toISOString(),
       }
-      message = '1-Month free access granted!'
-    } else if (action === 'extend_30days' || action === 'extend_1year') {
+      message = "1-Month free access granted!"
+    } else if (action === "extend_30days" || action === "extend_1year") {
       const { data: existingSub } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('profile_id', profileId)
+        .from("subscriptions")
+        .select("*")
+        .eq("profile_id", profileId)
         .single()
 
       let baseDate = now
@@ -132,7 +131,7 @@ export async function POST(req: Request) {
       }
 
       const newEnd = new Date(baseDate)
-      if (action === 'extend_30days') {
+      if (action === "extend_30days") {
         newEnd.setDate(newEnd.getDate() + 30)
       } else {
         newEnd.setFullYear(newEnd.getFullYear() + 1)
@@ -140,19 +139,19 @@ export async function POST(req: Request) {
 
       subPayload = {
         profile_id: profileId,
-        status: 'active',
+        status: "active",
         current_period_start: existingSub?.current_period_start || now.toISOString(),
         current_period_end: newEnd.toISOString(),
         scheduled_deletion_at: null,
-        updated_at: now.toISOString()
+        updated_at: now.toISOString(),
       }
-      message = `Subscription extended until ${newEnd.toLocaleDateString('en-IN')}`
-    } else if (action === 'revoke') {
+      message = `Subscription extended until ${newEnd.toLocaleDateString("en-IN")}`
+    } else if (action === "revoke") {
       const deletionDate = new Date(now)
       deletionDate.setDate(deletionDate.getDate() + 60)
       subPayload = {
         profile_id: profileId,
-        status: 'canceled',
+        status: "canceled",
         plan_type: null,
         razorpay_subscription_id: null,
         razorpay_plan_id: null,
@@ -160,26 +159,24 @@ export async function POST(req: Request) {
         current_period_start: now.toISOString(),
         current_period_end: now.toISOString(),
         scheduled_deletion_at: deletionDate.toISOString(),
-        updated_at: now.toISOString()
+        updated_at: now.toISOString(),
       }
-      message = 'Subscription access revoked.'
+      message = "Subscription access revoked."
     } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+      return NextResponse.json({ error: "Invalid action" }, { status: 400 })
     }
 
-    const { error: upsertErr } = await supabase
-      .from('subscriptions')
-      .upsert(subPayload, { onConflict: 'profile_id' })
+    const { error: upsertErr } = await supabase.from("subscriptions").upsert(subPayload, { onConflict: "profile_id" })
 
     if (upsertErr) {
-      console.error('Error updating user subscription:', upsertErr)
-      return NextResponse.json({ error: 'Failed to update subscription' }, { status: 500 })
+      console.error("Error updating user subscription:", upsertErr)
+      return NextResponse.json({ error: "Failed to update subscription" }, { status: 500 })
     }
 
     return NextResponse.json({ success: true, message })
   } catch (err: unknown) {
-    console.error('Error in admin grant-access:', err)
-    const message = err instanceof Error ? err.message : 'An error occurred'
+    console.error("Error in admin grant-access:", err)
+    const message = err instanceof Error ? err.message : "An error occurred"
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

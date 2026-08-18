@@ -1,9 +1,7 @@
 "use client"
-import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, XCircle, User, BookOpen, Fingerprint, RotateCcw, Calendar, ChevronRight } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { m } from "motion/react"
+import { CheckCircle2, XCircle, User, Fingerprint, RotateCcw, Calendar } from "lucide-react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 
 interface AttendanceCardProps {
   subjectId?: string
@@ -23,42 +21,76 @@ interface AttendanceCardProps {
   isPossibleToRecover?: boolean
   remainingLectures?: number
   targetPct?: number
-  onLog?: (subjectId: string, action: 'present'|'absent'|'deemed'|'undo_present'|'undo_absent'|'undo_deemed') => void
+  onLog?: (
+    subjectId: string,
+    action: "present" | "absent" | "deemed" | "undo_present" | "undo_absent" | "undo_deemed"
+  ) => void
 }
 
 function hexToAccentStyle(hex: string) {
   if (!hex) return {}
   return {
-    background: hex
+    background: hex,
   }
 }
 
-export function AttendanceCard({
-  subjectId,
-  subjectName,
-  present,
-  absent,
-  deemed,
-  percentage,
-  accentColor,
-  instructorName,
-  // label and remainingLectures are part of the API contract but not rendered in this card
-  bunksRemaining,
-  maxAllowedSkips,
-  currentSkips,
-  neededToRecover,
-  maxPossiblePct,
-  isPossibleToRecover,
-  targetPct = 70,
-  onLog,
-}: AttendanceCardProps) {
+function getHealthData(
+  present: number,
+  absent: number,
+  deemed: number,
+  bunksRemaining?: number,
+  skipPct?: number,
+  pct?: number,
+  targetPct?: number
+) {
+  if (present === 0 && absent === 0 && deemed === 0) {
+    return { colorClass: "text-muted-foreground", glowClass: "from-muted-foreground/20" }
+  }
+
+  if (bunksRemaining !== undefined) {
+    if (bunksRemaining <= 0) return { colorClass: "text-destructive", glowClass: "from-destructive/20" }
+    if (skipPct !== undefined && skipPct >= 0.6)
+      return { colorClass: "text-amber-600 dark:text-amber-400", glowClass: "from-amber-500/20" }
+    return { colorClass: "text-green-600 dark:text-green-400/90", glowClass: "from-green-500/20" }
+  }
+
+  if (pct !== undefined && targetPct !== undefined) {
+    if (pct < targetPct) return { colorClass: "text-destructive", glowClass: "from-destructive/20" }
+    if (pct < targetPct + 10)
+      return { colorClass: "text-amber-600 dark:text-amber-400", glowClass: "from-amber-500/20" }
+    return { colorClass: "text-green-600 dark:text-green-400/90", glowClass: "from-green-500/20" }
+  }
+
+  return { colorClass: "text-green-600 dark:text-green-400/90", glowClass: "from-green-500/20" }
+}
+
+export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
+  const {
+    subjectId,
+    subjectName,
+    present,
+    absent,
+    deemed,
+    percentage,
+    accentColor,
+    instructorName,
+    bunksRemaining,
+    maxAllowedSkips,
+    currentSkips,
+    neededToRecover,
+    maxPossiblePct,
+    isPossibleToRecover,
+    targetPct = 70,
+    onLog,
+  } = props
+
   const pct = Number(percentage ?? 0)
   const [progress, setProgress] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setProgress(pct)
+    const timer = setTimeout(() => setProgress(pct), 50)
+    return () => clearTimeout(timer)
   }, [pct])
 
   const handleCardClick = () => {
@@ -67,233 +99,233 @@ export function AttendanceCard({
     }
   }
 
-  const skipPct = maxAllowedSkips && maxAllowedSkips > 0 ? (currentSkips || 0) / maxAllowedSkips : 0;
-  
-  let healthClass = 'text-muted-foreground';
-  if (present > 0 || absent > 0 || deemed > 0) {
-    if (bunksRemaining !== undefined) {
-      if (bunksRemaining <= 0) {
-        healthClass = 'text-destructive';
-      } else if (skipPct >= 0.6) {
-        healthClass = 'text-amber-600 dark:text-amber-400';
-      } else {
-        healthClass = 'text-green-600 dark:text-green-400/90';
-      }
-    } else {
-      // Fallback if bunk logic is unavailable
-      if (pct < targetPct) {
-        healthClass = 'text-destructive';
-      } else if (pct < targetPct + 10) {
-        healthClass = 'text-amber-600 dark:text-amber-400';
-      } else {
-        healthClass = 'text-green-600 dark:text-green-400/90';
-      }
-    }
-  }
+  const skipPct = maxAllowedSkips && maxAllowedSkips > 0 ? (currentSkips || 0) / maxAllowedSkips : 0
+  const health = getHealthData(present, absent, deemed, bunksRemaining, skipPct, pct, targetPct)
 
   return (
-    <m.div 
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="h-full"
-    >
-      <Card 
+    <div className="h-full">
+      <div
         onClick={handleCardClick}
-        className="relative overflow-hidden group transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
+        className="group hover:shadow-primary/5 border-border/40 hover:border-primary/30 bg-card/60 relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[2rem] border backdrop-blur-3xl transition-all duration-500 ease-out hover:shadow-xl"
       >
-        {/* Top accent bar */}
-        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToAccentStyle(accentColor || '#8b5cf6')} />
+        <div className="relative z-10 flex flex-1 flex-col p-5">
+          {/* Top Section: Title & Percentage */}
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground flex items-center gap-1 text-[9px] font-bold tracking-[0.2em] uppercase">
+                  <User className="h-3 w-3" />
+                  {instructorName || "No Instructor"}
+                </span>
 
-        <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
-        <div className="flex justify-between items-center mb-4">
-          {/* Badge / Code */}
-          <div>
-            <div 
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider uppercase inline-flex items-center gap-1.5"
-              style={{
-                backgroundColor: `${accentColor || '#8b5cf6'}1A`, 
-                color: accentColor || '#8b5cf6',
-                border: `1px solid ${accentColor || '#8b5cf6'}33`
-              }}
-            >
-              <BookOpen className="w-3 h-3" /> Academic
+                {subjectId && (
+                  <div className="bg-muted/40 hover:bg-primary/10 text-muted-foreground hover:text-primary border-border/30 flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold transition-colors">
+                    <Calendar className="h-3 w-3" />
+                    <span>Open</span>
+                  </div>
+                )}
+              </div>
+              <h3 className="text-foreground line-clamp-2 font-serif text-3xl leading-[1.1] font-bold tracking-tight">
+                {subjectName}
+              </h3>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <span className={`font-serif text-5xl font-bold tracking-tighter tabular-nums ${health.colorClass}`}>
+                {Math.round(pct)}%
+              </span>
             </div>
           </div>
 
-          {/* Explicit Open Calendar Button */}
-          {subjectId && (
-            <div 
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-muted/60 hover:bg-primary/15 text-muted-foreground hover:text-primary transition-all text-xs font-bold border border-border/40 group/cal"
-              title="Open Calendar & Detailed Attendance History"
-            >
-              <Calendar className="w-3.5 h-3.5 group-hover/cal:text-primary transition-colors text-primary" />
-              <span>Calendar</span>
-              <ChevronRight className="w-3.5 h-3.5 opacity-60 group-hover/cal:translate-x-0.5 transition-transform" />
+          <div className="mt-auto space-y-4">
+            {/* Elegant Progress Line */}
+            <div className="bg-muted relative h-1.5 w-full overflow-hidden rounded-full border border-white/5 shadow-inner">
+              <div
+                className="absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ease-out"
+                style={{
+                  width: `${progress}%`,
+                  ...hexToAccentStyle(accentColor || "#8b5cf6"),
+                }}
+              />
             </div>
-          )}
-        </div>
 
-        <div className="flex items-start justify-between gap-2 w-full mb-1">
-          <h3 className="text-xl font-bold text-foreground leading-tight tracking-tight line-clamp-2">
-            {subjectName}
-          </h3>
-          <span className={`text-2xl font-bold shrink-0 ${healthClass}`}>
-            {Math.round(pct)}%
-          </span>
-        </div>
-        
-        {/* Meta Row */}
-        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-4 flex-1">
-          {instructorName ? (
-            <>
-              <User className="w-4 h-4 opacity-70 shrink-0" />
-              <span className="truncate">{instructorName}</span>
-            </>
-          ) : (
-             <span className="truncate opacity-70">No Instructor set</span>
-          )}
-        </div>
-
-        {/* Attendance Stats bar */}
-        <div className="space-y-3 mt-auto">
-          {!onLog && (
-            <div className="flex justify-between text-sm font-medium text-muted-foreground">
-              <span className="flex items-center gap-1 text-green-600/80 dark:text-green-400/80">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                {present ?? 0} Pres
-              </span>
-              <span className="flex items-center gap-1 text-destructive/80">
-                <XCircle className="h-3.5 w-3.5" />
-                {absent ?? 0} Abs
-              </span>
-              <span className="flex items-center gap-1 text-blue-600/80 dark:text-blue-400/80">
-                <Fingerprint className="h-3.5 w-3.5" />
-                {deemed ?? 0} Deem
-              </span>
-            </div>
-          )}
-
-          <div className="h-2 w-full rounded-full overflow-hidden bg-muted shadow-inner">
-            <m.div
-              className="h-full rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 1, delay: 0.2, type: "spring" }}
-              style={hexToAccentStyle(accentColor || '#8b5cf6')}
-            />
-          </div>
-
-          {(present > 0 || absent > 0 || deemed > 0) && (bunksRemaining !== undefined || neededToRecover !== undefined) && (
-            <div className="pt-1">
-              {bunksRemaining !== undefined && bunksRemaining >= 0 ? (
-                <>
-                  {(() => {
-                    const skipPct = maxAllowedSkips && maxAllowedSkips > 0 ? (currentSkips || 0) / maxAllowedSkips : 0;
-                    if (bunksRemaining === 0) {
-                      return (
-                        <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                          🛑 High risk: Can&apos;t afford to skip any lectures. Attend daily to meet {targetPct}%
-                        </p>
-                      );
-                    }
-                    if (skipPct >= 0.6) {
-                      return (
-                        <p className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-tighter bg-amber-500/10 px-2 py-1 rounded-md inline-block border border-amber-500/20">
-                          ⚠️ Warning: Only {bunksRemaining} skips left to maintain {targetPct}%
-                        </p>
-                      );
-                    }
-                    return (
-                      <p className="text-[10px] font-bold text-green-600 dark:text-green-400/90 uppercase tracking-tighter bg-green-500/5 px-2 py-1 rounded-md inline-block border border-green-500/10">
-                        ✨ You can skip {bunksRemaining} lectures and still maintain {targetPct}%
-                      </p>
-                    );
-                  })()}
-                </>
-              ) : (
-                <>
-                  {isPossibleToRecover ? (
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                        🚨 Attend {neededToRecover} lectures to meet {targetPct}%
-                      </p>
-                      <p className="text-[9px] text-muted-foreground font-medium pl-1 italic">
-                        No skips allowed! Focus on showing up daily.
-                      </p>
-                    </div>
+            {/* Warning / Status Message */}
+            {(present > 0 || absent > 0 || deemed > 0) &&
+              (bunksRemaining !== undefined || neededToRecover !== undefined) && (
+                <div className="flex">
+                  {bunksRemaining !== undefined && bunksRemaining >= 0 ? (
+                    <>
+                      {(() => {
+                        const spct = maxAllowedSkips && maxAllowedSkips > 0 ? (currentSkips || 0) / maxAllowedSkips : 0
+                        if (bunksRemaining === 0) {
+                          return (
+                            <div className="bg-destructive/10 text-destructive rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-tight">
+                              High risk: Zero skips left
+                            </div>
+                          )
+                        }
+                        if (spct >= 0.6) {
+                          return (
+                            <div className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-tight text-amber-600 dark:text-amber-400">
+                              Warning: Only {bunksRemaining} skips left
+                            </div>
+                          )
+                        }
+                        return (
+                          <div className="rounded-full bg-green-500/5 px-2 py-0.5 text-[10px] font-semibold tracking-tight text-green-600 dark:text-green-400/90">
+                            Safe to skip {bunksRemaining} more
+                          </div>
+                        )
+                      })()}
+                    </>
                   ) : (
-                    <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-destructive uppercase tracking-tighter bg-destructive/5 px-2 py-1 rounded-md inline-block border border-destructive/10">
-                        ⚠️ Goal: Attending daily will make your attendance {Math.round(maxPossiblePct || 0)}%. Don&apos;t skip anymore!
-                      </p>
-                    </div>
+                    <>
+                      {isPossibleToRecover ? (
+                        <div className="bg-destructive/10 text-destructive rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-tight">
+                          Deficit: Attend {neededToRecover} to recover
+                        </div>
+                      ) : (
+                        <div className="bg-destructive/10 text-destructive rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-tight">
+                          Critical: Max possible is {Math.round(maxPossiblePct || 0)}%
+                        </div>
+                      )}
+                    </>
                   )}
-                </>
+                </div>
               )}
-            </div>
-          )}
 
-          {/* Action Buttons */}
-          {onLog && subjectId && (
-            <div className="grid grid-cols-3 gap-2 pt-3" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between pl-2.5 pr-1 py-1.5 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 border border-emerald-500/20 shadow-sm transition-all hover:bg-emerald-500/20">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'present'); }}
-                  className="flex flex-col items-start flex-1 text-left select-none mr-1 focus:outline-none"
+            {/* Apple Health Style Rounded Squares */}
+            {onLog ? (
+              <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-3">
+                {/* Present Block */}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onLog(subjectId!, "present")
+                  }}
+                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 py-3 shadow-sm transition-all hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:shadow-md"
                   title="Mark Present (+1)"
                 >
-                  <span className="text-[10px] sm:text-xs font-semibold text-emerald-700 dark:text-emerald-300 tracking-tight">Present</span>
-                  <span className="font-mono text-xs sm:text-sm font-bold text-emerald-800 dark:text-emerald-200">{present ?? 0}</span>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_present'); }}
-                  className="p-1.5 rounded-lg text-emerald-600/70 hover:text-emerald-800 dark:text-emerald-400/70 dark:hover:text-emerald-200 hover:bg-emerald-500/20 active:scale-95 transition-all focus:outline-none"
-                  title="Undo Present (-1)"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </button>
-              </div>
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/80" />
+                    <span className="text-[10px] font-bold tracking-wider text-emerald-700/80 uppercase dark:text-emerald-400/80">
+                      Present
+                    </span>
+                  </div>
+                  <span className="font-serif text-3xl font-bold text-emerald-600 transition-transform group-hover/btn:scale-105 dark:text-emerald-400">
+                    {present ?? 0}
+                  </span>
 
-              <div className="flex items-center justify-between pl-2.5 pr-1 py-1.5 rounded-xl bg-rose-500/10 dark:bg-rose-500/15 border border-rose-500/20 shadow-sm transition-all hover:bg-rose-500/20">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'absent'); }}
-                  className="flex flex-col items-start flex-1 text-left select-none mr-1 focus:outline-none"
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onLog(subjectId!, "undo_present")
+                    }}
+                    className="absolute top-1.5 right-1.5 rounded-full p-1 text-emerald-600/0 transition-all outline-none group-hover/btn:text-emerald-600/50 hover:bg-emerald-500/20 active:scale-95 dark:group-hover/btn:text-emerald-400/50"
+                    title="Undo Present"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Absent Block */}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onLog(subjectId!, "absent")
+                  }}
+                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 py-3 shadow-sm transition-all hover:border-rose-500/30 hover:bg-rose-500/15 hover:shadow-md"
                   title="Mark Absent (+1)"
                 >
-                  <span className="text-[10px] sm:text-xs font-semibold text-rose-700 dark:text-rose-300 tracking-tight">Absent</span>
-                  <span className="font-mono text-xs sm:text-sm font-bold text-rose-800 dark:text-rose-200">{absent ?? 0}</span>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_absent'); }}
-                  className="p-1.5 rounded-lg text-rose-600/70 hover:text-rose-800 dark:text-rose-400/70 dark:hover:text-rose-200 hover:bg-rose-500/20 active:scale-95 transition-all focus:outline-none"
-                  title="Undo Absent (-1)"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </button>
-              </div>
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <XCircle className="h-3.5 w-3.5 text-rose-500/80" />
+                    <span className="text-[10px] font-bold tracking-wider text-rose-700/80 uppercase dark:text-rose-400/80">
+                      Absent
+                    </span>
+                  </div>
+                  <span className="font-serif text-3xl font-bold text-rose-600 transition-transform group-hover/btn:scale-105 dark:text-rose-400">
+                    {absent ?? 0}
+                  </span>
 
-              <div className="flex items-center justify-between pl-2.5 pr-1 py-1.5 rounded-xl bg-blue-500/10 dark:bg-blue-500/15 border border-blue-500/20 shadow-sm transition-all hover:bg-blue-500/20">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'deemed'); }}
-                  className="flex flex-col items-start flex-1 text-left select-none mr-1 focus:outline-none"
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onLog(subjectId!, "undo_absent")
+                    }}
+                    className="absolute top-1.5 right-1.5 rounded-full p-1 text-rose-600/0 transition-all outline-none group-hover/btn:text-rose-600/50 hover:bg-rose-500/20 active:scale-95 dark:group-hover/btn:text-rose-400/50"
+                    title="Undo Absent"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+
+                {/* Deemed Block */}
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onLog(subjectId!, "deemed")
+                  }}
+                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 py-3 shadow-sm transition-all hover:border-blue-500/30 hover:bg-blue-500/15 hover:shadow-md"
                   title="Mark Deemed (+1)"
                 >
-                  <span className="text-[10px] sm:text-xs font-semibold text-blue-700 dark:text-blue-300 tracking-tight">Deemed</span>
-                  <span className="font-mono text-xs sm:text-sm font-bold text-blue-800 dark:text-blue-200">{deemed ?? 0}</span>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onLog(subjectId, 'undo_deemed'); }}
-                  className="p-1.5 rounded-lg text-blue-600/70 hover:text-blue-800 dark:text-blue-400/70 dark:hover:text-blue-200 hover:bg-blue-500/20 active:scale-95 transition-all focus:outline-none"
-                  title="Undo Deemed (-1)"
-                >
-                  <RotateCcw className="h-3 w-3" />
-                </button>
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <Fingerprint className="h-3.5 w-3.5 text-blue-500/80" />
+                    <span className="text-[10px] font-bold tracking-wider text-blue-700/80 uppercase dark:text-blue-400/80">
+                      Deemed
+                    </span>
+                  </div>
+                  <span className="font-serif text-3xl font-bold text-blue-600 transition-transform group-hover/btn:scale-105 dark:text-blue-400">
+                    {deemed ?? 0}
+                  </span>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onLog(subjectId!, "undo_deemed")
+                    }}
+                    className="absolute top-1.5 right-1.5 rounded-full p-1 text-blue-600/0 transition-all outline-none group-hover/btn:text-blue-600/50 hover:bg-blue-500/20 active:scale-95 dark:group-hover/btn:text-blue-400/50"
+                    title="Undo Deemed"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-3">
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 py-3 shadow-sm">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/80" />
+                    <span className="text-[10px] font-bold tracking-wider text-emerald-700/80 uppercase dark:text-emerald-400/80">
+                      Present
+                    </span>
+                  </div>
+                  <span className="font-serif text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {present ?? 0}
+                  </span>
+                </div>
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 py-3 shadow-sm">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <XCircle className="h-3.5 w-3.5 text-rose-500/80" />
+                    <span className="text-[10px] font-bold tracking-wider text-rose-700/80 uppercase dark:text-rose-400/80">
+                      Absent
+                    </span>
+                  </div>
+                  <span className="font-serif text-3xl font-bold text-rose-600 dark:text-rose-400">{absent ?? 0}</span>
+                </div>
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 py-3 shadow-sm">
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <Fingerprint className="h-3.5 w-3.5 text-blue-500/80" />
+                    <span className="text-[10px] font-bold tracking-wider text-blue-700/80 uppercase dark:text-blue-400/80">
+                      Deemed
+                    </span>
+                  </div>
+                  <span className="font-serif text-3xl font-bold text-blue-600 dark:text-blue-400">{deemed ?? 0}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </CardContent>
-    </Card>
-    </m.div>
+      </div>
+    </div>
   )
 }

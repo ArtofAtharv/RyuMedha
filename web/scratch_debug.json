@@ -39,8 +39,5 @@
       "status": "needsAction"
     }
   ],
-  "matchedLocalIds": [
-    "e4acfa5c-a544-4c0c-90c1-bc258c5eb162",
-    "6c7c4711-7786-4958-831e-a9378c6ab973"
-  ]
+  "matchedLocalIds": ["e4acfa5c-a544-4c0c-90c1-bc258c5eb162", "6c7c4711-7786-4958-831e-a9378c6ab973"]
 }

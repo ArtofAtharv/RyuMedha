@@ -10,7 +10,11 @@ interface SubjectInfo {
   id: string
 }
 
-export function MarkTodayClasses({ subjectsInfo, token, profileId }: Readonly<{ subjectsInfo: SubjectInfo[], token: string, profileId: string }>) {
+export function MarkTodayClasses({
+  subjectsInfo,
+  token,
+  profileId,
+}: Readonly<{ subjectsInfo: SubjectInfo[]; token: string; profileId: string }>) {
   const [isMarking, setIsMarking] = useState(false)
   const router = useRouter()
 
@@ -20,27 +24,27 @@ export function MarkTodayClasses({ subjectsInfo, token, profileId }: Readonly<{ 
     if (!subjectsInfo || subjectsInfo.length === 0) return
     setIsMarking(true)
 
-    const inserts = subjectsInfo.map(sub => ({
+    const inserts = subjectsInfo.map((sub) => ({
       profile_id: profileId,
       subject_id: sub.id,
-      status: 'present',
-      lecture_date: new Date().toISOString().split('T')[0]
+      status: "present",
+      lecture_date: new Date().toISOString().split("T")[0],
     }))
 
     // Batch insert
-    await supabase.from('attendance_logs').insert(inserts)
-    
+    await supabase.from("attendance_logs").insert(inserts)
+
     setIsMarking(false)
     router.refresh()
   }
 
   return (
-    <Button 
+    <Button
       onClick={handleMarkAll}
       disabled={isMarking || subjectsInfo.length === 0}
-      className="bg-primary hover:bg-primary/90 transition-colors font-bold gap-2"
+      className="bg-primary hover:bg-primary/90 gap-2 font-bold transition-colors"
     >
-      <CheckCircle2 className={`w-4 h-4 ${isMarking ? "animate-spin" : ""}`} />
+      <CheckCircle2 className={`h-4 w-4 ${isMarking ? "animate-spin" : ""}`} />
       {isMarking ? "Marking..." : "Mark All Present"}
     </Button>
   )

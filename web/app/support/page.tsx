@@ -1,10 +1,10 @@
 "use client"
 
 import React, { useState } from "react"
-import { m } from "motion/react"
 import { Mail, MessageCircle, Send, Headphones, CheckCircle2, Clock, Loader2, Copy, Check } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
+import { m } from "motion/react"
 
 export function Contact() {
   const [loading, setLoading] = useState(false)
@@ -47,31 +47,28 @@ export function Contact() {
   return (
     <div className="w-full">
       {success ? (
-        <m.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-primary/20 bg-primary/5 p-6"
-        >
-          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-4 shadow-inner">
+        <div className="border-primary/20 bg-primary/5 animate-in fade-in zoom-in-95 flex flex-col items-center justify-center rounded-2xl border p-6 py-12 text-center duration-500">
+          <div className="bg-primary/10 text-primary mb-4 flex h-16 w-16 items-center justify-center rounded-full shadow-inner">
             <CheckCircle2 className="h-8 w-8" />
           </div>
-          <h3 className="text-xl font-bold text-foreground">Message Received!</h3>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-            Thank you for reaching out. Our support team has received your message and will respond to your email as soon as possible.
+          <h3 className="text-foreground text-xl font-bold">Message Received!</h3>
+          <p className="text-muted-foreground mt-2 max-w-sm text-sm">
+            Thank you for reaching out. Our support team has received your message and will respond to your email as
+            soon as possible.
           </p>
           <Button
             type="button"
             variant="outline"
             onClick={() => setSuccess(false)}
-            className="mt-6 rounded-xl text-xs font-semibold cursor-pointer"
+            className="mt-6 cursor-pointer rounded-xl text-xs font-semibold"
           >
             Send another message
           </Button>
-        </m.div>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground pl-0.5">
+            <label htmlFor="name" className="text-muted-foreground pl-1 text-xs font-semibold tracking-wider uppercase">
               Name
             </label>
             <input
@@ -82,12 +79,15 @@ export function Contact() {
               required
               placeholder="Your name"
               disabled={loading}
-              className="h-12 w-full rounded-xl border border-border/80 bg-background/60 px-4 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all duration-200 focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/15 disabled:opacity-50"
+              className="border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:bg-background/80 focus:ring-primary/10 h-12 w-full rounded-2xl border px-4 text-sm transition-all duration-200 outline-none focus:ring-4 disabled:opacity-50"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground pl-0.5">
+            <label
+              htmlFor="email"
+              className="text-muted-foreground pl-1 text-xs font-semibold tracking-wider uppercase"
+            >
               Email
             </label>
             <input
@@ -98,12 +98,15 @@ export function Contact() {
               required
               placeholder="email@example.com"
               disabled={loading}
-              className="h-12 w-full rounded-xl border border-border/80 bg-background/60 px-4 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all duration-200 focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/15 disabled:opacity-50"
+              className="border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:bg-background/80 focus:ring-primary/10 h-12 w-full rounded-2xl border px-4 text-sm transition-all duration-200 outline-none focus:ring-4 disabled:opacity-50"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="message" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground pl-0.5">
+            <label
+              htmlFor="message"
+              className="text-muted-foreground pl-1 text-xs font-semibold tracking-wider uppercase"
+            >
               Message
             </label>
             <textarea
@@ -113,23 +116,23 @@ export function Contact() {
               rows={4}
               placeholder="Enter Message"
               disabled={loading}
-              className="w-full rounded-xl border border-border/80 bg-background/60 p-4 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all duration-200 focus:border-primary focus:bg-background focus:ring-2 focus:ring-primary/15 disabled:opacity-50 resize-y min-h-[110px]"
+              className="border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:bg-background/80 focus:ring-primary/10 min-h-[120px] w-full resize-y rounded-2xl border p-4 text-sm transition-all duration-200 outline-none focus:ring-4 disabled:opacity-50"
             ></textarea>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm shadow-md transition-all duration-200 hover:bg-primary/90 hover:shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            className="bg-primary text-primary-foreground shadow-primary/25 hover:bg-primary/90 mt-4 flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl text-sm font-bold shadow-lg transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
           >
             {loading ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
                 Submitting…
               </>
             ) : (
               <>
-                <Send className="h-4 w-4" />
+                <Send className="h-5 w-5" />
                 Submit Form
               </>
             )}
@@ -140,8 +143,13 @@ export function Contact() {
   )
 }
 
+import { useProfile } from "@/components/dashboard/profile-context"
+import { DashboardLayoutWrapper } from "@/components/dashboard/dashboard-layout-wrapper"
+import { GamificationProvider } from "@/components/dashboard/gamification-context"
+
 export default function SupportPage() {
   const [copiedEmail, setCopiedEmail] = useState(false)
+  const { profile } = useProfile()
 
   function copyEmail() {
     navigator.clipboard.writeText("ryumedha@gmail.com")
@@ -150,121 +158,134 @@ export default function SupportPage() {
     setTimeout(() => setCopiedEmail(false), 2000)
   }
 
-  return (
-    <main className="min-h-[85vh] bg-background text-foreground py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+  const content = (
+    <main className="bg-background text-foreground relative min-h-[85dvh] flex-1 overflow-hidden px-4 py-12 sm:px-6 lg:px-8">
       {/* Background glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px] pointer-events-none -z-10" />
-      
-      <div className="max-w-5xl mx-auto flex flex-col gap-12">
+      <div className="bg-primary/15 pointer-events-none absolute top-1/4 left-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[140px]" />
+      <div className="pointer-events-none absolute right-0 bottom-0 -z-10 h-[500px] w-[500px] rounded-full bg-purple-500/10 blur-[140px]" />
+
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-12">
         {/* Header */}
-        <m.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex flex-col items-center text-center gap-3"
-        >
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight bg-gradient-to-br from-foreground via-foreground/90 to-muted-foreground bg-clip-text text-transparent">
+        <div className="animate-in fade-in flex flex-col items-center gap-4 text-center duration-700">
+          <h1 className="from-foreground via-foreground/90 to-muted-foreground bg-gradient-to-br bg-clip-text font-serif text-4xl font-bold tracking-tight text-transparent sm:text-6xl">
             How can we help you?
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-xl">
-            Have questions about tracking attendance, managing semesters, or experiencing issues? Send us a message or connect directly.
+          <p className="text-muted-foreground max-w-xl text-sm leading-relaxed sm:text-base">
+            Have questions about tracking attendance, managing semesters, or experiencing issues? Send us a message or
+            connect directly.
           </p>
-        </m.div>
+        </div>
 
-        {/* Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          {/* Left Column — Direct Contact & Info */}
-          <m.div
-            initial={{ opacity: 0, x: -15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="lg:col-span-5 flex flex-col gap-5"
-          >
-            {/* Direct Email Card */}
-            <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-md p-6 shadow-lg flex flex-col gap-4 relative overflow-hidden group hover:border-primary/40 transition-colors">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Mail className="h-6 w-6" />
+        {/* Content Bento Grid */}
+        <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-start gap-6 lg:grid-cols-12">
+          {/* Main Column — Contact Form (Left Side) */}
+          <div className="flex h-full lg:col-span-7">
+            <div className="border-border/40 bg-card/40 animate-in fade-in flex h-full w-full flex-col rounded-3xl border p-8 shadow-lg backdrop-blur-3xl duration-700">
+              <div className="border-border/40 mb-8 flex items-center gap-4 border-b pb-6">
+                <div className="bg-primary/10 text-primary flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl">
+                  <Headphones className="h-7 w-7" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-foreground">Direct Email</h2>
-                  <p className="text-xs text-muted-foreground">Reach out to our support inbox</p>
+                  <h2 className="text-foreground font-serif text-2xl font-bold tracking-tight">Send a Message</h2>
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    Fill out the form below and our team will get in touch.
+                  </p>
                 </div>
               </div>
-              
-              <div className="flex items-center justify-between rounded-xl bg-muted/60 px-3.5 py-3 border border-border/60">
-                <span className="font-mono text-sm font-medium text-foreground truncate">ryumedha@gmail.com</span>
-                <button
-                  onClick={copyEmail}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-background text-muted-foreground hover:text-foreground shadow-sm transition-colors cursor-pointer shrink-0"
-                  title="Copy email address"
-                >
-                  {copiedEmail ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </button>
+
+              <div className="flex flex-1 flex-col justify-center">
+                <Contact />
               </div>
-              <p className="text-[12px] text-muted-foreground leading-relaxed">
-                We typically respond to email inquiries within 24 hours on business days.
-              </p>
             </div>
+          </div>
 
-            {/* WhatsApp Bot Quick Help Card */}
-            <div className="rounded-2xl border border-border/80 bg-card/60 backdrop-blur-md p-6 shadow-lg flex flex-col gap-4 hover:border-green-500/40 transition-colors">
-              <div className="flex items-center gap-3.5">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-green-500/10 text-green-600 dark:text-green-400">
-                  <MessageCircle className="h-6 w-6" />
+          {/* Side Column — Quick Help (Right Side) */}
+          <div className="animate-in fade-in flex h-full flex-col gap-6 delay-100 duration-700 lg:col-span-5">
+            {/* WhatsApp Bot Quick Help Card (Priority) */}
+            <m.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="border-border/40 bg-card/40 flex flex-1 flex-col gap-6 rounded-3xl border p-8 shadow-lg backdrop-blur-3xl transition-all hover:border-green-500/40"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-green-500/10 text-green-600 dark:text-green-400">
+                  <MessageCircle className="h-7 w-7" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-foreground">WhatsApp Bot</h2>
-                  <p className="text-xs text-muted-foreground">Fastest way to register & verify</p>
+                  <h2 className="text-foreground text-lg font-bold">WhatsApp Bot</h2>
+                  <p className="text-muted-foreground text-sm">Fastest way to register & verify</p>
                 </div>
               </div>
-              
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Having issues receiving your login OTP? Ensure you have sent a message to our WhatsApp bot first so we can deliver codes to your chat.
+
+              <p className="text-muted-foreground flex-1 text-sm leading-relaxed">
+                Having issues receiving your login OTP? Ensure you have sent a message to our WhatsApp bot first so we
+                can deliver codes to your chat seamlessly.
               </p>
 
               <a
                 href="https://wa.me/message/P4QSZGK7MV2PL1"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-4 py-2.5 text-xs font-semibold text-white shadow transition-all hover:bg-green-700 active:scale-[0.98]"
+                className="mt-auto inline-flex w-full items-center justify-center gap-3 rounded-2xl bg-green-600 px-6 py-4 text-sm font-bold text-white shadow-xl shadow-green-600/20 transition-all hover:bg-green-700 active:scale-[0.98]"
               >
-                <MessageCircle className="h-4 w-4" />
-                Message WhatsApp Bot
+                <MessageCircle className="h-5 w-5" />
+                Message on WhatsApp
               </a>
-            </div>
+            </m.div>
+
+            {/* Direct Email Card */}
+            <m.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="border-border/40 bg-card/40 group hover:border-primary/40 relative flex flex-col gap-5 overflow-hidden rounded-3xl border p-6 shadow-lg backdrop-blur-3xl transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="bg-primary/10 text-primary flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+                  <Mail className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="text-foreground text-base font-bold">Direct Email</h2>
+                  <p className="text-muted-foreground text-xs">ryumedha@gmail.com</p>
+                </div>
+              </div>
+
+              <div className="bg-background/50 border-border/50 flex items-center justify-between rounded-2xl border px-4 py-3">
+                <span className="text-foreground truncate font-mono text-sm font-medium select-all">
+                  ryumedha@gmail.com
+                </span>
+                <button
+                  onClick={copyEmail}
+                  className="bg-card text-muted-foreground hover:text-foreground flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl shadow-sm transition-colors"
+                  title="Copy email address"
+                >
+                  {copiedEmail ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </button>
+              </div>
+            </m.div>
 
             {/* Response Time Card */}
-            <div className="rounded-2xl border border-border/60 bg-muted/30 p-5 flex items-center gap-4">
-              <Clock className="h-8 w-8 text-muted-foreground shrink-0" />
-              <div className="text-xs">
-                <p className="font-semibold text-foreground">24/7 Academic Tracking</p>
-                <p className="text-muted-foreground mt-0.5">
-                  Our servers actively process attendance and timers around the clock.
-                </p>
+            <div className="border-border/40 bg-card/40 flex items-center gap-5 rounded-3xl border p-6 shadow-lg backdrop-blur-3xl">
+              <div className="bg-muted/50 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl">
+                <Clock className="text-foreground h-6 w-6" />
               </div>
-            </div>
-          </m.div>
-
-          {/* Right Column — Contact Form */}
-          <m.div
-            initial={{ opacity: 0, x: 15 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.4, delay: 0.15 }}
-            className="lg:col-span-7 rounded-3xl border border-border/80 bg-card/80 backdrop-blur-xl p-6 sm:p-8 shadow-xl"
-          >
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border/60">
-              <Headphones className="h-6 w-6 text-primary" />
               <div>
-                <h2 className="text-lg font-bold text-foreground">Send a Message</h2>
-                <p className="text-xs text-muted-foreground">Fill out the form below and our team will get in touch.</p>
+                <p className="text-foreground text-sm font-bold">24/7 Processing</p>
+                <p className="text-muted-foreground mt-1 text-xs">Servers actively track attendance and timers.</p>
               </div>
             </div>
-
-            <Contact />
-          </m.div>
+          </div>
         </div>
       </div>
     </main>
   )
+
+  if (profile) {
+    return (
+      <GamificationProvider>
+        <DashboardLayoutWrapper subscription={{ status: "active" }}>{content}</DashboardLayoutWrapper>
+      </GamificationProvider>
+    )
+  }
+
+  return content
 }

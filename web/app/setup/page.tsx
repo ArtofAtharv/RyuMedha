@@ -9,10 +9,22 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  BookOpen, FolderOpen, User, ArrowRight, CheckCircle2, 
-  School, GraduationCap, Calendar, Loader2, ChevronLeft,
-  Plus, Trash2, X, Check, Target
+import {
+  BookOpen,
+  FolderOpen,
+  User,
+  ArrowRight,
+  CheckCircle2,
+  School,
+  GraduationCap,
+  Calendar,
+  Loader2,
+  ChevronLeft,
+  Plus,
+  Trash2,
+  X,
+  Check,
+  Target,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
@@ -27,10 +39,22 @@ import { m, AnimatePresence } from "motion/react"
 //   user: SessionUser
 // }
 
-interface IdName { id: string; name: string }
-interface Program extends IdName { default_target_attendance?: number }
-interface Semester extends IdName { semester_number: number }
-interface Course { id: string; course_name: string; instructor_name?: string; expected_total_lectures?: number }
+interface IdName {
+  id: string
+  name: string
+}
+interface Program extends IdName {
+  default_target_attendance?: number
+}
+interface Semester extends IdName {
+  semester_number: number
+}
+interface Course {
+  id: string
+  course_name: string
+  instructor_name?: string
+  expected_total_lectures?: number
+}
 
 export default function SetupPage() {
   const router = useRouter()
@@ -38,16 +62,16 @@ export default function SetupPage() {
   const { session: _session } = useSupabaseSession()
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
   const [profileId, setProfileId] = useState<string | null>(null)
-  
+
   // Step 1: Basics
   const [displayName, setDisplayName] = useState("")
   const [academicsEnabled, setAcademicsEnabled] = useState(false)
   const [personalEnabled, setPersonalEnabled] = useState(false)
-  
+
   const [universities, setUniversities] = useState<IdName[]>([])
   const [programs, setPrograms] = useState<Program[]>([])
   const [semesters, setSemesters] = useState<Semester[]>([])
-  
+
   const [selectedUniId, setSelectedUniId] = useState<string>("")
   const [selectedProgId, setSelectedProgId] = useState<string>("")
   const [selectedSemId, setSelectedSemId] = useState<string>("")
@@ -60,7 +84,7 @@ export default function SetupPage() {
   const [newProgName, setNewProgName] = useState("")
   const [isAddingSem, setIsAddingSem] = useState(false)
   const [newSemName, setNewSemName] = useState("")
-  
+
   // Step 3: Subjects
   const [availableCourses, setAvailableCourses] = useState<Course[]>([])
   const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([])
@@ -70,23 +94,25 @@ export default function SetupPage() {
   const handleAddCustomCourse = () => {
     const trimmed = newCourseName.trim()
     if (!trimmed) return
-    if (customCourses.some(c => c.toLowerCase() === trimmed.toLowerCase())) {
+    if (customCourses.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
       toast.error("This subject is already in your list")
       return
     }
-    setCustomCourses(prev => [...prev, trimmed])
+    setCustomCourses((prev) => [...prev, trimmed])
     setNewCourseName("")
     toast.success(`Added '${trimmed}'`)
   }
 
   const handleRemoveCustomCourse = (indexToRemove: number) => {
-    setCustomCourses(prev => prev.filter((_, idx) => idx !== indexToRemove))
+    setCustomCourses((prev) => prev.filter((_, idx) => idx !== indexToRemove))
   }
-  
+
   const toggleCourseSelection = (courseId: string) => {
-    setSelectedCourseIds(prev => prev.includes(courseId) ? prev.filter(id => id !== courseId) : [...prev, courseId])
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    )
   }
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState("")
 
@@ -105,8 +131,8 @@ export default function SetupPage() {
 
       if (!activeSession) {
         const getCookie = (name: string) => {
-          if (typeof document === 'undefined') return null
-          const cookies = document.cookie.split(';')
+          if (typeof document === "undefined") return null
+          const cookies = document.cookie.split(";")
           for (let i = 0; i < cookies.length; i++) {
             const c = cookies[i].trim()
             if (c.startsWith(`${name}=`)) {
@@ -115,13 +141,13 @@ export default function SetupPage() {
           }
           return null
         }
-        const accessToken = getCookie('sb-access-token')
-        const refreshToken = getCookie('sb-refresh-token')
+        const accessToken = getCookie("sb-access-token")
+        const refreshToken = getCookie("sb-refresh-token")
 
         if (refreshToken) {
           const { data: setSessionRes } = await supabase.auth.setSession({
-            access_token: accessToken || '',
-            refresh_token: refreshToken
+            access_token: accessToken || "",
+            refresh_token: refreshToken,
           })
           activeSession = setSessionRes?.session
         }
@@ -134,16 +160,13 @@ export default function SetupPage() {
 
       // Try syncing pending Razorpay payment status if returning from payment app
       try {
-        await fetch('/api/razorpay/sync-subscription', { method: 'POST' })
+        await fetch("/api/razorpay/sync-subscription", { method: "POST" })
       } catch {
         // non-blocking
       }
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .single()
-        
+
+      const { data: profile } = await supabase.from("profiles").select("*").single()
+
       let currentProfileId = profile?.id || null
 
       if (profile) {
@@ -158,15 +181,15 @@ export default function SetupPage() {
         // If profile is missing, auto-create it on the fly
         const user = activeSession.user
         const { data: newProfile, error: insertError } = await supabase
-          .from('profiles')
+          .from("profiles")
           .insert({
             id: user.id,
             email: user.email,
             whatsapp_number: user.phone || user.user_metadata?.whatsapp_number || user.user_metadata?.phone || null,
-            display_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+            display_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
             academics_enabled: null,
             personal_enabled: null,
-            target_attendance_pct: 70
+            target_attendance_pct: 70,
           })
           .select()
           .single()
@@ -187,15 +210,15 @@ export default function SetupPage() {
       }
 
       // Pre-fetch universities
-      const { data: unis } = await supabase.from('universities').select('id, name').order('name')
+      const { data: unis } = await supabase.from("universities").select("id, name").order("name")
       if (unis) setUniversities(unis)
 
       // Fetch subscription status to see if active or setup is already complete
       if (currentProfileId) {
         const { data: subData } = await supabase
-          .from('subscriptions')
-          .select('*')
-          .eq('profile_id', currentProfileId)
+          .from("subscriptions")
+          .select("*")
+          .eq("profile_id", currentProfileId)
           .maybeSingle()
 
         if (subData) {
@@ -203,13 +226,14 @@ export default function SetupPage() {
         }
 
         const isProfileSetupDone = profile && (profile.academics_enabled !== null || profile.personal_enabled !== null)
-        const isSubActive = subData?.status === 'active' || 
-          Boolean(subData?.razorpay_subscription_id?.startsWith('admin_free_')) || 
-          Boolean(subData?.razorpay_subscription_id?.startsWith('invite_'))
+        const isSubActive =
+          subData?.status === "active" ||
+          Boolean(subData?.razorpay_subscription_id?.startsWith("admin_free_")) ||
+          Boolean(subData?.razorpay_subscription_id?.startsWith("invite_"))
 
         if (isProfileSetupDone) {
           if (isSubActive) {
-            router.push('/dashboard/whatsapp-bot')
+            router.push("/dashboard/whatsapp-bot")
           } else {
             setStep(4)
           }
@@ -222,7 +246,11 @@ export default function SetupPage() {
   // cascaded fetches for Step 2
   useEffect(() => {
     if (selectedUniId && supabaseClient) {
-      supabaseClient.from('programs').select('id, name, default_target_attendance').eq('university_id', selectedUniId).order('name')
+      supabaseClient
+        .from("programs")
+        .select("id, name, default_target_attendance")
+        .eq("university_id", selectedUniId)
+        .order("name")
         .then(({ data }: { data: Program[] | null }) => {
           setPrograms(data || [])
           setSelectedProgId("")
@@ -235,13 +263,17 @@ export default function SetupPage() {
   useEffect(() => {
     if (selectedProgId && supabaseClient) {
       // Find the selected program to get its default target attendance
-      const prog = programs.find(p => p.id === selectedProgId)
+      const prog = programs.find((p) => p.id === selectedProgId)
       if (prog?.default_target_attendance) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setTargetAttendance(prog.default_target_attendance.toString())
       }
 
-      supabaseClient.from('semesters').select('id, name, semester_number').eq('program_id', selectedProgId).order('semester_number')
+      supabaseClient
+        .from("semesters")
+        .select("id, name, semester_number")
+        .eq("program_id", selectedProgId)
+        .order("semester_number")
         .then(({ data }: { data: Semester[] | null }) => {
           setSemesters(data || [])
           setSelectedSemId("")
@@ -253,13 +285,17 @@ export default function SetupPage() {
   async function handleCreateUni() {
     if (!newUniName.trim() || !supabaseClient) return
     setIsSubmitting(true)
-    const { data, error } = await supabaseClient.from('universities').insert([{ name: newUniName.trim() }]).select().single()
+    const { data, error } = await supabaseClient
+      .from("universities")
+      .insert([{ name: newUniName.trim() }])
+      .select()
+      .single()
     setIsSubmitting(false)
     if (error) {
       console.error("handleCreateUni error:", error)
       toast.error(`Failed to add university: ${error.message || "Unknown error"}`)
     } else {
-      setUniversities(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      setUniversities((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedUniId(data.id)
       setIsAddingUni(false)
       setNewUniName("")
@@ -271,15 +307,15 @@ export default function SetupPage() {
     e.stopPropagation()
     if (!supabaseClient) return
     if (!confirm("Are you sure? This will remove the university for everyone.")) return
-    
+
     setIsSubmitting(true)
-    const { error } = await supabaseClient.from('universities').delete().eq('id', id)
+    const { error } = await supabaseClient.from("universities").delete().eq("id", id)
     setIsSubmitting(false)
-    
+
     if (error) {
       toast.error("Cannot delete university (likely has linked programs)")
     } else {
-      setUniversities(prev => prev.filter(u => u.id !== id))
+      setUniversities((prev) => prev.filter((u) => u.id !== id))
       if (selectedUniId === id) setSelectedUniId("")
       toast.success("University removed")
     }
@@ -288,16 +324,22 @@ export default function SetupPage() {
   async function handleCreateProg() {
     if (!newProgName.trim() || !selectedUniId || !supabaseClient) return
     setIsSubmitting(true)
-    const { data, error } = await supabaseClient.from('programs').insert([{ 
-      name: newProgName.trim(), 
-      university_id: selectedUniId 
-    }]).select().single()
+    const { data, error } = await supabaseClient
+      .from("programs")
+      .insert([
+        {
+          name: newProgName.trim(),
+          university_id: selectedUniId,
+        },
+      ])
+      .select()
+      .single()
     setIsSubmitting(false)
     if (error) {
       console.error("handleCreateProg error:", error)
       toast.error(`Failed to add program: ${error.message || "Unknown error"}`)
     } else {
-      setPrograms(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
+      setPrograms((prev) => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedProgId(data.id)
       setIsAddingProg(false)
       setNewProgName("")
@@ -309,15 +351,15 @@ export default function SetupPage() {
     e.stopPropagation()
     if (!supabaseClient) return
     if (!confirm("Remove this program?")) return
-    
+
     setIsSubmitting(true)
-    const { error } = await supabaseClient.from('programs').delete().eq('id', id)
+    const { error } = await supabaseClient.from("programs").delete().eq("id", id)
     setIsSubmitting(false)
-    
+
     if (error) {
       toast.error("Cannot delete program (has linked semesters)")
     } else {
-      setPrograms(prev => prev.filter(p => p.id !== id))
+      setPrograms((prev) => prev.filter((p) => p.id !== id))
       if (selectedProgId === id) setSelectedProgId("")
       toast.success("Program removed")
     }
@@ -326,23 +368,29 @@ export default function SetupPage() {
   async function handleCreateSem() {
     if (!newSemName.trim() || !selectedProgId || !supabaseClient) return
     setIsSubmitting(true)
-    
+
     // Auto-extract semester number from semester name (e.g. "Semester 5" -> 5)
     const semNameStr = newSemName.trim()
     const digitMatch = semNameStr.match(/\d+/)
-    const parsedNumber = digitMatch ? Number.parseInt(digitMatch[0], 10) : (semesters.length + 1)
+    const parsedNumber = digitMatch ? Number.parseInt(digitMatch[0], 10) : semesters.length + 1
 
-    const { data, error } = await supabaseClient.from('semesters').insert([{ 
-      name: semNameStr, 
-      program_id: selectedProgId,
-      semester_number: parsedNumber
-    }]).select().single()
+    const { data, error } = await supabaseClient
+      .from("semesters")
+      .insert([
+        {
+          name: semNameStr,
+          program_id: selectedProgId,
+          semester_number: parsedNumber,
+        },
+      ])
+      .select()
+      .single()
     setIsSubmitting(false)
     if (error) {
       console.error("handleCreateSem error:", error)
       toast.error(`Failed to add semester: ${error.message || "Unknown error"}`)
     } else {
-      setSemesters(prev => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
+      setSemesters((prev) => [...prev, data].sort((a, b) => a.semester_number - b.semester_number))
       setSelectedSemId(data.id)
       setIsAddingSem(false)
       setNewSemName("")
@@ -354,15 +402,15 @@ export default function SetupPage() {
     e.stopPropagation()
     if (!supabaseClient) return
     if (!confirm("Remove this semester?")) return
-    
+
     setIsSubmitting(true)
-    const { error } = await supabaseClient.from('semesters').delete().eq('id', id)
+    const { error } = await supabaseClient.from("semesters").delete().eq("id", id)
     setIsSubmitting(false)
-    
+
     if (error) {
       toast.error("Cannot delete semester (has linked courses)")
     } else {
-      setSemesters(prev => prev.filter(s => s.id !== id))
+      setSemesters((prev) => prev.filter((s) => s.id !== id))
       if (selectedSemId === id) setSelectedSemId("")
       toast.success("Semester removed")
     }
@@ -383,14 +431,14 @@ export default function SetupPage() {
     if (!supabaseClient || !profileId) return
     setIsSubmitting(true)
     const { error } = await supabaseClient
-      .from('profiles')
+      .from("profiles")
       .update({
         display_name: displayName.trim(),
         academics_enabled: academicsEnabled,
-        personal_enabled: personalEnabled
+        personal_enabled: personalEnabled,
       })
-      .eq('id', profileId)
-    
+      .eq("id", profileId)
+
     setIsSubmitting(false)
     if (error) setErrorMsg(error.message)
     else setStep(4)
@@ -404,14 +452,14 @@ export default function SetupPage() {
     }
     setErrorMsg("")
     setIsSubmitting(true)
-    
+
     // Fetch available courses for this semester
     const { data: courses, error } = await supabaseClient
-      .from('academic_courses')
-      .select('id, course_name, instructor_name, expected_total_lectures')
-      .eq('semester_id', selectedSemId)
-      .order('course_name')
-    
+      .from("academic_courses")
+      .select("id, course_name, instructor_name, expected_total_lectures")
+      .eq("semester_id", selectedSemId)
+      .order("course_name")
+
     if (error) {
       toast.error("Failed to fetch courses")
     } else {
@@ -432,7 +480,7 @@ export default function SetupPage() {
       display_name: displayName.trim(),
       academics_enabled: academicsEnabled,
       personal_enabled: personalEnabled,
-      target_attendance_pct: Number.parseFloat(targetAttendance) || 70
+      target_attendance_pct: Number.parseFloat(targetAttendance) || 70,
     }
 
     if (academicsEnabled) {
@@ -441,10 +489,7 @@ export default function SetupPage() {
       profileUpdates.current_semester_id = selectedSemId
     }
 
-    const { error: pError } = await supabaseClient
-      .from('profiles')
-      .update(profileUpdates)
-      .eq('id', profileId)
+    const { error: pError } = await supabaseClient.from("profiles").update(profileUpdates).eq("id", profileId)
 
     if (pError) {
       setErrorMsg(pError.message)
@@ -456,29 +501,29 @@ export default function SetupPage() {
     if (academicsEnabled && selectedCourseIds.length > 0) {
       // Fetch existing subjects for this profile to prevent duplication
       const { data: existingSubjects } = await supabaseClient
-        .from('subjects')
-        .select('source_course_id')
-        .eq('profile_id', profileId)
-      
+        .from("subjects")
+        .select("source_course_id")
+        .eq("profile_id", profileId)
+
       const existingIds = existingSubjects?.map((s: { source_course_id: string }) => s.source_course_id) || []
-      const deduplicatedCourseIds = selectedCourseIds.filter(id => !existingIds.includes(id))
+      const deduplicatedCourseIds = selectedCourseIds.filter((id) => !existingIds.includes(id))
       const skippedCount = selectedCourseIds.length - deduplicatedCourseIds.length
 
       if (deduplicatedCourseIds.length > 0) {
-        const subjectsToInsert = deduplicatedCourseIds.map(courseId => {
-          const course = availableCourses.find(c => c.id === courseId)
+        const subjectsToInsert = deduplicatedCourseIds.map((courseId) => {
+          const course = availableCourses.find((c) => c.id === courseId)
           return {
             profile_id: profileId,
             name: course?.course_name || "Unknown Subject",
-            type: 'academic',
+            type: "academic",
             source_course_id: courseId,
             instructor_name: course?.instructor_name || null,
             expected_total_lectures: course?.expected_total_lectures || 0,
-            color_hex: '#3b82f6',
-            is_active: true
+            color_hex: "#3b82f6",
+            is_active: true,
           }
         })
-        await supabaseClient.from('subjects').insert(subjectsToInsert)
+        await supabaseClient.from("subjects").insert(subjectsToInsert)
       }
 
       if (skippedCount > 0) {
@@ -488,30 +533,34 @@ export default function SetupPage() {
 
     // 3. Add Custom Courses if provided
     const allCustomNames = [...customCourses]
-    if (newCourseName.trim() && !allCustomNames.some(c => c.toLowerCase() === newCourseName.trim().toLowerCase())) {
+    if (newCourseName.trim() && !allCustomNames.some((c) => c.toLowerCase() === newCourseName.trim().toLowerCase())) {
       allCustomNames.push(newCourseName.trim())
     }
 
     if (academicsEnabled && allCustomNames.length > 0) {
       for (const customName of allCustomNames) {
         const { data: newCourse, error: courseError } = await supabaseClient
-          .from('academic_courses')
-          .insert([{
-            semester_id: selectedSemId,
-            course_name: customName
-          }])
+          .from("academic_courses")
+          .insert([
+            {
+              semester_id: selectedSemId,
+              course_name: customName,
+            },
+          ])
           .select()
           .single()
-        
+
         if (!courseError && newCourse) {
-          await supabaseClient.from('subjects').insert([{
-            profile_id: profileId,
-            name: newCourse.course_name,
-            type: 'academic',
-            source_course_id: newCourse.id,
-            color_hex: '#3b82f6',
-            is_active: true
-          }])
+          await supabaseClient.from("subjects").insert([
+            {
+              profile_id: profileId,
+              name: newCourse.course_name,
+              type: "academic",
+              source_course_id: newCourse.id,
+              color_hex: "#3b82f6",
+              is_active: true,
+            },
+          ])
         }
       }
     }
@@ -520,37 +569,89 @@ export default function SetupPage() {
     setStep(4)
   }
 
-  const step1Bundle = { displayName, setDisplayName, academicsEnabled, setAcademicsEnabled, personalEnabled, setPersonalEnabled, handleStep1Next };
+  const step1Bundle = {
+    displayName,
+    setDisplayName,
+    academicsEnabled,
+    setAcademicsEnabled,
+    personalEnabled,
+    setPersonalEnabled,
+    handleStep1Next,
+  }
   const step2Bundle = {
-    isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
-    isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
-    isAddingSem, setIsAddingSem, newSemName, setNewSemName, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
-    targetAttendance, setTargetAttendance,
-    errorMsg, setStep, handleStep2Next, isSubmitting
-  };
+    isAddingUni,
+    setIsAddingUni,
+    newUniName,
+    setNewUniName,
+    handleCreateUni,
+    selectedUniId,
+    setSelectedUniId,
+    universities,
+    handleDeleteUni,
+    isAddingProg,
+    setIsAddingProg,
+    newProgName,
+    setNewProgName,
+    handleCreateProg,
+    selectedProgId,
+    setSelectedProgId,
+    programs,
+    handleDeleteProg,
+    isAddingSem,
+    setIsAddingSem,
+    newSemName,
+    setNewSemName,
+    handleCreateSem,
+    selectedSemId,
+    setSelectedSemId,
+    semesters,
+    handleDeleteSem,
+    targetAttendance,
+    setTargetAttendance,
+    errorMsg,
+    setStep,
+    handleStep2Next,
+    isSubmitting,
+  }
   const step3Bundle = {
-    availableCourses, semesters, selectedSemId, universities, selectedUniId, academicsEnabled,
-    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, customCourses, handleAddCustomCourse, handleRemoveCustomCourse, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
-  };
+    availableCourses,
+    semesters,
+    selectedSemId,
+    universities,
+    selectedUniId,
+    academicsEnabled,
+    selectedCourseIds,
+    toggleCourseSelection,
+    newCourseName,
+    setNewCourseName,
+    customCourses,
+    handleAddCustomCourse,
+    handleRemoveCustomCourse,
+    handleFinalSave,
+    isSubmitting,
+    setSelectedCourseIds,
+    setStep,
+    errorMsg,
+  }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 selection:bg-primary/20">
+    <div className="bg-background selection:bg-primary/20 flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="flex justify-center gap-2 mb-6">
-          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 1 ? 'bg-primary' : 'bg-primary/20'}`} />
-          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 2 ? 'bg-primary' : 'bg-primary/20'}`} />
-          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 3 ? 'bg-primary' : 'bg-primary/20'}`} />
-          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 4 ? 'bg-primary' : 'bg-primary/20'}`} />
+        <div className="mb-6 flex justify-center gap-2">
+          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 1 ? "bg-primary" : "bg-primary/20"}`} />
+          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 2 ? "bg-primary" : "bg-primary/20"}`} />
+          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 3 ? "bg-primary" : "bg-primary/20"}`} />
+          <div className={`h-1.5 w-8 rounded-full transition-colors ${step === 4 ? "bg-primary" : "bg-primary/20"}`} />
         </div>
 
-        <Card className="overflow-hidden border-border/60 bg-card">
+        <Card className="border-border/60 bg-card overflow-hidden">
           <AnimatePresence mode="wait">
             {step === 1 && <SetupStep1Card {...step1Bundle} />}
             {step === 2 && <SetupStep2Card {...step2Bundle} />}
             {step === 3 && <SetupStep3Card {...step3Bundle} />}
             {step === 4 && (
-              <SetupStep4Card 
-                onComplete={() => router.push("/dashboard/whatsapp-bot")} 
+              <SetupStep4Card
+                onComplete={() => router.push("/dashboard/whatsapp-bot")}
                 userEmail={userEmail}
                 displayName={displayName}
                 userPhone={userPhone}
@@ -575,59 +676,69 @@ interface Step1CardProps {
 }
 
 function SetupStep1Card(props: Readonly<Step1CardProps>) {
-  const { displayName, setDisplayName, academicsEnabled, setAcademicsEnabled, personalEnabled, setPersonalEnabled, handleStep1Next } = props;
+  const {
+    displayName,
+    setDisplayName,
+    academicsEnabled,
+    setAcademicsEnabled,
+    personalEnabled,
+    setPersonalEnabled,
+    handleStep1Next,
+  } = props
   return (
-    <m.div 
+    <m.div
       key="step1"
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
     >
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-          <User className="w-7 h-7 text-primary" />
+      <CardHeader className="pb-2 text-center">
+        <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
+          <User className="text-primary h-7 w-7" />
         </div>
         <CardTitle className="text-3xl font-semibold tracking-tight">Welcome</CardTitle>
         <CardDescription>A few details, then your workspace is ready.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-4">
         <div className="space-y-2">
-          <Label htmlFor="displayName" className="font-bold">Display Name</Label>
-          <Input 
-            id="displayName" 
+          <Label htmlFor="displayName" className="font-bold">
+            Display Name
+          </Label>
+          <Input
+            id="displayName"
             autoComplete="name"
-            placeholder="Your name" 
-            className="h-12 bg-background/50 border-muted-foreground/20 text-lg"
+            placeholder="Your name"
+            className="bg-background/50 border-muted-foreground/20 h-12 text-lg"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
           />
         </div>
 
         <div className="space-y-3">
-          <Label className="font-bold text-muted-foreground text-[10px] uppercase tracking-wider">Tracks</Label>
-          <div className="grid grid-cols-2 gap-3">
-            <TrackOption 
-              icon={<BookOpen className="w-5 h-5" />} 
-              label="Academic" 
-              selected={academicsEnabled} 
-              onClick={() => setAcademicsEnabled(!academicsEnabled)} 
+          <Label className="text-muted-foreground text-[10px] font-bold tracking-wider uppercase">Tracks</Label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <TrackOption
+              icon={<BookOpen className="h-5 w-5" />}
+              label="Academic"
+              selected={academicsEnabled}
+              onClick={() => setAcademicsEnabled(!academicsEnabled)}
             />
-            <TrackOption 
-              icon={<FolderOpen className="w-5 h-5" />} 
-              label="Personal" 
-              selected={personalEnabled} 
-              onClick={() => setPersonalEnabled(!personalEnabled)} 
+            <TrackOption
+              icon={<FolderOpen className="h-5 w-5" />}
+              label="Personal"
+              selected={personalEnabled}
+              onClick={() => setPersonalEnabled(!personalEnabled)}
             />
           </div>
         </div>
 
-        <Button 
+        <Button
           className="h-12 w-full rounded-full text-base font-semibold"
           disabled={!displayName.trim() || (!academicsEnabled && !personalEnabled)}
           onClick={handleStep1Next}
         >
-          Next <ArrowRight className="ml-2 w-5 h-5" />
+          Next <ArrowRight className="ml-2 h-5 w-5" />
         </Button>
       </CardContent>
     </m.div>
@@ -672,82 +783,124 @@ interface Step2CardProps {
 
 function SetupStep2Card(props: Readonly<Step2CardProps>) {
   const {
-    isAddingUni, setIsAddingUni, newUniName, setNewUniName, handleCreateUni, selectedUniId, setSelectedUniId, universities, handleDeleteUni,
-    isAddingProg, setIsAddingProg, newProgName, setNewProgName, handleCreateProg, selectedProgId, setSelectedProgId, programs, handleDeleteProg,
-    isAddingSem, setIsAddingSem, newSemName, setNewSemName, handleCreateSem, selectedSemId, setSelectedSemId, semesters, handleDeleteSem,
-    targetAttendance, setTargetAttendance,
-    errorMsg, setStep, handleStep2Next, isSubmitting
-  } = props;
+    isAddingUni,
+    setIsAddingUni,
+    newUniName,
+    setNewUniName,
+    handleCreateUni,
+    selectedUniId,
+    setSelectedUniId,
+    universities,
+    handleDeleteUni,
+    isAddingProg,
+    setIsAddingProg,
+    newProgName,
+    setNewProgName,
+    handleCreateProg,
+    selectedProgId,
+    setSelectedProgId,
+    programs,
+    handleDeleteProg,
+    isAddingSem,
+    setIsAddingSem,
+    newSemName,
+    setNewSemName,
+    handleCreateSem,
+    selectedSemId,
+    setSelectedSemId,
+    semesters,
+    handleDeleteSem,
+    targetAttendance,
+    setTargetAttendance,
+    errorMsg,
+    setStep,
+    handleStep2Next,
+    isSubmitting,
+  } = props
 
   return (
-    <m.div 
+    <m.div
       key="step2"
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
     >
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-          <School className="w-7 h-7 text-primary" />
+      <CardHeader className="pb-2 text-center">
+        <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
+          <School className="text-primary h-7 w-7" />
         </div>
         <CardTitle className="text-3xl font-semibold tracking-tight">Academic details</CardTitle>
         <CardDescription>Connect your university, program, and semester.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-5 pt-4">
-        
         {/* UNIVERSITY */}
         <div className="space-y-2">
-          <Label className="font-bold flex items-center gap-2">
-            <School className="w-4 h-4 text-muted-foreground" /> University
+          <Label className="flex items-center gap-2 font-bold">
+            <School className="text-muted-foreground h-4 w-4" /> University
           </Label>
-          
+
           {isAddingUni ? (
-            <div className="flex gap-2 animate-in slide-in-from-top-1 duration-200">
-              <Input 
+            <div className="animate-in slide-in-from-top-1 flex gap-2 duration-200">
+              <Input
                 autoFocus
-                placeholder="University Name" 
-                className="h-10 bg-background"
+                placeholder="University Name"
+                className="bg-background h-10"
                 value={newUniName}
                 onChange={(e) => setNewUniName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateUni()}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateUni()}
               />
               <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateUni} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               </Button>
-              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingUni(false)}>
-                <X className="w-4 h-4" />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0"
+                onClick={() => setIsAddingUni(false)}
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
           ) : (
-            <div className="relative group">
-              <Select 
-                value={selectedUniId} 
+            <div className="group relative">
+              <Select
+                value={selectedUniId}
                 onValueChange={(val) => {
                   if (val === "ADD_NEW_UNI") setIsAddingUni(true)
                   else setSelectedUniId(val)
                 }}
               >
-                <SelectTrigger className="h-12 bg-background border-muted-foreground/20 w-full">
+                <SelectTrigger className="bg-background border-muted-foreground/20 h-12 w-full">
                   <SelectValue placeholder="Select university..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {universities.map(u => (
-                    <div key={u.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                      <SelectItem value={u.id} className="flex-1">{u.name}</SelectItem>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  {universities.map((u) => (
+                    <div
+                      key={u.id}
+                      className="group/item hover:bg-muted/50 flex items-center justify-between rounded-md px-2"
+                    >
+                      <SelectItem value={u.id} className="flex-1">
+                        {u.name}
+                      </SelectItem>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 h-6 w-6 opacity-0 group-hover/item:opacity-100"
                         onClick={(e) => handleDeleteUni(e, u.id)}
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
                   ))}
-                  <div className="border-t mt-1 pt-1">
-                    <SelectItem value="ADD_NEW_UNI" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                      <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New University</span>
+                  <div className="mt-1 border-t pt-1">
+                    <SelectItem
+                      value="ADD_NEW_UNI"
+                      className="text-primary focus:bg-primary/10 focus:text-primary font-bold"
+                    >
+                      <span className="flex items-center gap-2 font-semibold">
+                        <Plus className="h-4 w-4" /> Add New University
+                      </span>
                     </SelectItem>
                   </div>
                 </SelectContent>
@@ -758,56 +911,74 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
 
         {/* PROGRAM */}
         <div className="space-y-2">
-          <Label className="font-bold flex items-center gap-2 data-[enabled=false]:opacity-50" data-enabled={!!selectedUniId}>
-            <GraduationCap className="w-4 h-4 text-muted-foreground" /> Degree Program
+          <Label
+            className="flex items-center gap-2 font-bold data-[enabled=false]:opacity-50"
+            data-enabled={!!selectedUniId}
+          >
+            <GraduationCap className="text-muted-foreground h-4 w-4" /> Degree Program
           </Label>
-          
+
           {isAddingProg ? (
-            <div className="flex gap-2 animate-in slide-in-from-top-1">
-              <Input 
+            <div className="animate-in slide-in-from-top-1 flex gap-2">
+              <Input
                 autoFocus
-                placeholder="Program Name (e.g. B.Tech CS)" 
-                className="h-10 bg-background"
+                placeholder="Program Name (e.g. B.Tech CS)"
+                className="bg-background h-10"
                 value={newProgName}
                 onChange={(e) => setNewProgName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateProg()}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateProg()}
               />
               <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateProg} disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               </Button>
-              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => setIsAddingProg(false)}>
-                <X className="w-4 h-4" />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0"
+                onClick={() => setIsAddingProg(false)}
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
           ) : (
-            <Select 
-              value={selectedProgId} 
+            <Select
+              value={selectedProgId}
               onValueChange={(val) => {
                 if (val === "ADD_NEW_PROG") setIsAddingProg(true)
                 else setSelectedProgId(val)
-              }} 
+              }}
               disabled={!selectedUniId}
             >
-              <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+              <SelectTrigger className="bg-background border-muted-foreground/20 h-12">
                 <SelectValue placeholder={selectedUniId ? "Select degree program..." : "Select university first"} />
               </SelectTrigger>
               <SelectContent>
-                {programs.map(p => (
-                  <div key={p.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                    <SelectItem value={p.id} className="flex-1">{p.name}</SelectItem>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                {programs.map((p) => (
+                  <div
+                    key={p.id}
+                    className="group/item hover:bg-muted/50 flex items-center justify-between rounded-md px-2"
+                  >
+                    <SelectItem value={p.id} className="flex-1">
+                      {p.name}
+                    </SelectItem>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-6 w-6 opacity-0 group-hover/item:opacity-100"
                       onClick={(e) => handleDeleteProg(e, p.id)}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
-                <div className="border-t mt-1 pt-1">
-                  <SelectItem value="ADD_NEW_PROG" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                    <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New Program</span>
+                <div className="mt-1 border-t pt-1">
+                  <SelectItem
+                    value="ADD_NEW_PROG"
+                    className="text-primary focus:bg-primary/10 focus:text-primary font-bold"
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Plus className="h-4 w-4" /> Add New Program
+                    </span>
                   </SelectItem>
                 </div>
               </SelectContent>
@@ -817,56 +988,82 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
 
         {/* SEMESTER */}
         <div className="space-y-2">
-          <Label className="font-bold flex items-center gap-2 data-[enabled=false]:opacity-50" data-enabled={!!selectedProgId}>
-            <Calendar className="w-4 h-4 text-muted-foreground" /> Current Semester
+          <Label
+            className="flex items-center gap-2 font-bold data-[enabled=false]:opacity-50"
+            data-enabled={!!selectedProgId}
+          >
+            <Calendar className="text-muted-foreground h-4 w-4" /> Current Semester
           </Label>
-          
+
           {isAddingSem ? (
-            <div className="flex gap-2 animate-in slide-in-from-top-1">
-              <Input 
+            <div className="animate-in slide-in-from-top-1 flex gap-2">
+              <Input
                 autoFocus
-                placeholder="Semester Name (e.g. Semester 5 or Sem 3)" 
-                className="h-10 bg-background flex-1"
+                placeholder="Semester Name (e.g. Semester 5 or Sem 3)"
+                className="bg-background h-10 flex-1"
                 value={newSemName}
                 onChange={(e) => setNewSemName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCreateSem()}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateSem()}
               />
-              <Button size="icon" className="h-10 w-10 shrink-0" onClick={handleCreateSem} disabled={isSubmitting || !newSemName.trim()}>
-                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              <Button
+                size="icon"
+                className="h-10 w-10 shrink-0"
+                onClick={handleCreateSem}
+                disabled={isSubmitting || !newSemName.trim()}
+              >
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               </Button>
-              <Button size="icon" variant="outline" className="h-10 w-10 shrink-0" onClick={() => { setIsAddingSem(false); setNewSemName(""); }}>
-                <X className="w-4 h-4" />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0"
+                onClick={() => {
+                  setIsAddingSem(false)
+                  setNewSemName("")
+                }}
+              >
+                <X className="h-4 w-4" />
               </Button>
             </div>
           ) : (
-            <Select 
-              value={selectedSemId} 
+            <Select
+              value={selectedSemId}
               onValueChange={(val) => {
                 if (val === "ADD_NEW_SEM") setIsAddingSem(true)
                 else setSelectedSemId(val)
-              }} 
+              }}
               disabled={!selectedProgId}
             >
-              <SelectTrigger className="h-12 bg-background border-muted-foreground/20">
+              <SelectTrigger className="bg-background border-muted-foreground/20 h-12">
                 <SelectValue placeholder={selectedProgId ? "Select semester..." : "Select program first"} />
               </SelectTrigger>
               <SelectContent>
-                {semesters.map(s => (
-                  <div key={s.id} className="flex items-center justify-between group/item px-2 hover:bg-muted/50 rounded-md">
-                    <SelectItem value={s.id} className="flex-1">{s.name}</SelectItem>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-6 w-6 opacity-0 group-hover/item:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10"
+                {semesters.map((s) => (
+                  <div
+                    key={s.id}
+                    className="group/item hover:bg-muted/50 flex items-center justify-between rounded-md px-2"
+                  >
+                    <SelectItem value={s.id} className="flex-1">
+                      {s.name}
+                    </SelectItem>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-6 w-6 opacity-0 group-hover/item:opacity-100"
                       onClick={(e) => handleDeleteSem(e, s.id)}
                     >
-                      <Trash2 className="w-3 h-3" />
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
                 ))}
-                <div className="border-t mt-1 pt-1">
-                  <SelectItem value="ADD_NEW_SEM" className="text-primary font-bold focus:bg-primary/10 focus:text-primary">
-                    <span className="flex items-center gap-2 font-semibold"><Plus className="w-4 h-4" /> Add New Semester</span>
+                <div className="mt-1 border-t pt-1">
+                  <SelectItem
+                    value="ADD_NEW_SEM"
+                    className="text-primary focus:bg-primary/10 focus:text-primary font-bold"
+                  >
+                    <span className="flex items-center gap-2 font-semibold">
+                      <Plus className="h-4 w-4" /> Add New Semester
+                    </span>
                   </SelectItem>
                 </div>
               </SelectContent>
@@ -876,40 +1073,45 @@ function SetupStep2Card(props: Readonly<Step2CardProps>) {
 
         {/* TARGET ATTENDANCE GOAL */}
         <div className="space-y-2">
-          <Label htmlFor="targetAttendance" className="font-bold flex items-center justify-between">
+          <Label htmlFor="targetAttendance" className="flex items-center justify-between font-bold">
             <span className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-muted-foreground" /> Target Attendance Goal
+              <Target className="text-muted-foreground h-4 w-4" /> Target Attendance Goal
             </span>
-            <span className="text-xs text-primary font-mono font-bold">{targetAttendance || "70"}%</span>
+            <span className="text-primary font-mono text-xs font-bold">{targetAttendance || "70"}%</span>
           </Label>
           <div className="relative">
-            <Input 
-              id="targetAttendance" 
-              type="number" 
-              min="50" 
-              max="100" 
-              placeholder="70" 
-              className="h-12 bg-background border-muted-foreground/20 text-base pr-8 font-semibold"
+            <Input
+              id="targetAttendance"
+              type="number"
+              min="50"
+              max="100"
+              placeholder="70"
+              className="bg-background border-muted-foreground/20 h-12 pr-8 text-base font-semibold"
               value={targetAttendance}
               onChange={(e) => setTargetAttendance(e.target.value)}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-bold">%</span>
+            <span className="text-muted-foreground absolute top-1/2 right-3 -translate-y-1/2 text-sm font-bold">%</span>
           </div>
-          <p className="text-[11px] text-muted-foreground">Default target is 70%. You can adjust this anytime in your profile settings.</p>
+          <p className="text-muted-foreground text-[11px]">
+            Default target is 70%. You can adjust this anytime in your profile settings.
+          </p>
         </div>
 
-        {errorMsg && <p className="text-xs text-destructive text-center font-semibold bg-destructive/10 p-2 rounded">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="text-destructive bg-destructive/10 rounded p-2 text-center text-xs font-semibold">{errorMsg}</p>
+        )}
 
         <div className="flex gap-3 pt-2">
-          <Button variant="outline" className="h-12 w-14 border-muted-foreground/20" onClick={() => setStep(1)}>
-            <ChevronLeft className="w-5 h-5" />
+          <Button variant="outline" className="border-muted-foreground/20 h-12 w-14" onClick={() => setStep(1)}>
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <Button 
+          <Button
             className="h-12 flex-1 rounded-full text-base font-semibold"
             onClick={handleStep2Next}
             disabled={!selectedSemId || isSubmitting}
           >
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Continue"} <ArrowRight className="ml-2 w-5 h-5" />
+            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Continue"}{" "}
+            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </CardContent>
@@ -940,44 +1142,59 @@ interface Step3CardProps {
 
 function SetupStep3Card(props: Readonly<Step3CardProps>) {
   const {
-    availableCourses, semesters, selectedSemId, universities, selectedUniId, academicsEnabled,
-    selectedCourseIds, toggleCourseSelection, newCourseName, setNewCourseName, customCourses, handleAddCustomCourse, handleRemoveCustomCourse, handleFinalSave, isSubmitting, setSelectedCourseIds, setStep, errorMsg
-  } = props;
+    availableCourses,
+    semesters,
+    selectedSemId,
+    universities,
+    selectedUniId,
+    academicsEnabled,
+    selectedCourseIds,
+    toggleCourseSelection,
+    newCourseName,
+    setNewCourseName,
+    customCourses,
+    handleAddCustomCourse,
+    handleRemoveCustomCourse,
+    handleFinalSave,
+    isSubmitting,
+    setSelectedCourseIds,
+    setStep,
+    errorMsg,
+  } = props
 
   return (
-    <m.div 
+    <m.div
       key="step3"
       initial={{ opacity: 0, x: -12 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 12 }}
       transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
     >
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-muted">
-          <CheckCircle2 className="w-7 h-7 text-primary" />
+      <CardHeader className="pb-2 text-center">
+        <div className="bg-muted mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
+          <CheckCircle2 className="text-primary h-7 w-7" />
         </div>
         <CardTitle className="text-3xl font-semibold tracking-tight">Select your courses</CardTitle>
         <CardDescription>
-          {availableCourses.length > 0 
+          {availableCourses.length > 0
             ? "Choose existing courses or add your custom subjects below."
-            : "Be the first user from " + 
-              (semesters.find(s => s.id === selectedSemId)?.name || "this semester") + 
-              " of " + 
-              (universities.find(u => u.id === selectedUniId)?.name || "this University") + 
+            : "Be the first user from " +
+              (semesters.find((s) => s.id === selectedSemId)?.name || "this semester") +
+              " of " +
+              (universities.find((u) => u.id === selectedUniId)?.name || "this University") +
               " to manage the study with excellence!"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6 pt-4">
-        
         {academicsEnabled && (
           <div className="space-y-4">
             {availableCourses.length > 0 && (
               <div className="space-y-2">
                 <Label className="font-bold">Existing Courses</Label>
-                <CourseSelectionList 
-                  courses={availableCourses} 
-                  selectedIds={selectedCourseIds} 
-                  onToggle={toggleCourseSelection} 
+                <CourseSelectionList
+                  courses={availableCourses}
+                  selectedIds={selectedCourseIds}
+                  onToggle={toggleCourseSelection}
                 />
               </div>
             )}
@@ -987,46 +1204,48 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
                 {availableCourses.length > 0 ? "Add Custom Subjects" : "Add Your Subjects"}
               </Label>
               <div className="flex gap-2">
-                <Input 
-                  placeholder="Enter subject name (e.g. Contract Law)" 
+                <Input
+                  placeholder="Enter subject name (e.g. Contract Law)"
                   value={newCourseName}
                   onChange={(e) => setNewCourseName(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault()
                       handleAddCustomCourse()
                     }
                   }}
-                  className="h-10 bg-background flex-1"
+                  className="bg-background h-10 flex-1"
                 />
-                <Button 
-                  type="button" 
+                <Button
+                  type="button"
                   onClick={handleAddCustomCourse}
                   disabled={!newCourseName.trim()}
-                  className="h-10 px-4 font-bold text-xs shrink-0 rounded-xl gap-1"
+                  className="h-10 shrink-0 gap-1 rounded-xl px-4 text-xs font-bold"
                 >
-                  <Plus className="w-4 h-4" /> Add Subject
+                  <Plus className="h-4 w-4" /> Add Subject
                 </Button>
               </div>
 
               {/* Added Custom Courses Chips / List */}
               {customCourses.length > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  <span className="text-xs text-muted-foreground font-semibold">Custom Subjects to Add ({customCourses.length}):</span>
-                  <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto">
+                  <span className="text-muted-foreground text-xs font-semibold">
+                    Custom Subjects to Add ({customCourses.length}):
+                  </span>
+                  <div className="flex max-h-[140px] flex-wrap gap-2 overflow-y-auto">
                     {customCourses.map((course, idx) => (
-                      <Badge 
-                        key={idx} 
-                        variant="secondary" 
-                        className="py-1 px-3 text-xs flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded-xl"
+                      <Badge
+                        key={idx}
+                        variant="secondary"
+                        className="bg-primary/10 text-primary border-primary/20 flex items-center gap-1.5 rounded-xl border px-3 py-1 text-xs"
                       >
                         <span>{course}</span>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => handleRemoveCustomCourse(idx)}
                           className="hover:bg-primary/20 rounded-full p-0.5"
                         >
-                          <X className="w-3 h-3 text-primary" />
+                          <X className="text-primary h-3 w-3" />
                         </button>
                       </Badge>
                     ))}
@@ -1037,25 +1256,37 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
           </div>
         )}
 
-        {errorMsg && <p className="text-xs text-destructive text-center font-semibold bg-destructive/10 p-2 rounded">{errorMsg}</p>}
+        {errorMsg && (
+          <p className="text-destructive bg-destructive/10 rounded p-2 text-center text-xs font-semibold">{errorMsg}</p>
+        )}
 
         <div className="flex gap-3 pt-2">
-          <Button variant="outline" className="h-12 w-14 border-muted-foreground/20" onClick={() => setStep(2)}>
-            <ChevronLeft className="w-5 h-5" />
+          <Button variant="outline" className="border-muted-foreground/20 h-12 w-14" onClick={() => setStep(2)}>
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <Button 
+          <Button
             className="h-12 flex-1 rounded-full text-base font-semibold"
             onClick={handleFinalSave}
-            disabled={isSubmitting || (academicsEnabled && selectedCourseIds.length === 0 && customCourses.length === 0 && !newCourseName.trim())}
+            disabled={
+              isSubmitting ||
+              (academicsEnabled &&
+                selectedCourseIds.length === 0 &&
+                customCourses.length === 0 &&
+                !newCourseName.trim())
+            }
           >
-            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Finish Setup"}
+            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "Finish Setup"}
           </Button>
         </div>
         <div className="text-center">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="text-muted-foreground"
-            onClick={() => { setSelectedCourseIds([]); setNewCourseName(""); handleFinalSave({ preventDefault: () => {} } as React.SyntheticEvent) }}
+            onClick={() => {
+              setSelectedCourseIds([])
+              setNewCourseName("")
+              handleFinalSave({ preventDefault: () => {} } as React.SyntheticEvent)
+            }}
             disabled={isSubmitting}
           >
             Skip and Connect WhatsApp
@@ -1066,42 +1297,49 @@ function SetupStep3Card(props: Readonly<Step3CardProps>) {
   )
 }
 
-function TrackOption({ icon, label, selected, onClick }: Readonly<{ icon: React.ReactNode, label: string, selected: boolean, onClick: () => void }>) {
+function TrackOption({
+  icon,
+  label,
+  selected,
+  onClick,
+}: Readonly<{ icon: React.ReactNode; label: string; selected: boolean; onClick: () => void }>) {
   return (
-    <m.div 
+    <m.div
       onClick={onClick}
-      className={`flex cursor-pointer flex-col items-center gap-2 rounded-2xl border p-4 transition-colors group ${selected ? 'border-primary bg-primary/5' : 'border-border/60 bg-background hover:bg-muted/50'}`}
+      className={`group flex cursor-pointer flex-col items-center gap-2 rounded-2xl border p-4 transition-colors ${selected ? "border-primary bg-primary/5" : "border-border/60 bg-background hover:bg-muted/50"}`}
     >
-      <div className={`rounded-xl p-2 transition-colors ${selected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+      <div
+        className={`rounded-xl p-2 transition-colors ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+      >
         {icon}
       </div>
-      <span className={`text-xs font-bold ${selected ? 'text-primary' : 'text-muted-foreground'}`}>{label}</span>
+      <span className={`text-xs font-bold ${selected ? "text-primary" : "text-muted-foreground"}`}>{label}</span>
     </m.div>
   )
 }
 
-function CourseSelectionList({ 
-  courses, 
-  selectedIds, 
-  onToggle 
-}: Readonly<{ 
-  courses: { id: string; course_name: string }[]; 
-  selectedIds: string[]; 
-  onToggle: (id: string) => void 
+function CourseSelectionList({
+  courses,
+  selectedIds,
+  onToggle,
+}: Readonly<{
+  courses: { id: string; course_name: string }[]
+  selectedIds: string[]
+  onToggle: (id: string) => void
 }>) {
   return (
-    <div className="grid grid-cols-1 gap-2 max-h-[200px] overflow-y-auto pr-2">
-      {courses.map(course => {
+    <div className="grid max-h-[200px] grid-cols-1 gap-2 overflow-y-auto pr-2">
+      {courses.map((course) => {
         const isSelected = selectedIds.includes(course.id)
         return (
-          <button 
+          <button
             type="button"
             key={course.id}
             onClick={() => onToggle(course.id)}
-            className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between group w-full text-left ${isSelected ? 'border-primary bg-primary/5' : 'border-border/50 hover:bg-muted/50'}`}
+            className={`group flex w-full cursor-pointer items-center justify-between rounded-xl border-2 p-3 text-left transition-all ${isSelected ? "border-primary bg-primary/5" : "border-border/50 hover:bg-muted/50"}`}
           >
-            <span className="font-medium text-sm">{course.course_name}</span>
-            {isSelected && <Check className="w-4 h-4 text-primary" />}
+            <span className="text-sm font-medium">{course.course_name}</span>
+            {isSelected && <Check className="text-primary h-4 w-4" />}
           </button>
         )
       })}
@@ -1119,18 +1357,19 @@ interface Step4CardProps {
 
 function SetupStep4Card(props: Readonly<Step4CardProps>) {
   const router = useRouter()
-  const { onComplete, userEmail, displayName, userPhone, subscriptionStatus } = props
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('monthly')
+  const { onComplete, userEmail, displayName, userPhone } = props
+  const [selectedPlan, setSelectedPlan] = useState<"monthly" | "yearly">("monthly")
   const [loadingPay, setLoadingPay] = useState(false)
-  const [inviteCode, setInviteCode] = useState('')
+  const [inviteCode, setInviteCode] = useState("")
   const [loadingInvite, setLoadingInvite] = useState(false)
   const [showInviteInput, setShowInviteInput] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
-      const codeParam = params.get('invite') || params.get('code')
+      const codeParam = params.get("invite") || params.get("code")
       if (codeParam) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setInviteCode(codeParam)
         setShowInviteInput(true)
       }
@@ -1140,100 +1379,104 @@ function SetupStep4Card(props: Readonly<Step4CardProps>) {
   const handleSubscribe = async () => {
     setLoadingPay(true)
     try {
-      const res = await fetch('/api/razorpay/create-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planType: selectedPlan })
+      const res = await fetch("/api/razorpay/create-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planType: selectedPlan }),
       })
       const data = await res.json()
 
       if (!res.ok || data.error) {
-        toast.error(data.error || 'Failed to initialize subscription')
+        toast.error(data.error || "Failed to initialize subscription")
         setLoadingPay(false)
         return
       }
 
       // Load Razorpay Checkout Script
-      const script = document.createElement('script')
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+      const script = document.createElement("script")
+      script.src = "https://checkout.razorpay.com/v1/checkout.js"
       script.onload = () => {
         // @ts-expect-error Razorpay SDK attached to window
         const rzp = new window.Razorpay({
           key: data.key_id,
           subscription_id: data.subscription_id,
-          name: 'Ryu Medha',
-          description: `Auto-Pay Subscription (${selectedPlan === 'yearly' ? '₹399/yr' : '₹39/mo'})`,
+          name: "Ryu Medha",
+          description: `Auto-Pay Subscription (${selectedPlan === "yearly" ? "₹399/yr" : "₹39/mo"})`,
           prefill: {
-            name: displayName || '',
-            email: userEmail || '',
-            contact: userPhone || ''
+            name: displayName || "",
+            email: userEmail || "",
+            contact: userPhone || "",
           },
-          handler: async (response: { razorpay_payment_id: string; razorpay_subscription_id: string; razorpay_signature: string }) => {
-            const verifyRes = await fetch('/api/razorpay/verify-subscription', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+          handler: async (response: {
+            razorpay_payment_id: string
+            razorpay_subscription_id: string
+            razorpay_signature: string
+          }) => {
+            const verifyRes = await fetch("/api/razorpay/verify-subscription", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_subscription_id: response.razorpay_subscription_id,
                 razorpay_signature: response.razorpay_signature,
-                planType: selectedPlan
-              })
+                planType: selectedPlan,
+              }),
             })
             if (verifyRes.ok) {
-              toast.success('Auto-Pay set up successfully! Welcome to Ryu Medha.')
-              window.dispatchEvent(new CustomEvent('subscription-updated'))
+              toast.success("Auto-Pay set up successfully! Welcome to Ryu Medha.")
+              window.dispatchEvent(new CustomEvent("subscription-updated"))
               router.refresh()
               onComplete()
             } else {
-              toast.error('Payment verification failed')
+              toast.error("Payment verification failed")
             }
             setLoadingPay(false)
           },
           modal: {
             ondismiss: () => {
               setLoadingPay(false)
-            }
-          }
+            },
+          },
         })
         rzp.open()
       }
       script.onerror = () => {
-        toast.error('Failed to load Razorpay SDK')
+        toast.error("Failed to load Razorpay SDK")
         setLoadingPay(false)
       }
       document.body.appendChild(script)
     } catch (err: unknown) {
       console.error(err)
-      toast.error('An unexpected error occurred')
+      toast.error("An unexpected error occurred")
       setLoadingPay(false)
     }
   }
 
   const handleRedeemInviteCode = async () => {
     if (!inviteCode.trim()) {
-      toast.error('Please enter an invite code')
+      toast.error("Please enter an invite code")
       return
     }
     setLoadingInvite(true)
     try {
-      const res = await fetch('/api/invite/redeem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: inviteCode.trim() })
+      const res = await fetch("/api/invite/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: inviteCode.trim() }),
       })
       const data = await res.json()
 
       if (res.ok && data.success) {
-        toast.success(data.message || 'Free access granted!')
-        window.dispatchEvent(new CustomEvent('subscription-updated'))
+        toast.success(data.message || "Free access granted!")
+        window.dispatchEvent(new CustomEvent("subscription-updated"))
         router.refresh()
         onComplete()
       } else {
-        toast.error(data.error || 'Failed to redeem invite code')
+        toast.error(data.error || "Failed to redeem invite code")
       }
     } catch (err) {
       console.error(err)
-      toast.error('Error redeeming invite code')
+      toast.error("Error redeeming invite code")
     } finally {
       setLoadingInvite(false)
     }
@@ -1247,96 +1490,107 @@ function SetupStep4Card(props: Readonly<Step4CardProps>) {
       exit={{ opacity: 0, x: 12 }}
       transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
     >
-      <CardHeader className="text-center pb-2">
-        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <CheckCircle2 className="w-7 h-7" />
+      <CardHeader className="pb-2 text-center">
+        <div className="bg-primary/10 text-primary mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl">
+          <CheckCircle2 className="h-7 w-7" />
         </div>
         <CardTitle className="text-2xl font-bold tracking-tight">Set Up Auto-Pay</CardTitle>
         <CardDescription>
-          Auto-pay setup authorizes your payment mandate with ₹0 charged today. Billing begins only after your free trial or invite access period ends. Cancel anytime with 1-click.
+          Auto-pay setup authorizes your payment mandate with ₹0 charged today. Billing begins only after your free
+          trial or invite access period ends. Cancel anytime with 1-click.
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4 pt-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div
-            onClick={() => setSelectedPlan('monthly')}
-            className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
-              selectedPlan === 'monthly'
-                ? 'border-primary bg-primary/5 shadow-sm'
-                : 'border-border/60 hover:bg-muted/30'
+            onClick={() => setSelectedPlan("monthly")}
+            className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+              selectedPlan === "monthly"
+                ? "border-primary bg-primary/5 shadow-sm"
+                : "border-border/60 hover:bg-muted/30"
             }`}
           >
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Monthly</p>
-            <p className="text-2xl font-bold mt-1">₹39<span className="text-xs font-normal text-muted-foreground">/mo</span></p>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-tight">1st month FREE, then ₹39/mo auto-pay.</p>
+            <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Monthly</p>
+            <p className="mt-1 text-2xl font-bold">
+              ₹39<span className="text-muted-foreground text-xs font-normal">/mo</span>
+            </p>
+            <p className="text-muted-foreground mt-1 text-[11px] leading-tight">
+              1st month FREE, then ₹39/mo auto-pay.
+            </p>
           </div>
 
           <div
-            onClick={() => setSelectedPlan('yearly')}
-            className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative ${
-              selectedPlan === 'yearly'
-                ? 'border-primary bg-primary/5 shadow-sm'
-                : 'border-border/60 hover:bg-muted/30'
+            onClick={() => setSelectedPlan("yearly")}
+            className={`relative cursor-pointer rounded-2xl border-2 p-4 transition-all ${
+              selectedPlan === "yearly" ? "border-primary bg-primary/5 shadow-sm" : "border-border/60 hover:bg-muted/30"
             }`}
           >
-            <span className="absolute -top-2.5 right-2 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+            <span className="bg-primary text-primary-foreground absolute -top-2.5 right-2 rounded-full px-2 py-0.5 text-[10px] font-bold">
               SAVE 15%
             </span>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Yearly</p>
-            <p className="text-2xl font-bold mt-1">₹399<span className="text-xs font-normal text-muted-foreground">/yr</span></p>
-            <p className="text-[11px] text-muted-foreground mt-1 leading-tight">1st month FREE, then ₹399/yr auto-pay.</p>
+            <p className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">Yearly</p>
+            <p className="mt-1 text-2xl font-bold">
+              ₹399<span className="text-muted-foreground text-xs font-normal">/yr</span>
+            </p>
+            <p className="text-muted-foreground mt-1 text-[11px] leading-tight">
+              1st month FREE, then ₹399/yr auto-pay.
+            </p>
           </div>
         </div>
 
-        <div className="bg-muted/40 rounded-xl p-3 text-xs text-muted-foreground space-y-1">
-          <p className="font-semibold text-foreground flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-primary" /> Data Retention Guarantee
+        <div className="bg-muted/40 text-muted-foreground space-y-1 rounded-xl p-3 text-xs">
+          <p className="text-foreground flex items-center gap-1.5 font-semibold">
+            <CheckCircle2 className="text-primary h-3.5 w-3.5" /> Data Retention Guarantee
           </p>
           <p>If unsubscribed after trial, data is retained for 60 days before automatic permanent deletion.</p>
         </div>
 
         <div className="space-y-3 pt-2">
           <Button
-            className="w-full h-12 rounded-full font-bold text-base shadow-md"
+            className="h-12 w-full rounded-full text-base font-bold shadow-md"
             onClick={handleSubscribe}
             disabled={loadingPay || loadingInvite}
           >
-            {loadingPay ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Set Up Auto-Pay (Razorpay)'}
+            {loadingPay ? <Loader2 className="h-5 w-5 animate-spin" /> : "Set Up Auto-Pay (Razorpay)"}
           </Button>
 
-          <div className="relative flex py-1 items-center">
-            <div className="flex-grow border-t border-border/50"></div>
-            <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-muted-foreground tracking-wider">OR</span>
-            <div className="flex-grow border-t border-border/50"></div>
+          <div className="relative flex items-center py-1">
+            <div className="border-border/50 flex-grow border-t"></div>
+            <span className="text-muted-foreground mx-3 flex-shrink text-[10px] font-bold tracking-wider uppercase">
+              OR
+            </span>
+            <div className="border-border/50 flex-grow border-t"></div>
           </div>
 
           {!showInviteInput ? (
             <Button
               variant="outline"
-              className="w-full h-10 rounded-full text-xs font-semibold border-border/60 text-muted-foreground hover:text-foreground"
+              className="border-border/60 text-muted-foreground hover:text-foreground h-10 w-full rounded-full text-xs font-semibold"
               onClick={() => setShowInviteInput(true)}
             >
               Have an Invite Code / Link?
             </Button>
           ) : (
-            <div className="p-3 border rounded-2xl bg-muted/20 space-y-2 animate-in fade-in duration-200">
-              <Label htmlFor="inviteCodeInput" className="text-xs font-bold">Enter Invite Code</Label>
+            <div className="bg-muted/20 animate-in fade-in space-y-2 rounded-2xl border p-3 duration-200">
+              <Label htmlFor="inviteCodeInput" className="text-xs font-bold">
+                Enter Invite Code
+              </Label>
               <div className="flex gap-2">
                 <Input
                   id="inviteCodeInput"
                   placeholder="e.g. RYULIFETIME"
                   value={inviteCode}
                   onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                  className="h-10 text-xs font-mono uppercase bg-background"
+                  className="bg-background h-10 font-mono text-xs uppercase"
                 />
                 <Button
                   size="sm"
-                  className="h-10 px-4 rounded-xl font-bold shrink-0"
+                  className="h-10 shrink-0 rounded-xl px-4 font-bold"
                   onClick={handleRedeemInviteCode}
                   disabled={loadingInvite || !inviteCode.trim()}
                 >
-                  {loadingInvite ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Redeem'}
+                  {loadingInvite ? <Loader2 className="h-4 w-4 animate-spin" /> : "Redeem"}
                 </Button>
               </div>
             </div>
@@ -1346,4 +1600,3 @@ function SetupStep4Card(props: Readonly<Step4CardProps>) {
     </m.div>
   )
 }
-

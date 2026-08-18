@@ -2,22 +2,15 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { BookOpen, FolderOpen, Pencil, Trash2, User } from "lucide-react"
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { m } from "motion/react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar as CalIcon } from "lucide-react"
 import { getSourceCourse } from "@/lib/source-course"
-function hexToAccentStyle(hex: string) {
-  if (!hex) return {}
-  return {
-    background: hex
-  }
-}
 
 interface SubjectRecord {
   id: string
@@ -43,7 +36,19 @@ interface CategoryRecord {
   name: string
 }
 
-export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExamDate }: { subject: SubjectRecord, category?: CategoryRecord, onEdit?: () => void, onDelete?: () => void, onAddExamDate?: (label: string, date: Date) => void }) {
+export function SubjectGridCard({
+  subject,
+  category,
+  onEdit,
+  onDelete,
+  onAddExamDate,
+}: {
+  subject: SubjectRecord
+  category?: CategoryRecord
+  onEdit?: () => void
+  onDelete?: () => void
+  onAddExamDate?: (label: string, date: Date) => void
+}) {
   const [isExamModalOpen, setIsExamModalOpen] = useState(false)
   const [examLabel, setExamLabel] = useState("")
   const [examDate, setExamDate] = useState<Date | null>(null)
@@ -63,145 +68,190 @@ export function SubjectGridCard({ subject, category, onEdit, onDelete, onAddExam
     }
   }
 
+  const typeLabel =
+    subject.type === "academic"
+      ? subject.source_course_id
+        ? "Academic"
+        : "Academic"
+      : category
+        ? category.name
+        : subject.label || "Personal"
+
   return (
-    <m.div 
-      whileHover={{ y: -4 }}
-      transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      className="h-full"
-    >
-      <Card 
+    <div className="h-full">
+      <Card
         onClick={handleCardClick}
-        className="relative overflow-hidden group transition-all duration-500 border-border/50 bg-card/60 backdrop-blur-xl flex flex-col h-full rounded-2xl cursor-pointer"
+        className="group hover:shadow-primary/10 border-border/40 hover:border-primary/30 from-card/80 to-card/30 relative flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl bg-gradient-to-b backdrop-blur-3xl transition-all duration-500 ease-out hover:shadow-2xl"
       >
-        {/* Top accent bar */}
-        <div className="h-2 w-full absolute top-0 left-0 transition-all duration-500 group-hover:opacity-100 opacity-80 bg-sidebar-primary" style={hexToAccentStyle(subject.color_hex || '#8b5cf6')} />
+        {/* Subtle premium inner glow on the top edge */}
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
 
-        <CardContent className="p-5 pt-8 flex flex-col flex-1 relative z-10">
-        <div className="flex justify-between items-start mb-4">
-          {/* Badge / Code */}
-          <div>
-            <div 
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg tracking-wider uppercase inline-flex items-center gap-1.5"
-              style={{
-                backgroundColor: `${subject.color_hex || '#8b5cf6'}1A`, 
-                color: subject.color_hex || '#8b5cf6',
-                border: `1px solid ${subject.color_hex || '#8b5cf6'}33`
-              }}
+        <CardContent className="relative z-10 flex flex-1 flex-col p-5">
+          <div className="mb-4 flex items-start justify-between">
+            {/* Rich Glassy Badge */}
+            <div>
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase shadow-sm"
+                style={{
+                  backgroundColor: `${subject.color_hex || "#8b5cf6"}15`,
+                  color: subject.color_hex || "#8b5cf6",
+                  borderColor: `${subject.color_hex || "#8b5cf6"}30`,
+                }}
+              >
+                {subject.type === "academic" ? <BookOpen className="h-3 w-3" /> : <FolderOpen className="h-3 w-3" />}
+                <span>{typeLabel}</span>
+              </div>
+            </div>
+
+            {/* Horizontal Options - Premium Glassy Buttons */}
+            {(onEdit || onDelete || onAddExamDate) && (
+              <div
+                className="flex translate-x-1 items-center gap-1.5 opacity-100 transition-all group-hover:opacity-100 sm:translate-x-0 sm:-translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {onAddExamDate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setIsExamModalOpen(true)
+                    }}
+                    className="bg-background/50 hover:bg-background/80 border-border/50 text-muted-foreground h-7 w-7 rounded-lg border shadow-sm backdrop-blur-md transition-all hover:text-green-500"
+                    title="Add Custom Exam/Important Date"
+                  >
+                    <CalIcon className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {onEdit && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit()
+                    }}
+                    className="bg-background/50 hover:bg-background/80 border-border/50 text-muted-foreground hover:text-primary h-7 w-7 rounded-lg border shadow-sm backdrop-blur-md transition-all"
+                    title="Edit Subject"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDelete()
+                    }}
+                    className="bg-background/50 hover:bg-background/80 border-border/50 text-muted-foreground hover:text-destructive h-7 w-7 rounded-lg border shadow-sm backdrop-blur-md transition-all"
+                    title="Delete Subject"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <h3 className="text-foreground mb-1.5 line-clamp-2 font-serif text-[26px] leading-tight font-bold tracking-tight">
+            {subject.name}
+          </h3>
+
+          {/* Meta Row */}
+          <div className="text-muted-foreground mb-6 flex flex-1 items-center gap-2 text-sm font-medium">
+            <User className="h-4 w-4 shrink-0 opacity-70" />
+            <span className="truncate">
+              {sourceCourse?.instructor_name || subject.instructor_name || "No Instructor set"}
+            </span>
+          </div>
+
+          {/* Exam Dates Section */}
+          {subject.type === "academic" && sourceCourse?.exam_dates && (
+            <div className="mb-4 space-y-1.5">
+              <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Upcoming Exams</p>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(sourceCourse.exam_dates).map(([label, date]) => (
+                  <div
+                    key={label}
+                    className="bg-primary/5 border-primary/20 flex items-center gap-1.5 rounded-md border px-2 py-1 shadow-sm"
+                  >
+                    <span className="text-primary text-[10px] font-bold">{label}</span>
+                    <span className="text-muted-foreground text-[10px]">
+                      {new Date(date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rich Bottom Button */}
+          <Link
+            href={`/dashboard/subjects/${subject.id}`}
+            passHref
+            className="mt-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Button
+              variant="secondary"
+              className="bg-primary/5 hover:bg-primary/10 border-primary/10 hover:border-primary/20 text-primary hover:text-primary group/btn flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold shadow-sm transition-all"
             >
-              {subject.type === 'academic' ? (
-                <><BookOpen className="w-3 h-3" /> {(subject.source_course_id && 'Academic') || "Academic"}</>
-              ) : (
-                <>
-                  <FolderOpen className="w-3 h-3" /> 
-                  {category ? category.name : (subject.label || "Personal")}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Options */}
-          {(onEdit || onDelete || onAddExamDate) && (
-            <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity translate-x-1 -translate-y-1" onClick={(e) => e.stopPropagation()}>
-              {onAddExamDate && (
-                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setIsExamModalOpen(true); }} className="h-7 w-7 text-muted-foreground hover:text-green-500 rounded-md" title="Add Custom Exam/Important Date">
-                  <CalIcon className="w-3.5 h-3.5"/>
-                </Button>
-              )}
-              {onEdit && (
-                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onEdit(); }} className="h-7 w-7 text-muted-foreground hover:text-primary rounded-md" title="Edit Subject">
-                  <Pencil className="w-3.5 h-3.5"/>
-                </Button>
-              )}
-              {onDelete && (
-                <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); onDelete(); }} className="h-7 w-7 text-muted-foreground hover:text-destructive rounded-md" title="Delete Subject">
-                  <Trash2 className="w-3.5 h-3.5"/>
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <h3 className="text-xl font-bold text-foreground mb-1 leading-tight tracking-tight">
-          {subject.name}
-        </h3>
-        
-        {/* Meta Row */}
-        <div className="flex items-center gap-2 text-muted-foreground text-sm font-medium mb-5 flex-1">
-          {subject.type === 'academic' ? (
-            <>
-              <User className="w-4 h-4 opacity-70 shrink-0" />
-              <span className="truncate">
-                {sourceCourse?.instructor_name || subject.instructor_name || "No Instructor set"}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="truncate opacity-70">{subject.label || "Personal Track"}</span>
-            </>
-          )}
-        </div>
-
-        {/* Exam Dates Section */}
-        {subject.type === 'academic' && sourceCourse?.exam_dates && (
-          <div className="mb-4 space-y-1.5 ">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">Upcoming Exams</p>
-            <div className="flex flex-wrap gap-1.5">
-              {Object.entries(sourceCourse.exam_dates).map(([label, date]) => (
-                <div key={label} className="bg-primary/5 border border-primary/20 rounded-md px-2 py-1 flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold text-primary">{label}</span>
-                  <span className="text-[10px] text-muted-foreground">{new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Bottom Button */}
-        <Link href={`/dashboard/subjects/${subject.id}`} passHref className="mt-auto" onClick={(e) => e.stopPropagation()}>
-          <Button variant="secondary" className="w-full flex items-center justify-center gap-2 h-10 bg-muted/40 hover:bg-muted text-sm font-bold transition-all group/btn rounded-xl">
-            <CalIcon className="w-4 h-4 group-hover/btn:text-primary transition-colors" />
-            Open Calendar
-          </Button>
-        </Link>
+              <CalIcon className="h-4 w-4 transition-transform group-hover/btn:scale-110" />
+              Open Calendar
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 
       {/* --- ADD EXAM DATE MODAL (Dialog) --- */}
       <Dialog open={isExamModalOpen} onOpenChange={setIsExamModalOpen}>
-        <DialogContent 
-          className="sm:max-w-sm p-0 bg-background/80 backdrop-blur-xl border-primary/20 overflow-hidden"
+        <DialogContent
+          className="bg-background/80 border-primary/20 overflow-hidden p-0 backdrop-blur-xl sm:max-w-sm"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="h-1 w-full bg-primary/50" />
-          <div className="p-5 space-y-4">
-            <DialogHeader className="flex flex-row justify-between items-center pb-3 border-b border-border/50">
-              <DialogTitle className="font-bold text-lg flex items-center gap-2"><CalIcon className="w-5 h-5 text-primary"/> Add Date</DialogTitle>
+          <div className="bg-primary/50 h-1 w-full" />
+          <div className="space-y-4 p-5">
+            <DialogHeader className="border-border/50 flex flex-row items-center justify-between border-b pb-3">
+              <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+                <CalIcon className="text-primary h-5 w-5" /> Add Date
+              </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label</Label>
-                <Input value={examLabel} onChange={(e) => setExamLabel(e.target.value)} placeholder="e.g., Final Exam" className="bg-muted/30 border-border/50 h-11 rounded-xl" />
+                <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Date Label</Label>
+                <Input
+                  value={examLabel}
+                  onChange={(e) => setExamLabel(e.target.value)}
+                  placeholder="e.g., Final Exam"
+                  className="bg-muted/30 border-border/50 h-11 rounded-xl"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Date</Label>
+                <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Select Date</Label>
                 <DatePicker
                   date={examDate || undefined}
                   setDate={(d) => setExamDate(d as Date)}
-                  className="w-full h-11 border-border/50 rounded-xl"
+                  className="border-border/50 h-11 w-full rounded-xl"
                 />
               </div>
             </div>
 
             <div className="pt-4">
-              <Button onClick={handleAddExam} disabled={!examLabel.trim() || !examDate} className="w-full font-bold h-11 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+              <Button
+                onClick={handleAddExam}
+                disabled={!examLabel.trim() || !examDate}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 h-11 w-full rounded-xl font-bold transition-colors"
+              >
                 Save Mission
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-    </m.div>
+    </div>
   )
 }

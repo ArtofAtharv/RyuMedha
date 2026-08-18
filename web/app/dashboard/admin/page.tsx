@@ -9,12 +9,29 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { 
-  Clock, MessageSquare, CheckCircle2, AlertCircle, ShieldAlert, 
-  Zap, Loader2, BellRing, FolderOpen, ShieldCheck, Users, 
-  Ticket, Search, Copy, Check, Trash2, Plus, Sparkles, RefreshCw, AlertTriangle
+import {
+  Clock,
+  MessageSquare,
+  CheckCircle2,
+  AlertCircle,
+  ShieldAlert,
+  Zap,
+  Loader2,
+  BellRing,
+  FolderOpen,
+  ShieldCheck,
+  Users,
+  Ticket,
+  Search,
+  Copy,
+  Check,
+  Trash2,
+  Plus,
+  Sparkles,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react"
-import { useProfile } from '@/components/dashboard/profile-context'
+import { useProfile } from "@/components/dashboard/profile-context"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -22,7 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter
+  DialogFooter,
 } from "@/components/ui/dialog"
 
 interface WindowStatusRow {
@@ -65,7 +82,7 @@ interface UserSubData {
 interface InviteCodeData {
   id: string
   code: string
-  durationType: '1_month' | '6_months' | '1_year' | 'lifetime'
+  durationType: "1_month" | "6_months" | "1_year" | "lifetime"
   maxUses: number | null
   usesCount: number
   isActive: boolean
@@ -73,71 +90,95 @@ interface InviteCodeData {
 }
 
 function getStatusBadge(user: UserSubData) {
-  if (user.status === 'canceled' || user.status === 'expired') {
-    return <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">Expired / Canceled</Badge>
+  if (user.status === "canceled" || user.status === "expired") {
+    return (
+      <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">
+        Expired / Canceled
+      </Badge>
+    )
   }
 
-  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
-  const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
-  const is6Months = user.razorpaySubscriptionId === 'admin_free_6months'
-  const is1Month = user.razorpaySubscriptionId === 'admin_free_1month'
-  const isInvite = user.razorpaySubscriptionId?.startsWith('invite_')
+  const isLifetime =
+    user.razorpaySubscriptionId === "admin_free_lifetime" ||
+    (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
+  const is1Year = user.razorpaySubscriptionId === "admin_free_1year"
+  const is6Months = user.razorpaySubscriptionId === "admin_free_6months"
+  const is1Month = user.razorpaySubscriptionId === "admin_free_1month"
+  const isInvite = user.razorpaySubscriptionId?.startsWith("invite_")
 
   if (isLifetime) {
-    return <Badge className="bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30">Free Lifetime</Badge>
+    return (
+      <Badge className="border-purple-500/30 bg-purple-500/15 text-purple-600 dark:text-purple-400">
+        Free Lifetime
+      </Badge>
+    )
   }
   if (is1Year) {
-    return <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30">Free 1-Year</Badge>
+    return <Badge className="border-blue-500/30 bg-blue-500/15 text-blue-600 dark:text-blue-400">Free 1-Year</Badge>
   }
   if (is6Months) {
-    return <Badge className="bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30">Free 6-Months</Badge>
+    return <Badge className="border-cyan-500/30 bg-cyan-500/15 text-cyan-600 dark:text-cyan-400">Free 6-Months</Badge>
   }
   if (is1Month) {
-    return <Badge className="bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30">Free 1-Month</Badge>
+    return (
+      <Badge className="border-indigo-500/30 bg-indigo-500/15 text-indigo-600 dark:text-indigo-400">Free 1-Month</Badge>
+    )
   }
   if (isInvite) {
-    return <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">Invite Unlocked</Badge>
+    return (
+      <Badge className="border-emerald-500/30 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+        Invite Unlocked
+      </Badge>
+    )
   }
-  if (user.status === 'active') {
-    return <Badge className="bg-green-500/15 text-green-600 dark:text-green-400 border-green-500/30">Active Auto-Pay</Badge>
+  if (user.status === "active") {
+    return (
+      <Badge className="border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400">Active Auto-Pay</Badge>
+    )
   }
-  if (user.status === 'trialing') {
-    return <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30">Free Trial</Badge>
+  if (user.status === "trialing") {
+    return <Badge className="border-amber-500/30 bg-amber-500/15 text-amber-600 dark:text-amber-400">Free Trial</Badge>
   }
-  return <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">Expired / Canceled</Badge>
+  return (
+    <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">
+      Expired / Canceled
+    </Badge>
+  )
 }
 
 function checkActiveSubscription(user: UserSubData): { isActive: boolean; type: string } {
-  if (user.status === 'canceled' || user.status === 'expired') {
-    return { isActive: false, type: 'Expired / Canceled' }
+  if (user.status === "canceled" || user.status === "expired") {
+    return { isActive: false, type: "Expired / Canceled" }
   }
 
-  const isLifetime = user.razorpaySubscriptionId === 'admin_free_lifetime' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
-  const is1Year = user.razorpaySubscriptionId === 'admin_free_1year'
-  const is6Months = user.razorpaySubscriptionId === 'admin_free_6months'
-  const is1Month = user.razorpaySubscriptionId === 'admin_free_1month'
-  const isInvite = user.razorpaySubscriptionId?.startsWith('invite_')
-  const isAutopay = user.status === 'active' || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date())
+  const isLifetime =
+    user.razorpaySubscriptionId === "admin_free_lifetime" ||
+    (user.currentPeriodEnd && new Date(user.currentPeriodEnd).getFullYear() > 2090)
+  const is1Year = user.razorpaySubscriptionId === "admin_free_1year"
+  const is6Months = user.razorpaySubscriptionId === "admin_free_6months"
+  const is1Month = user.razorpaySubscriptionId === "admin_free_1month"
+  const isInvite = user.razorpaySubscriptionId?.startsWith("invite_")
+  const isAutopay = user.status === "active" || (user.currentPeriodEnd && new Date(user.currentPeriodEnd) > new Date())
 
-  if (isLifetime) return { isActive: true, type: 'Free Lifetime Access' }
-  if (is1Year) return { isActive: true, type: 'Free 1-Year Access' }
-  if (is6Months) return { isActive: true, type: 'Free 6-Months Access' }
-  if (is1Month) return { isActive: true, type: 'Free 1-Month Access' }
-  if (isInvite) return { isActive: true, type: 'Invite Code Free Access' }
-  if (isAutopay) return { isActive: true, type: `Active Subscription (${user.planType || 'Pro'})` }
-  if (user.status === 'trialing' && user.trialEnd && new Date(user.trialEnd) > new Date()) {
-    return { isActive: true, type: 'Free Trial' }
+  if (isLifetime) return { isActive: true, type: "Free Lifetime Access" }
+  if (is1Year) return { isActive: true, type: "Free 1-Year Access" }
+  if (is6Months) return { isActive: true, type: "Free 6-Months Access" }
+  if (is1Month) return { isActive: true, type: "Free 1-Month Access" }
+  if (isInvite) return { isActive: true, type: "Invite Code Free Access" }
+  if (isAutopay) return { isActive: true, type: `Active Subscription (${user.planType || "Pro"})` }
+  if (user.status === "trialing" && user.trialEnd && new Date(user.trialEnd) > new Date()) {
+    return { isActive: true, type: "Free Trial" }
   }
-  return { isActive: false, type: 'Expired / None' }
+  return { isActive: false, type: "Expired / None" }
 }
 
 export default function AdminPage() {
   const router = useRouter()
   const { profile } = useProfile()
-  const [activeTab, setActiveTab] = useState<'subscriptions' | 'invite_codes' | 'whatsapp'>('subscriptions')
+  const [activeTab, setActiveTab] = useState<"subscriptions" | "invite_codes" | "whatsapp">("subscriptions")
   const [loading, setLoading] = useState(true)
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
-  
+
   // Data states
   const [userSubs, setUserSubs] = useState<UserSubData[]>([])
   const [inviteCodes, setInviteCodes] = useState<InviteCodeData[]>([])
@@ -149,21 +190,21 @@ export default function AdminPage() {
     free6MonthsCount: 0,
     free1MonthCount: 0,
     trialingCount: 0,
-    expiredCount: 0
+    expiredCount: 0,
   })
-  
+
   // WhatsApp states
   const [windowStatus, setWindowStatus] = useState<WindowStatusRow[]>([])
   const [messageLogs, setMessageLogs] = useState<MessageLog[]>([])
   const [engagingId, setEngagingId] = useState<string | null>(null)
 
   // Search & Filters
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState("")
 
   // New Invite Code form
-  const [newCode, setNewCode] = useState('')
-  const [newDuration, setNewDuration] = useState<'lifetime' | '1_year' | '6_months' | '1_month'>('lifetime')
-  const [newMaxUses, setNewMaxUses] = useState('')
+  const [newCode, setNewCode] = useState("")
+  const [newDuration, setNewDuration] = useState<"lifetime" | "1_year" | "6_months" | "1_month">("lifetime")
+  const [newMaxUses, setNewMaxUses] = useState("")
   const [isCreatingCode, setIsCreatingCode] = useState(false)
   const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null)
 
@@ -174,6 +215,37 @@ export default function AdminPage() {
   const [_isPending, startTransition] = useTransition()
 
   const isAdmin = profile?.is_admin === true
+
+  const fetchAdminData = async (supabase: AppSupabaseClient) => {
+    setLoading(true)
+    try {
+      // 1. Fetch Subscription Data & Stats & Invite Codes via Admin API
+      const res = await fetch("/api/admin/subscriptions")
+      if (res.ok) {
+        const data = await res.json()
+        setUserSubs(data.users || [])
+        setStats(data.stats || {})
+        setInviteCodes(data.inviteCodes || [])
+      }
+
+      // 2. Fetch WhatsApp status
+      const { data: status } = await supabase.rpc("get_admin_whatsapp_status")
+      setWindowStatus(status || [])
+
+      // 3. Fetch WhatsApp Message Logs
+      const { data: logs } = await supabase
+        .from("whatsapp_message_logs")
+        .select("*, profiles(display_name, whatsapp_number)")
+        .order("created_at", { ascending: false })
+        .limit(50)
+      setMessageLogs(logs || [])
+    } catch (err) {
+      console.error("Error fetching admin data:", err)
+      toast.error("Failed to load admin data")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
     async function init() {
@@ -189,43 +261,12 @@ export default function AdminPage() {
     init()
   }, [isAdmin])
 
-  const fetchAdminData = async (supabase: AppSupabaseClient) => {
-    setLoading(true)
-    try {
-      // 1. Fetch Subscription Data & Stats & Invite Codes via Admin API
-      const res = await fetch('/api/admin/subscriptions')
-      if (res.ok) {
-        const data = await res.json()
-        setUserSubs(data.users || [])
-        setStats(data.stats || {})
-        setInviteCodes(data.inviteCodes || [])
-      }
-
-      // 2. Fetch WhatsApp status
-      const { data: status } = await supabase.rpc('get_admin_whatsapp_status')
-      setWindowStatus(status || [])
-
-      // 3. Fetch WhatsApp Message Logs
-      const { data: logs } = await supabase
-        .from('whatsapp_message_logs')
-        .select('*, profiles(display_name, whatsapp_number)')
-        .order('created_at', { ascending: false })
-        .limit(50)
-      setMessageLogs(logs || [])
-    } catch (err) {
-      console.error("Error fetching admin data:", err)
-      toast.error("Failed to load admin data")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleGrantAccess = async (profileId: string, action: string) => {
     try {
-      const res = await fetch('/api/admin/grant-access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId, action })
+      const res = await fetch("/api/admin/grant-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId, action }),
       })
       const data = await res.json()
       if (res.ok && data.success) {
@@ -233,11 +274,11 @@ export default function AdminPage() {
         if (supabaseClient) await fetchAdminData(supabaseClient)
         router.refresh()
       } else {
-        toast.error(data.error || 'Failed to update access')
+        toast.error(data.error || "Failed to update access")
       }
     } catch (err) {
       console.error(err)
-      toast.error('An error occurred')
+      toast.error("An error occurred")
     }
   }
 
@@ -245,10 +286,10 @@ export default function AdminPage() {
     if (!userToDelete) return
     setIsDeletingUser(true)
     try {
-      const res = await fetch('/api/admin/delete-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profileId: userToDelete.profileId })
+      const res = await fetch("/api/admin/delete-user", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId: userToDelete.profileId }),
       })
       const data = await res.json()
       if (res.ok && data.success) {
@@ -256,11 +297,11 @@ export default function AdminPage() {
         setUserToDelete(null)
         if (supabaseClient) fetchAdminData(supabaseClient)
       } else {
-        toast.error(data.error || 'Failed to delete user account')
+        toast.error(data.error || "Failed to delete user account")
       }
     } catch (err) {
       console.error(err)
-      toast.error('An error occurred while deleting user account')
+      toast.error("An error occurred while deleting user account")
     } finally {
       setIsDeletingUser(false)
     }
@@ -274,27 +315,27 @@ export default function AdminPage() {
     }
     setIsCreatingCode(true)
     try {
-      const res = await fetch('/api/admin/invite-codes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/admin/invite-codes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code: newCode.trim(),
           durationType: newDuration,
-          maxUses: newMaxUses ? Number.parseInt(newMaxUses, 10) : null
-        })
+          maxUses: newMaxUses ? Number.parseInt(newMaxUses, 10) : null,
+        }),
       })
       const data = await res.json()
       if (res.ok && data.success) {
         toast.success(`Invite Code '${data.code.code}' created!`)
-        setNewCode('')
-        setNewMaxUses('')
+        setNewCode("")
+        setNewMaxUses("")
         if (supabaseClient) fetchAdminData(supabaseClient)
       } else {
-        toast.error(data.error || 'Failed to create code')
+        toast.error(data.error || "Failed to create code")
       }
     } catch (err) {
       console.error(err)
-      toast.error('An error occurred')
+      toast.error("An error occurred")
     } finally {
       setIsCreatingCode(false)
     }
@@ -304,9 +345,9 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this invite code?")) return
     try {
       const res = await fetch(`/api/admin/invite-codes?codeId=${encodeURIComponent(codeId)}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ codeId })
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ codeId }),
       })
       const data = await res.json().catch(() => ({}))
       if (res.ok && data.success !== false) {
@@ -322,7 +363,7 @@ export default function AdminPage() {
   }
 
   const copyInviteLink = (code: string, id: string) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const origin = typeof window !== "undefined" ? window.location.origin : ""
     const link = `${origin}/setup?invite=${encodeURIComponent(code)}`
     navigator.clipboard.writeText(link)
     setCopiedCodeId(id)
@@ -334,13 +375,16 @@ export default function AdminPage() {
     if (!supabaseClient) return
     try {
       toast.info("Compiling all users' database records...")
-      const { data, error } = await supabaseClient.rpc('export_all_data')
+      const { data, error } = await supabaseClient.rpc("export_all_data")
       if (error) throw error
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2))
-      const downloadAnchor = document.createElement('a')
+      const downloadAnchor = document.createElement("a")
       downloadAnchor.setAttribute("href", dataStr)
-      downloadAnchor.setAttribute("download", `ryumedha_admin_all_users_export_${new Date().toISOString().split('T')[0]}.json`)
+      downloadAnchor.setAttribute(
+        "download",
+        `ryumedha_admin_all_users_export_${new Date().toISOString().split("T")[0]}.json`
+      )
       document.body.appendChild(downloadAnchor)
       downloadAnchor.click()
       downloadAnchor.remove()
@@ -356,8 +400,8 @@ export default function AdminPage() {
     if (!supabaseClient) return
     setEngagingId(profileId)
     try {
-      const { error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'engage', profile_id: profileId }
+      const { error } = await supabaseClient.functions.invoke("whatsapp-webhook", {
+        body: { trigger: "engage", profile_id: profileId },
       })
       if (error) throw error
       toast.success("Engagement message sent successfully!")
@@ -373,8 +417,8 @@ export default function AdminPage() {
   const triggerTasksReminder = async () => {
     if (!supabaseClient) return
     try {
-      const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'reminders' }
+      const { data, error } = await supabaseClient.functions.invoke("whatsapp-webhook", {
+        body: { trigger: "reminders" },
       })
       if (error) throw error
       if (data?.message === "No reminders due") {
@@ -392,8 +436,8 @@ export default function AdminPage() {
   const triggerPendingTasksBlast = async () => {
     if (!supabaseClient) return
     try {
-      const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'tasks' }
+      const { data, error } = await supabaseClient.functions.invoke("whatsapp-webhook", {
+        body: { trigger: "tasks" },
       })
       if (error) throw error
       toast.success(`Pending Tasks blast sent to ${data?.sent || 0} users!`)
@@ -407,8 +451,8 @@ export default function AdminPage() {
   const triggerAttendanceGuardian = async () => {
     if (!supabaseClient) return
     try {
-      const { data, error } = await supabaseClient.functions.invoke('whatsapp-webhook', {
-        body: { trigger: 'daily' }
+      const { data, error } = await supabaseClient.functions.invoke("whatsapp-webhook", {
+        body: { trigger: "daily" },
       })
       if (error) throw error
       toast.success(`Attendance Guardian triggered! Sent: ${data?.sent || 0}`)
@@ -421,154 +465,163 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-[60dvh] items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
       </div>
     )
   }
 
   if (!isAdmin) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <ShieldAlert className="w-16 h-16 text-destructive animate-bounce" />
-        <h1 className="text-2xl font-bold text-destructive">Access Denied</h1>
-        <p className="text-muted-foreground text-center max-w-xs">
-          This page is restricted to administrators.
-        </p>
+      <div className="flex min-h-[60dvh] flex-col items-center justify-center space-y-4">
+        <ShieldAlert className="text-destructive h-16 w-16 animate-bounce" />
+        <h1 className="text-destructive text-2xl font-bold">Access Denied</h1>
+        <p className="text-muted-foreground max-w-xs text-center">This page is restricted to administrators.</p>
       </div>
     )
   }
 
-  const filteredUsers = userSubs.filter(u => {
+  const filteredUsers = userSubs.filter((u) => {
     const q = searchQuery.toLowerCase()
-    return u.displayName.toLowerCase().includes(q) ||
+    return (
+      u.displayName.toLowerCase().includes(q) ||
       (u.email && u.email.toLowerCase().includes(q)) ||
       (u.whatsappNumber && u.whatsappNumber.includes(q))
+    )
   })
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 animate-in fade-in duration-300">
-      
+    <div className="animate-in fade-in mx-auto w-full max-w-[1600px] space-y-6 px-4 py-6 duration-300 sm:space-y-8 sm:px-6 sm:py-8">
       {/* Premium Header Dashboard */}
-      <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-card/40 p-6 sm:p-8 backdrop-blur-md shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/5 rounded-full filter blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="space-y-2 relative z-10">
+      <div className="border-border/50 bg-card/40 relative flex flex-col items-start justify-between gap-6 overflow-hidden rounded-3xl border p-6 shadow-xl backdrop-blur-md sm:p-8 md:flex-row md:items-center">
+        <div className="bg-primary/5 pointer-events-none absolute top-0 right-0 -mt-20 -mr-20 h-[300px] w-[300px] rounded-full blur-3xl filter" />
+        <div className="relative z-10 space-y-2">
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 font-bold px-2.5 py-0.5 rounded-full text-xs uppercase tracking-wider">
+            <Badge
+              variant="secondary"
+              className="bg-primary/10 text-primary border-primary/20 rounded-full px-2.5 py-0.5 text-xs font-bold tracking-wider uppercase"
+            >
               System Admin Console
             </Badge>
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-[11px] text-muted-foreground font-medium">Live System Control</span>
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+            <span className="text-muted-foreground text-[11px] font-medium">Live System Control</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
-            <ShieldCheck className="w-8 h-8 text-primary" /> Admin Page
+          <h1 className="text-foreground flex items-center gap-3 font-serif text-3xl font-bold tracking-tight sm:text-4xl">
+            <ShieldCheck className="text-primary h-8 w-8" /> Admin Page
           </h1>
-          <p className="text-sm text-muted-foreground max-w-lg">
-            Manage user subscriptions, grant lifetime &amp; free access, generate invite links, and monitor WhatsApp bot services.
+          <p className="text-muted-foreground max-w-lg text-sm">
+            Manage user subscriptions, grant lifetime &amp; free access, generate invite links, and monitor WhatsApp bot
+            services.
           </p>
         </div>
-        
+
         {/* Core Header Actions */}
-        <div className="flex gap-2 shrink-0 relative z-10 w-full md:w-auto">
-          <Button 
-            onClick={() => { if (supabaseClient) fetchAdminData(supabaseClient) }} 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 md:flex-none gap-2 shadow-sm h-9 hover:bg-accent rounded-xl transition-all"
+        <div className="relative z-10 flex w-full shrink-0 gap-2 md:w-auto">
+          <Button
+            onClick={() => {
+              if (supabaseClient) fetchAdminData(supabaseClient)
+            }}
+            variant="outline"
+            size="sm"
+            className="hover:bg-accent h-9 flex-1 gap-2 rounded-xl shadow-sm transition-all md:flex-none"
           >
-            <RefreshCw className="w-4 h-4 text-primary" /> Refresh Data
+            <RefreshCw className="text-primary h-4 w-4" /> Refresh Data
           </Button>
-          <Button 
-            onClick={handleExportAllUsers} 
-            variant="outline" 
-            size="sm" 
-            className="flex-1 md:flex-none gap-2 border-emerald-500/20 hover:bg-emerald-500/10 shadow-sm h-9 text-emerald-600 rounded-xl transition-all"
+          <Button
+            onClick={handleExportAllUsers}
+            variant="outline"
+            size="sm"
+            className="h-9 flex-1 gap-2 rounded-xl border-emerald-500/20 text-emerald-600 shadow-sm transition-all hover:bg-emerald-500/10 md:flex-none"
           >
-            <FolderOpen className="w-4 h-4" /> Export DB
+            <FolderOpen className="h-4 w-4" /> Export DB
           </Button>
         </div>
       </div>
 
       {/* Aggregate Statistics Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="relative overflow-hidden p-4 rounded-2xl bg-card/60 border border-border/50 shadow-sm">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs font-bold uppercase tracking-wider">
-            <Users className="w-4 h-4 text-primary" /> Total Users
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="bg-card/60 border-border/50 relative overflow-hidden rounded-2xl border p-4 shadow-sm">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
+            <Users className="text-primary h-4 w-4" /> Total Users
           </div>
-          <p className="text-3xl font-black mt-2 text-foreground">{stats.totalUsers}</p>
+          <p className="text-foreground mt-2 font-serif text-4xl font-bold">{stats.totalUsers}</p>
         </div>
-        <div className="relative overflow-hidden p-4 rounded-2xl bg-card/60 border border-border/50 shadow-sm">
-          <div className="flex items-center gap-2 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-4 h-4 text-purple-500" /> Free Access
+        <div className="bg-card/60 border-border/50 relative overflow-hidden rounded-2xl border p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-purple-600 uppercase dark:text-purple-400">
+            <Sparkles className="h-4 w-4 text-purple-500" /> Free Access
           </div>
-          <p className="text-3xl font-black mt-2 text-purple-600 dark:text-purple-400">
-            {stats.freeLifetimeCount + stats.free1YearCount + (stats.free6MonthsCount || 0) + (stats.free1MonthCount || 0)}
+          <p className="mt-2 font-serif text-4xl font-bold text-purple-600 dark:text-purple-400">
+            {stats.freeLifetimeCount +
+              stats.free1YearCount +
+              (stats.free6MonthsCount || 0) +
+              (stats.free1MonthCount || 0)}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            {stats.freeLifetimeCount} Life • {stats.free1YearCount} 1-Yr • {stats.free6MonthsCount || 0} 6-Mo • {stats.free1MonthCount || 0} 1-Mo
+          <p className="text-muted-foreground mt-0.5 text-[10px]">
+            {stats.freeLifetimeCount} Life • {stats.free1YearCount} 1-Yr • {stats.free6MonthsCount || 0} 6-Mo •{" "}
+            {stats.free1MonthCount || 0} 1-Mo
           </p>
         </div>
-        <div className="relative overflow-hidden p-4 rounded-2xl bg-card/60 border border-border/50 shadow-sm">
-          <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-xs font-bold uppercase tracking-wider">
-            <CheckCircle2 className="w-4 h-4 text-green-500" /> Active Auto-Pay
+        <div className="bg-card/60 border-border/50 relative overflow-hidden rounded-2xl border p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-green-600 uppercase dark:text-green-400">
+            <CheckCircle2 className="h-4 w-4 text-green-500" /> Active Auto-Pay
           </div>
-          <p className="text-3xl font-black mt-2 text-foreground">{stats.activeAutopayCount}</p>
+          <p className="text-foreground mt-2 font-serif text-4xl font-bold">{stats.activeAutopayCount}</p>
         </div>
-        <div className="relative overflow-hidden p-4 rounded-2xl bg-card/60 border border-border/50 shadow-sm">
-          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-wider">
-            <Clock className="w-4 h-4 text-amber-500" /> Free Trialing
+        <div className="bg-card/60 border-border/50 relative overflow-hidden rounded-2xl border p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-600 uppercase dark:text-amber-400">
+            <Clock className="h-4 w-4 text-amber-500" /> Free Trialing
           </div>
-          <p className="text-3xl font-black mt-2 text-foreground">{stats.trialingCount}</p>
+          <p className="text-foreground mt-2 font-serif text-4xl font-bold">{stats.trialingCount}</p>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-border/40 pb-2 overflow-x-auto">
+      <div className="border-border/40 flex items-center gap-2 overflow-x-auto border-b pb-2">
         <Button
-          variant={activeTab === 'subscriptions' ? 'default' : 'ghost'}
+          variant={activeTab === "subscriptions" ? "default" : "ghost"}
           size="sm"
-          className="rounded-xl font-bold gap-2"
-          onClick={() => startTransition(() => setActiveTab('subscriptions'))}
+          className="gap-2 rounded-xl font-bold"
+          onClick={() => startTransition(() => setActiveTab("subscriptions"))}
         >
-          <Users className="w-4 h-4" /> Subscription &amp; User Access ({userSubs.length})
+          <Users className="h-4 w-4" /> Subscription &amp; User Access ({userSubs.length})
         </Button>
         <Button
-          variant={activeTab === 'invite_codes' ? 'default' : 'ghost'}
+          variant={activeTab === "invite_codes" ? "default" : "ghost"}
           size="sm"
-          className="rounded-xl font-bold gap-2"
-          onClick={() => startTransition(() => setActiveTab('invite_codes'))}
+          className="gap-2 rounded-xl font-bold"
+          onClick={() => startTransition(() => setActiveTab("invite_codes"))}
         >
-          <Ticket className="w-4 h-4" /> Invite Codes &amp; Links ({inviteCodes.length})
+          <Ticket className="h-4 w-4" /> Invite Codes &amp; Links ({inviteCodes.length})
         </Button>
         <Button
-          variant={activeTab === 'whatsapp' ? 'default' : 'ghost'}
+          variant={activeTab === "whatsapp" ? "default" : "ghost"}
           size="sm"
-          className="rounded-xl font-bold gap-2"
-          onClick={() => startTransition(() => setActiveTab('whatsapp'))}
+          className="gap-2 rounded-xl font-bold"
+          onClick={() => startTransition(() => setActiveTab("whatsapp"))}
         >
-          <MessageSquare className="w-4 h-4" /> WhatsApp Controls &amp; Logs
+          <MessageSquare className="h-4 w-4" /> WhatsApp Controls &amp; Logs
         </Button>
       </div>
 
       {/* ── TAB 1: SUBSCRIPTION & USER ACCESS CONTROL ── */}
-      {activeTab === 'subscriptions' && (
+      {activeTab === "subscriptions" && (
         <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+              <Search className="text-muted-foreground absolute top-3 left-3 h-4 w-4" />
               <Input
                 placeholder="Search user by name, email, or WhatsApp..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 bg-card/60 rounded-xl text-xs"
+                className="bg-card/60 h-10 rounded-xl pl-9 text-xs"
               />
             </div>
           </div>
 
-          <Card className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-md overflow-hidden">
-            <CardHeader className="border-b border-border/30 bg-muted/10 py-4">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Users className="w-4 h-4 text-primary" /> User Subscriptions ({filteredUsers.length})
+          <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl border shadow-md backdrop-blur-sm">
+            <CardHeader className="border-border/30 bg-muted/10 border-b py-4">
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <Users className="text-primary h-4 w-4" /> User Subscriptions ({filteredUsers.length})
               </CardTitle>
               <CardDescription>Grant lifetime access, renew subscription, or manage user access</CardDescription>
             </CardHeader>
@@ -576,59 +629,68 @@ export default function AdminPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b text-muted-foreground font-medium text-[11px] uppercase tracking-wider">
-                      <th className="text-left py-3 px-4">User</th>
-                      <th className="text-left py-3 px-4">Status</th>
-                      <th className="text-left py-3 px-4">Auto-Pay / Access ID</th>
-                      <th className="text-left py-3 px-4">Expires / Renewal</th>
-                      <th className="text-right py-3 px-4">Manage Access</th>
+                    <tr className="text-muted-foreground border-b text-[11px] font-medium tracking-wider uppercase">
+                      <th className="px-4 py-3 text-left">User</th>
+                      <th className="px-4 py-3 text-left">Status</th>
+                      <th className="px-4 py-3 text-left">Auto-Pay / Access ID</th>
+                      <th className="px-4 py-3 text-left">Expires / Renewal</th>
+                      <th className="px-4 py-3 text-right">Manage Access</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/30">
+                  <tbody className="divide-border/30 divide-y">
                     {filteredUsers.map((u) => (
                       <tr key={u.profileId} className="hover:bg-muted/30 transition-colors">
-                        <td className="py-3 px-4">
-                          <div className="font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                        <td className="px-4 py-3">
+                          <div className="text-foreground flex flex-wrap items-center gap-1.5 font-bold">
                             {u.displayName}
-                            {u.isAdmin && <Badge variant="secondary" className="text-[9px] px-1.5 py-0">Admin</Badge>}
-                            {u.isSetupIncomplete && <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[9px] px-1.5 py-0">Incomplete Setup</Badge>}
+                            {u.isAdmin && (
+                              <Badge variant="secondary" className="px-1.5 py-0 text-[9px]">
+                                Admin
+                              </Badge>
+                            )}
+                            {u.isSetupIncomplete && (
+                              <Badge
+                                variant="outline"
+                                className="border-amber-500/30 bg-amber-500/10 px-1.5 py-0 text-[9px] text-amber-600 dark:text-amber-400"
+                              >
+                                Incomplete Setup
+                              </Badge>
+                            )}
                           </div>
-                          <div className="text-[11px] text-muted-foreground font-mono">
+                          <div className="text-muted-foreground font-mono text-[11px]">
                             {u.email || u.whatsappNumber || "No email/phone"}
                           </div>
                         </td>
-                        <td className="py-3 px-4">
-                          {getStatusBadge(u)}
-                        </td>
-                        <td className="py-3 px-4 font-mono text-[11px]">
+                        <td className="px-4 py-3">{getStatusBadge(u)}</td>
+                        <td className="px-4 py-3 font-mono text-[11px]">
                           {u.razorpaySubscriptionId ? (
-                            <span className="bg-muted/60 px-2 py-0.5 rounded border border-border/40">
+                            <span className="bg-muted/60 border-border/40 rounded border px-2 py-0.5">
                               {u.razorpaySubscriptionId}
                             </span>
                           ) : (
                             <span className="text-muted-foreground italic">No Mandate</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 font-mono text-[11px]">
+                        <td className="px-4 py-3 font-mono text-[11px]">
                           {u.currentPeriodEnd ? (
                             new Date(u.currentPeriodEnd).getFullYear() > 2090 ? (
-                              <span className="text-purple-600 dark:text-purple-400 font-bold">LIFETIME</span>
+                              <span className="font-bold text-purple-600 dark:text-purple-400">LIFETIME</span>
                             ) : (
-                              new Date(u.currentPeriodEnd).toLocaleDateString('en-IN')
+                              new Date(u.currentPeriodEnd).toLocaleDateString("en-IN")
                             )
                           ) : u.trialEnd ? (
-                            <span>Trial: {new Date(u.trialEnd).toLocaleDateString('en-IN')}</span>
+                            <span>Trial: {new Date(u.trialEnd).toLocaleDateString("en-IN")}</span>
                           ) : (
                             <span className="text-destructive font-bold">N/A</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1 flex-wrap">
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-1">
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-purple-600 border-purple-500/30 hover:bg-purple-500/10 rounded-lg px-2"
-                              onClick={() => handleGrantAccess(u.profileId, 'grant_lifetime')}
+                              className="h-7 rounded-lg border-purple-500/30 px-2 text-[10px] font-bold text-purple-600 hover:bg-purple-500/10"
+                              onClick={() => handleGrantAccess(u.profileId, "grant_lifetime")}
                               title="Grant Lifetime Free Access"
                             >
                               🎁 Lifetime
@@ -636,8 +698,8 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-blue-600 border-blue-500/30 hover:bg-blue-500/10 rounded-lg px-2"
-                              onClick={() => handleGrantAccess(u.profileId, 'grant_1year')}
+                              className="h-7 rounded-lg border-blue-500/30 px-2 text-[10px] font-bold text-blue-600 hover:bg-blue-500/10"
+                              onClick={() => handleGrantAccess(u.profileId, "grant_1year")}
                               title="Grant 1-Year Free Access"
                             >
                               📅 1-Yr
@@ -645,8 +707,8 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-cyan-600 border-cyan-500/30 hover:bg-cyan-500/10 rounded-lg px-2"
-                              onClick={() => handleGrantAccess(u.profileId, 'grant_6months')}
+                              className="h-7 rounded-lg border-cyan-500/30 px-2 text-[10px] font-bold text-cyan-600 hover:bg-cyan-500/10"
+                              onClick={() => handleGrantAccess(u.profileId, "grant_6months")}
                               title="Grant 6-Months Free Access"
                             >
                               📅 6-Mo
@@ -654,8 +716,8 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-indigo-600 border-indigo-500/30 hover:bg-indigo-500/10 rounded-lg px-2"
-                              onClick={() => handleGrantAccess(u.profileId, 'grant_1month')}
+                              className="h-7 rounded-lg border-indigo-500/30 px-2 text-[10px] font-bold text-indigo-600 hover:bg-indigo-500/10"
+                              onClick={() => handleGrantAccess(u.profileId, "grant_1month")}
                               title="Grant 1-Month Free Access"
                             >
                               ⚡ 1-Mo
@@ -663,8 +725,8 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-7 text-[10px] font-bold text-green-600 border-green-500/30 hover:bg-green-500/10 rounded-lg px-2"
-                              onClick={() => handleGrantAccess(u.profileId, 'extend_30days')}
+                              className="h-7 rounded-lg border-green-500/30 px-2 text-[10px] font-bold text-green-600 hover:bg-green-500/10"
+                              onClick={() => handleGrantAccess(u.profileId, "extend_30days")}
                               title="Renew / Extend +30 Days"
                             >
                               🔄 +30 Days
@@ -672,8 +734,8 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/10 rounded-lg px-1.5"
-                              onClick={() => handleGrantAccess(u.profileId, 'revoke')}
+                              className="text-destructive hover:bg-destructive/10 h-7 rounded-lg px-1.5 text-[10px] font-bold"
+                              onClick={() => handleGrantAccess(u.profileId, "revoke")}
                               title="Revoke Access"
                             >
                               Revoke
@@ -681,12 +743,16 @@ export default function AdminPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 text-[10px] font-bold text-destructive hover:bg-destructive/20 border border-destructive/30 rounded-lg gap-1 px-1.5"
+                              className="text-destructive hover:bg-destructive/20 border-destructive/30 h-7 gap-1 rounded-lg border px-1.5 text-[10px] font-bold"
                               onClick={() => setUserToDelete(u)}
-                              title={u.profileId === profile?.id ? "You cannot delete your own admin account" : "Delete User Account"}
+                              title={
+                                u.profileId === profile?.id
+                                  ? "You cannot delete your own admin account"
+                                  : "Delete User Account"
+                              }
                               disabled={u.profileId === profile?.id}
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="h-3 w-3" />
                             </Button>
                           </div>
                         </td>
@@ -694,7 +760,7 @@ export default function AdminPage() {
                     ))}
                     {filteredUsers.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="py-8 text-center text-muted-foreground font-medium">
+                        <td colSpan={5} className="text-muted-foreground py-8 text-center font-medium">
                           No users found matching query.
                         </td>
                       </tr>
@@ -708,45 +774,50 @@ export default function AdminPage() {
       )}
 
       {/* ── TAB 2: INVITE CODES & SHAREABLE LINKS ── */}
-      {activeTab === 'invite_codes' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {activeTab === "invite_codes" && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
           {/* Form: Create New Invite Code */}
-          <Card className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-md overflow-hidden lg:col-span-1">
-            <CardHeader className="border-b border-border/30 bg-muted/10">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Ticket className="w-4 h-4 text-primary" /> Create Invite Code
+          <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl border shadow-md backdrop-blur-sm lg:col-span-1">
+            <CardHeader className="border-border/30 bg-muted/10 border-b">
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <Ticket className="text-primary h-4 w-4" /> Create Invite Code
               </CardTitle>
               <CardDescription>Generate single or multi-use free access codes for friends</CardDescription>
             </CardHeader>
-            <CardContent className="p-4 space-y-4">
+            <CardContent className="space-y-4 p-4">
               <form onSubmit={handleCreateInviteCode} className="space-y-3">
                 <div className="space-y-1">
-                  <Label htmlFor="codeStr" className="text-xs font-bold">Code String</Label>
+                  <Label htmlFor="codeStr" className="text-xs font-bold">
+                    Code String
+                  </Label>
                   <div className="flex gap-2">
                     <Input
                       id="codeStr"
                       placeholder="e.g. FRIEND2026"
                       value={newCode}
                       onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                      className="h-10 text-xs font-mono uppercase bg-background"
+                      className="bg-background h-10 font-mono text-xs uppercase"
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="h-10 px-3 shrink-0 rounded-xl"
+                      className="h-10 shrink-0 rounded-xl px-3"
                       onClick={() => setNewCode(`FRIEND_${Math.random().toString(36).substring(2, 7).toUpperCase()}`)}
                       title="Auto Generate Code"
                     >
-                      <Sparkles className="w-3.5 h-3.5" />
+                      <Sparkles className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
 
                 <div className="space-y-1">
                   <Label className="text-xs font-bold">Access Duration</Label>
-                  <Select value={newDuration} onValueChange={(val: 'lifetime' | '1_year' | '6_months' | '1_month') => setNewDuration(val)}>
-                    <SelectTrigger className="h-10 bg-background text-xs">
+                  <Select
+                    value={newDuration}
+                    onValueChange={(val: "lifetime" | "1_year" | "6_months" | "1_month") => setNewDuration(val)}
+                  >
+                    <SelectTrigger className="bg-background h-10 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -759,74 +830,99 @@ export default function AdminPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="maxUsesInput" className="text-xs font-bold">Max Uses (Optional)</Label>
+                  <Label htmlFor="maxUsesInput" className="text-xs font-bold">
+                    Max Uses (Optional)
+                  </Label>
                   <Input
                     id="maxUsesInput"
                     type="number"
                     placeholder="Leave empty for Unlimited"
                     value={newMaxUses}
                     onChange={(e) => setNewMaxUses(e.target.value)}
-                    className="h-10 text-xs bg-background"
+                    className="bg-background h-10 text-xs"
                   />
                 </div>
 
-                <Button type="submit" className="w-full h-10 rounded-xl font-bold gap-2 mt-2" disabled={isCreatingCode}>
-                  {isCreatingCode ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Create Invite Code</>}
+                <Button type="submit" className="mt-2 h-10 w-full gap-2 rounded-xl font-bold" disabled={isCreatingCode}>
+                  {isCreatingCode ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4" /> Create Invite Code
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
           {/* List: Active Invite Codes */}
-          <Card className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-md overflow-hidden lg:col-span-2">
-            <CardHeader className="border-b border-border/30 bg-muted/10">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Ticket className="w-4 h-4 text-primary" /> Active Invite Codes ({inviteCodes.length})
+          <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl border shadow-md backdrop-blur-sm lg:col-span-2">
+            <CardHeader className="border-border/30 bg-muted/10 border-b">
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <Ticket className="text-primary h-4 w-4" /> Active Invite Codes ({inviteCodes.length})
               </CardTitle>
               <CardDescription>Shareable invite links automatically unlock free access during setup</CardDescription>
             </CardHeader>
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="space-y-3 p-4">
               {inviteCodes.map((c) => (
-                <div key={c.id} className="p-4 rounded-2xl border border-border/40 bg-card/60 flex items-center justify-between gap-4 hover:border-primary/30 transition-all">
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-black text-base tracking-wider text-foreground">{c.code}</span>
-                      <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0.5 rounded-full">
-                        {c.durationType === 'lifetime' ? '♾️ Lifetime' : c.durationType === '6_months' ? '📅 6 Months' : c.durationType === '1_month' ? '⚡ 1 Month' : '📅 1 Year'}
+                <div
+                  key={c.id}
+                  className="border-border/40 bg-card/60 hover:border-primary/30 flex items-center justify-between gap-4 rounded-2xl border p-4 transition-all"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-foreground font-mono text-base font-black tracking-wider">{c.code}</span>
+                      <Badge variant="secondary" className="rounded-full px-2 py-0.5 text-[10px] font-bold">
+                        {c.durationType === "lifetime"
+                          ? "♾️ Lifetime"
+                          : c.durationType === "6_months"
+                            ? "📅 6 Months"
+                            : c.durationType === "1_month"
+                              ? "⚡ 1 Month"
+                              : "📅 1 Year"}
                       </Badge>
-                      <span className="text-[11px] text-muted-foreground">
-                        Uses: <strong className="text-foreground">{c.usesCount}</strong> / {c.maxUses === null ? '∞' : c.maxUses}
+                      <span className="text-muted-foreground text-[11px]">
+                        Uses: <strong className="text-foreground">{c.usesCount}</strong> /{" "}
+                        {c.maxUses === null ? "∞" : c.maxUses}
                       </span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground truncate font-mono">
-                      Link: {typeof window !== 'undefined' ? `${window.location.origin}/setup?invite=${c.code}` : `/setup?invite=${c.code}`}
+                    <p className="text-muted-foreground truncate font-mono text-[11px]">
+                      Link:{" "}
+                      {typeof window !== "undefined"
+                        ? `${window.location.origin}/setup?invite=${c.code}`
+                        : `/setup?invite=${c.code}`}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-9 gap-1.5 text-xs rounded-xl font-semibold border-primary/30 text-primary hover:bg-primary/10"
+                      className="border-primary/30 text-primary hover:bg-primary/10 h-9 gap-1.5 rounded-xl text-xs font-semibold"
                       onClick={() => copyInviteLink(c.code, c.id)}
                     >
-                      {copiedCodeId === c.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                      {copiedCodeId === c.id ? 'Copied Link' : 'Copy Link'}
+                      {copiedCodeId === c.id ? (
+                        <Check className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                      {copiedCodeId === c.id ? "Copied Link" : "Copy Link"}
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-xl"
+                      className="text-destructive hover:bg-destructive/10 h-9 w-9 rounded-xl"
                       onClick={() => handleDeleteInviteCode(c.id)}
                       title="Delete Invite Code"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               ))}
               {inviteCodes.length === 0 && (
-                <div className="py-8 text-center text-muted-foreground font-medium text-xs">
+                <div className="text-muted-foreground py-8 text-center text-xs font-medium">
                   No invite codes created yet.
                 </div>
               )}
@@ -836,38 +932,48 @@ export default function AdminPage() {
       )}
 
       {/* ── TAB 3: WHATSAPP BOT CONTROLS & LOGS ── */}
-      {activeTab === 'whatsapp' && (
+      {activeTab === "whatsapp" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3 xl:grid-cols-4">
             {/* System Actions */}
-            <Card className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-md overflow-hidden lg:col-span-1">
-              <CardHeader className="border-b border-border/30 bg-muted/10">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-primary" /> System Actions
+            <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl border shadow-md backdrop-blur-sm lg:col-span-1">
+              <CardHeader className="border-border/30 bg-muted/10 border-b">
+                <CardTitle className="flex items-center gap-2 text-base font-bold">
+                  <Zap className="text-primary h-4 w-4" /> System Actions
                 </CardTitle>
                 <CardDescription>Trigger automated WhatsApp schedules</CardDescription>
               </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <Button onClick={triggerTasksReminder} className="w-full justify-center items-center gap-2.5 h-10 shadow-sm rounded-xl font-semibold">
-                  <CheckCircle2 className="w-4 h-4" /> Send Due Reminders
+              <CardContent className="space-y-3 p-4">
+                <Button
+                  onClick={triggerTasksReminder}
+                  className="h-10 w-full items-center justify-center gap-2.5 rounded-xl font-semibold shadow-sm"
+                >
+                  <CheckCircle2 className="h-4 w-4" /> Send Due Reminders
                 </Button>
 
-                <Button onClick={triggerPendingTasksBlast} variant="secondary" className="w-full justify-center items-center gap-2.5 h-10 border border-border/50 rounded-xl font-semibold">
-                  <BellRing className="w-4 h-4 text-primary" /> Pending Tasks Blast
+                <Button
+                  onClick={triggerPendingTasksBlast}
+                  variant="secondary"
+                  className="border-border/50 h-10 w-full items-center justify-center gap-2.5 rounded-xl border font-semibold"
+                >
+                  <BellRing className="text-primary h-4 w-4" /> Pending Tasks Blast
                 </Button>
 
-                <Button onClick={triggerAttendanceGuardian} variant="secondary" className="w-full justify-center items-center gap-2.5 h-10 border border-border/50 rounded-xl font-semibold">
-                  <ShieldAlert className="w-4 h-4 text-primary" /> Attendance Guardian
+                <Button
+                  onClick={triggerAttendanceGuardian}
+                  variant="secondary"
+                  className="border-border/50 h-10 w-full items-center justify-center gap-2.5 rounded-xl border font-semibold"
+                >
+                  <ShieldAlert className="text-primary h-4 w-4" /> Attendance Guardian
                 </Button>
               </CardContent>
             </Card>
 
             {/* 24h Window Status Table */}
-            <Card className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-md overflow-hidden lg:col-span-2">
-              <CardHeader className="border-b border-border/30 bg-muted/10">
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" /> 24h Meta Window Status
+            <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl border shadow-md backdrop-blur-sm lg:col-span-2">
+              <CardHeader className="border-border/30 bg-muted/10 border-b">
+                <CardTitle className="flex items-center gap-2 text-base font-bold">
+                  <Clock className="text-primary h-4 w-4" /> 24h Meta Window Status
                 </CardTitle>
                 <CardDescription>Active 24h user conversation windows</CardDescription>
               </CardHeader>
@@ -875,37 +981,51 @@ export default function AdminPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
-                      <tr className="border-b text-muted-foreground font-medium text-[11px] uppercase tracking-wider">
-                        <th className="text-left py-2.5 px-3">User</th>
-                        <th className="text-left py-2.5 px-3">Window</th>
-                        <th className="text-left py-2.5 px-3">Time Left</th>
-                        <th className="text-right py-2.5 px-3">Action</th>
+                      <tr className="text-muted-foreground border-b text-[11px] font-medium tracking-wider uppercase">
+                        <th className="px-3 py-2.5 text-left">User</th>
+                        <th className="px-3 py-2.5 text-left">Window</th>
+                        <th className="px-3 py-2.5 text-left">Time Left</th>
+                        <th className="px-3 py-2.5 text-right">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border/30">
+                    <tbody className="divide-border/30 divide-y">
                       {windowStatus.map((s) => (
                         <tr key={s.profile_id} className="hover:bg-muted/30">
-                          <td className="py-2.5 px-3">
-                            <div className="font-semibold text-foreground">{s.display_name}</div>
-                            <div className="text-[10px] text-muted-foreground font-mono">{s.whatsapp_number || "No number"}</div>
+                          <td className="px-3 py-2.5">
+                            <div className="text-foreground font-semibold">{s.display_name}</div>
+                            <div className="text-muted-foreground font-mono text-[10px]">
+                              {s.whatsapp_number || "No number"}
+                            </div>
                           </td>
-                          <td className="py-2.5 px-3">
-                            <Badge variant={s.window_status === 'open' ? 'default' : 'outline'} className="text-[10px] px-2 py-0.5">
+                          <td className="px-3 py-2.5">
+                            <Badge
+                              variant={s.window_status === "open" ? "default" : "outline"}
+                              className="px-2 py-0.5 text-[10px]"
+                            >
                               {s.window_status}
                             </Badge>
                           </td>
-                          <td className="py-2.5 px-3 font-mono">
-                            {s.window_status === 'expired' ? <span className="text-destructive font-bold">EXPIRED</span> : `${s.hours_remaining.toFixed(1)}h`}
+                          <td className="px-3 py-2.5 font-mono">
+                            {s.window_status === "expired" ? (
+                              <span className="text-destructive font-bold">EXPIRED</span>
+                            ) : (
+                              `${s.hours_remaining.toFixed(1)}h`
+                            )}
                           </td>
-                          <td className="py-2.5 px-3 text-right">
+                          <td className="px-3 py-2.5 text-right">
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 text-xs text-primary"
+                              className="text-primary h-7 text-xs"
                               disabled={engagingId === s.profile_id}
                               onClick={() => triggerEngagement(s.profile_id)}
                             >
-                              {engagingId === s.profile_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />} Engage
+                              {engagingId === s.profile_id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <MessageSquare className="h-3.5 w-3.5" />
+                              )}{" "}
+                              Engage
                             </Button>
                           </td>
                         </tr>
@@ -915,27 +1035,34 @@ export default function AdminPage() {
                 </div>
               </CardContent>
             </Card>
-
           </div>
 
           {/* Outbound Logs Section */}
-          <Card className="rounded-3xl border border-border/50 bg-card/50 backdrop-blur-sm shadow-md overflow-hidden">
-            <CardHeader className="border-b border-border/30 bg-muted/10">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <MessageSquare className="w-4 h-4 text-primary" /> Outbound Delivery Logs ({messageLogs.length})
+          <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl border shadow-md backdrop-blur-sm">
+            <CardHeader className="border-border/30 bg-muted/10 border-b">
+              <CardTitle className="flex items-center gap-2 text-base font-bold">
+                <MessageSquare className="text-primary h-4 w-4" /> Outbound Delivery Logs ({messageLogs.length})
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-4 space-y-2">
+            <CardContent className="space-y-2 p-4">
               {messageLogs.map((log) => (
-                <div key={log.id} className="p-3 border rounded-2xl flex items-center justify-between gap-3 bg-card/40 text-xs">
-                  <div className="space-y-1 min-w-0 flex-1">
+                <div
+                  key={log.id}
+                  className="bg-card/40 flex items-center justify-between gap-3 rounded-2xl border p-3 text-xs"
+                >
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold">{log.profiles?.display_name || 'System'}</span>
-                      <Badge variant="outline" className="text-[9px] uppercase font-bold">{log.message_type}</Badge>
+                      <span className="font-bold">{log.profiles?.display_name || "System"}</span>
+                      <Badge variant="outline" className="text-[9px] font-bold uppercase">
+                        {log.message_type}
+                      </Badge>
                     </div>
                     <p className="text-muted-foreground truncate font-medium">{log.body}</p>
                   </div>
-                  <Badge variant={log.status === 'read' || log.status === 'delivered' ? 'default' : 'outline'} className="text-[10px] uppercase">
+                  <Badge
+                    variant={log.status === "read" || log.status === "delivered" ? "default" : "outline"}
+                    className="text-[10px] uppercase"
+                  >
                     {log.status}
                   </Badge>
                 </div>
@@ -946,32 +1073,42 @@ export default function AdminPage() {
       )}
 
       {/* Delete User Account Confirmation Dialog */}
-      <Dialog open={!!userToDelete} onOpenChange={(open) => { if (!open) setUserToDelete(null) }}>
-        <DialogContent className="sm:max-w-md rounded-3xl border-destructive/30">
+      <Dialog
+        open={!!userToDelete}
+        onOpenChange={(open) => {
+          if (!open) setUserToDelete(null)
+        }}
+      >
+        <DialogContent className="border-destructive/30 rounded-3xl sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-destructive flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive animate-bounce" /> Delete User Account
+            <DialogTitle className="text-destructive flex items-center gap-2 text-lg font-bold">
+              <AlertTriangle className="text-destructive h-5 w-5 animate-bounce" /> Delete User Account
             </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              Are you sure you want to delete the user account for <strong className="text-foreground">{userToDelete?.displayName}</strong> ({userToDelete?.email || userToDelete?.whatsappNumber || 'No contact info'})?
+            <DialogDescription className="text-muted-foreground text-xs">
+              Are you sure you want to delete the user account for{" "}
+              <strong className="text-foreground">{userToDelete?.displayName}</strong> (
+              {userToDelete?.email || userToDelete?.whatsappNumber || "No contact info"})?
             </DialogDescription>
           </DialogHeader>
 
           {userToDelete && checkActiveSubscription(userToDelete).isActive && (
-            <div className="p-3.5 rounded-2xl bg-destructive/15 border border-destructive/40 text-destructive text-xs space-y-1.5">
-              <div className="font-bold flex items-center gap-1.5 text-destructive">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+            <div className="bg-destructive/15 border-destructive/40 text-destructive space-y-1.5 rounded-2xl border p-3.5 text-xs">
+              <div className="text-destructive flex items-center gap-1.5 font-bold">
+                <AlertCircle className="h-4 w-4 shrink-0" />
                 <span>WARNING: Active Subscription Detected</span>
               </div>
               <p className="text-[11px] leading-relaxed">
-                This user currently has an <strong className="underline font-bold">{checkActiveSubscription(userToDelete).type}</strong>! Deleting this user account will immediately revoke their access and permanently delete all their database records.
+                This user currently has an{" "}
+                <strong className="font-bold underline">{checkActiveSubscription(userToDelete).type}</strong>! Deleting
+                this user account will immediately revoke their access and permanently delete all their database
+                records.
               </p>
             </div>
           )}
 
-          <div className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-xl border border-border/40">
-            <p className="font-semibold text-foreground mb-1">Impact of Deletion:</p>
-            <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+          <div className="text-muted-foreground bg-muted/30 border-border/40 rounded-xl border p-3 text-xs">
+            <p className="text-foreground mb-1 font-semibold">Impact of Deletion:</p>
+            <ul className="list-inside list-disc space-y-0.5 text-[11px]">
               <li>Permanent removal of profile data &amp; preferences</li>
               <li>Deletion of all subject categories, attendance logs &amp; grades</li>
               <li>Deletion of study timers, tasks &amp; WhatsApp message logs</li>
@@ -979,7 +1116,7 @@ export default function AdminPage() {
             </ul>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 mt-2">
+          <DialogFooter className="mt-2 gap-2 sm:gap-0">
             <Button
               variant="outline"
               size="sm"
@@ -992,17 +1129,16 @@ export default function AdminPage() {
             <Button
               variant="destructive"
               size="sm"
-              className="rounded-xl font-bold gap-1.5 bg-destructive hover:bg-destructive/90"
+              className="bg-destructive hover:bg-destructive/90 gap-1.5 rounded-xl font-bold"
               onClick={handleConfirmDeleteUser}
               disabled={isDeletingUser}
             >
-              {isDeletingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {isDeletingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               Confirm Delete Account
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </div>
   )
 }

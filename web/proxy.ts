@@ -1,5 +1,5 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/proxy'
+import { type NextRequest } from "next/server"
+import { updateSession } from "@/lib/supabase/proxy"
 
 export async function proxy(request: NextRequest) {
   return await updateSession(request)
@@ -8,5 +8,5 @@ export async function proxy(request: NextRequest) {
 export default proxy
 
 export const config = {
-  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.json).*)'],
+  matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.json).*)"],
 }

@@ -1,7 +1,7 @@
 // app/api/auth/verify-otp/route.ts
 // Thin proxy — forwards to the consolidated auth edge function
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,8 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error:
-            'Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set',
+          error: "Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set",
         },
         { status: 500 }
       )
@@ -24,9 +23,9 @@ export async function POST(req: NextRequest) {
 
     // Use ANON KEY — the function verifies JWT generation logic internally
     const res = await fetch(edgeUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${supabaseAnonKey}`,
       },
       body: JSON.stringify(body),
@@ -35,7 +34,7 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
     return NextResponse.json(data, { status: res.status })
   } catch (err) {
-    console.error('verify-otp proxy error:', err)
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+    console.error("verify-otp proxy error:", err)
+    return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 })
   }
 }

@@ -32,13 +32,12 @@ type ColorTheme = "neutral" | "violet" | "green" | "rose" | "orange" | "crimson"
 const STORAGE_KEY = "ryumedha-color-theme"
 
 const THEMES: { value: ColorTheme; label: string; bg: string; ring: string }[] = [
-  { value: "neutral", label: "Neutral",  bg: "bg-zinc-800 dark:bg-zinc-200",  ring: "ring-zinc-800 dark:ring-zinc-200" },
-  { value: "violet",  label: "Purple",   bg: "bg-violet-600",                  ring: "ring-violet-500" },
-  { value: "green",   label: "Green",    bg: "bg-green-600",                   ring: "ring-green-500"  },
-  { value: "rose",    label: "Rose",     bg: "bg-rose-600",                    ring: "ring-rose-500"   },
-  { value: "orange",  label: "Orange",   bg: "bg-orange-500",                  ring: "ring-orange-400" },
-  { value: "crimson", label: "Crimson",  bg: "bg-[#FF4E6B]",                   ring: "ring-[#FF4E6B]"  },   
-  
+  { value: "neutral", label: "Neutral", bg: "bg-zinc-800 dark:bg-zinc-200", ring: "ring-zinc-800 dark:ring-zinc-200" },
+  { value: "violet", label: "Purple", bg: "bg-violet-600", ring: "ring-violet-500" },
+  { value: "green", label: "Green", bg: "bg-green-600", ring: "ring-green-500" },
+  { value: "rose", label: "Rose", bg: "bg-rose-600", ring: "ring-rose-500" },
+  { value: "orange", label: "Orange", bg: "bg-orange-500", ring: "ring-orange-400" },
+  { value: "crimson", label: "Crimson", bg: "bg-[#FF4E6B]", ring: "ring-[#FF4E6B]" },
 ]
 
 function applyTheme(theme: ColorTheme) {
@@ -83,25 +82,28 @@ function ColorAccordion() {
     <div className="flex flex-col">
       {/* Accordion header row */}
       <button
-        onClick={() => { haptic(); setOpen((o) => !o) }}
-        className="flex w-full items-center justify-between rounded-xl px-3 py-2.5 transition-colors hover:bg-muted active:bg-muted/70"
+        onClick={() => {
+          haptic()
+          setOpen((o) => !o)
+        }}
+        className="hover:bg-muted active:bg-muted/70 flex w-full items-center justify-between rounded-xl px-3 py-2.5 transition-colors"
         aria-expanded={open}
       >
-        <div className="flex items-center gap-2.5 text-sm text-foreground">
-          <Palette className="h-4 w-4 text-muted-foreground" />
+        <div className="text-foreground flex items-center gap-2.5 text-sm">
+          <Palette className="text-muted-foreground h-4 w-4" />
           <span>Accent colour</span>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Current swatch preview */}
           <span className={cn("h-3.5 w-3.5 rounded-full", currentTheme.bg)} />
-          <span className="text-xs text-muted-foreground">{currentTheme.label}</span>
+          <span className="text-muted-foreground text-xs">{currentTheme.label}</span>
           <m.span
             animate={{ rotate: open ? 90 : 0 }}
             transition={{ duration: 0.18, ease: "easeInOut" }}
             className="flex items-center"
           >
-            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronRight className="text-muted-foreground h-3.5 w-3.5" />
           </m.span>
         </div>
       </button>
@@ -117,7 +119,7 @@ function ColorAccordion() {
             transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
             style={{ overflow: "hidden" }}
           >
-            <div className="px-3 pb-2 pt-1">
+            <div className="px-3 pt-1 pb-2">
               <div className="flex items-center justify-between">
                 {THEMES.map((t) => (
                   <button
@@ -126,26 +128,24 @@ function ColorAccordion() {
                     title={t.label}
                     aria-label={`${t.label} color theme${active === t.value ? " (active)" : ""}`}
                     className={cn(
-                      "group relative flex flex-col items-center gap-1.5 rounded-xl p-2 transition-colors hover:bg-muted",
+                      "group hover:bg-muted relative flex flex-col items-center gap-1.5 rounded-xl p-2 transition-colors",
                       active === t.value && "bg-muted"
                     )}
                   >
                     {/* Swatch circle */}
                     <span
                       className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-full ring-offset-background transition-all",
+                        "ring-offset-background flex h-8 w-8 items-center justify-center rounded-full transition-all",
                         t.bg,
                         active === t.value && `ring-2 ring-offset-2 ${t.ring}`
                       )}
                     >
-                      {active === t.value && (
-                        <Check className="h-3.5 w-3.5 text-white drop-shadow" strokeWidth={3} />
-                      )}
+                      {active === t.value && <Check className="h-3.5 w-3.5 text-white drop-shadow" strokeWidth={3} />}
                     </span>
                     {/* Label */}
                     <span
                       className={cn(
-                        "text-[10px] font-medium leading-none",
+                        "text-[10px] leading-none font-medium",
                         active === t.value ? "text-foreground" : "text-muted-foreground"
                       )}
                     >
@@ -212,23 +212,25 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
 
   const name = displayName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
   const initials = name
-    ? name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+    ? name
+        .split(" ")
+        .map((n: string) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase()
     : null
 
   return (
     <div className="flex flex-col gap-0">
-
       {/* ── Identity card ─────────────────────────── */}
       {isAuthenticated && user ? (
         <>
           {/* Section header row with close button on desktop */}
           <div className="flex items-center justify-between px-5 pt-4 pb-1">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Account
-            </p>
+            <p className="text-muted-foreground text-[11px] font-semibold tracking-widest uppercase">Account</p>
             <button
               onClick={onClose}
-              className="hidden sm:flex h-6 w-6 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="bg-muted text-muted-foreground hover:bg-muted/70 focus-visible:ring-ring hidden h-6 w-6 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none sm:flex"
               aria-label="Close"
             >
               <X className="h-3 w-3" />
@@ -237,49 +239,46 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
 
           <Link
             href="/dashboard/profile"
-            onClick={() => { haptic(); onClose() }}
-            className="flex items-center gap-3 px-4 py-3 mx-2 mb-2 rounded-xl transition-colors hover:bg-muted/60 active:bg-muted group"
+            onClick={() => {
+              haptic()
+              onClose()
+            }}
+            className="hover:bg-muted/60 active:bg-muted group mx-2 mb-2 flex items-center gap-3 rounded-xl px-4 py-3 transition-colors"
           >
             {/* Avatar */}
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-semibold">
+            <div className="bg-primary text-primary-foreground flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-base font-semibold">
               {initials ?? <User className="h-5 w-5" />}
             </div>
 
             {/* Text */}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">
+              <p className="text-foreground group-hover:text-primary truncate text-sm leading-tight font-semibold transition-colors">
                 {name ?? "Student"}
               </p>
-              {user.email && (
-                <p className="truncate text-xs text-muted-foreground mt-0.5">
-                  {user.email}
-                </p>
-              )}
+              {user.email && <p className="text-muted-foreground mt-0.5 truncate text-xs">{user.email}</p>}
             </div>
 
             {/* Chevron */}
-            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 group-hover:text-primary transition-colors" />
+            <ChevronRight className="text-muted-foreground group-hover:text-primary h-4 w-4 shrink-0 transition-colors" />
           </Link>
         </>
       ) : (
         <div className="flex items-center gap-3 p-5 pb-4">
           {/* Avatar */}
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground text-base font-semibold">
+          <div className="bg-muted text-muted-foreground flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-semibold">
             <User className="h-5 w-5" />
           </div>
 
           {/* Text */}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">Welcome</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Sign in to start tracking your semester
-            </p>
+            <p className="text-foreground text-sm font-semibold">Welcome</p>
+            <p className="text-muted-foreground mt-0.5 text-xs">Sign in to start tracking your semester</p>
           </div>
 
           {/* Close — desktop only */}
           <button
             onClick={onClose}
-            className="hidden sm:flex h-7 w-7 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="bg-muted text-muted-foreground hover:bg-muted/70 focus-visible:ring-ring hidden h-7 w-7 items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:outline-none sm:flex"
             aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
@@ -290,8 +289,8 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
       <Divider />
 
       {/* ── Appearance ────────────────────────────── */}
-      <section className="px-2 py-3 flex flex-col gap-0.5">
-        <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+      <section className="flex flex-col gap-0.5 px-2 py-3">
+        <p className="text-muted-foreground px-3 pb-1 text-[11px] font-semibold tracking-widest uppercase">
           Appearance
         </p>
 
@@ -300,8 +299,8 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
 
         {/* Dark mode row */}
         <div className="flex items-center justify-between rounded-xl px-3 py-2.5">
-          <div className="flex items-center gap-2.5 text-sm text-foreground">
-            <Moon className="h-4 w-4 text-muted-foreground" />
+          <div className="text-foreground flex items-center gap-2.5 text-sm">
+            <Moon className="text-muted-foreground h-4 w-4" />
             <span>Dark mode</span>
           </div>
           <AnimatedThemeToggler />
@@ -314,10 +313,13 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
       <div className="px-2 py-2">
         <Link
           href="/support"
-          onClick={() => { haptic(); onClose() }}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted/70"
+          onClick={() => {
+            haptic()
+            onClose()
+          }}
+          className="text-foreground hover:bg-muted active:bg-muted/70 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors"
         >
-          <Headphones className="h-4 w-4 text-muted-foreground" />
+          <Headphones className="text-muted-foreground h-4 w-4" />
           Support & Help
         </Link>
       </div>
@@ -334,15 +336,19 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
               onClose()
               window.location.href = "/login"
             }}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 active:bg-destructive/15"
+            className="text-destructive hover:bg-destructive/10 active:bg-destructive/15 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors"
           >
             <LogOut className="h-4 w-4" />
             Sign Out
           </button>
         ) : (
           <button
-            onClick={() => { haptic(); onClose(); window.location.href = "/login" }}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-muted/70"
+            onClick={() => {
+              haptic()
+              onClose()
+              window.location.href = "/login"
+            }}
+            className="text-foreground hover:bg-muted active:bg-muted/70 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors"
           >
             <LogIn className="h-4 w-4" />
             Sign In
@@ -354,7 +360,7 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
 }
 
 function Divider() {
-  return <div className="h-px bg-border" />
+  return <div className="bg-border h-px" />
 }
 
 /* ─── Mobile — Bottom Sheet ────────────────────────────── */
@@ -400,7 +406,7 @@ function BottomSheet({ open, onClose, displayName }: Readonly<AccountSheetProps>
 
           <m.div
             key="bottom-sheet"
-            className="fixed bottom-0 left-0 right-0 z-[61] overflow-hidden rounded-t-[20px] border-t border-border bg-background shadow-2xl"
+            className="border-border bg-background fixed right-0 bottom-0 left-0 z-[61] overflow-hidden rounded-t-[20px] border-t shadow-2xl"
             style={{ y: dragY, touchAction: "none" }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
@@ -412,12 +418,12 @@ function BottomSheet({ open, onClose, displayName }: Readonly<AccountSheetProps>
           >
             {/* Drag handle */}
             <div
-              className="flex justify-center pt-3 pb-1 cursor-grab active:cursor-grabbing"
+              className="flex cursor-grab justify-center pt-3 pb-1 active:cursor-grabbing"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
             >
-              <div className="h-1 w-9 rounded-full bg-border" />
+              <div className="bg-border h-1 w-9 rounded-full" />
             </div>
 
             {/* Safe-area padding at the bottom (iOS) */}
@@ -453,7 +459,7 @@ function Modal({ open, onClose, displayName }: Readonly<AccountSheetProps>) {
 
           <m.div
             key="modal"
-            className="fixed left-1/2 top-1/2 z-[61] w-full max-w-sm overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
+            className="border-border bg-background fixed top-1/2 left-1/2 z-[61] w-full max-w-sm overflow-hidden rounded-2xl border shadow-2xl"
             initial={{ opacity: 0, scale: 0.94, y: -8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: -8 }}
@@ -504,9 +510,11 @@ export function AccountSheet({ open, onClose }: Readonly<AccountSheetProps>) {
   if (!mounted) return null
 
   return createPortal(
-    isMobile
-      ? <BottomSheet open={open} onClose={onClose} displayName={displayName} />
-      : <Modal open={open} onClose={onClose} displayName={displayName} />,
+    isMobile ? (
+      <BottomSheet open={open} onClose={onClose} displayName={displayName} />
+    ) : (
+      <Modal open={open} onClose={onClose} displayName={displayName} />
+    ),
     document.body
   )
 }

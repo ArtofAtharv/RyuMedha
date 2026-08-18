@@ -4,11 +4,22 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { m } from "motion/react"
 
-import { LayoutDashboard, BookOpen, CheckSquare, Clock, GraduationCap, CreditCard, ShieldCheck } from "lucide-react"
-import { useProfile } from './profile-context'
+import {
+  LayoutDashboard,
+  BookOpen,
+  CheckSquare,
+  Clock,
+  GraduationCap,
+  CreditCard,
+  ShieldCheck,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from "lucide-react"
+import { useProfile } from "./profile-context"
 import { haptic } from "@/lib/haptic"
+import { cn } from "@/lib/utils"
 
-export function DashboardNav() {
+export function DashboardNav({ isExpanded = true, onToggle }: { isExpanded?: boolean; onToggle?: () => void }) {
   const pathname = usePathname()
   const { profile } = useProfile()
   const isAdmin = profile?.is_admin === true
@@ -27,53 +38,125 @@ export function DashboardNav() {
   }
 
   // Match active tab — exact match for /dashboard, startsWith for sub-pages
-  const activeHref = tabs.find(t =>
-    t.href === "/dashboard"
-      ? pathname === "/dashboard"
-      : pathname.startsWith(t.href)
+  const activeHref = tabs.find((t) =>
+    t.href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(t.href)
   )?.href
 
   return (
-    <div className="fixed bottom-4 sm:bottom-6 left-0 w-full z-50 flex justify-center pointer-events-none px-4">
-      <nav className="pointer-events-auto w-full sm:max-w-lg bg-card/85 backdrop-blur-2xl border border-border/50 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-[28px] p-2 flex flex-col items-center gap-1.5 overflow-hidden">
-        
-        {/* Navigation Tabs */}
-        <div className="w-full flex items-center justify-around gap-1 overflow-x-auto scrollbar-none">
+    <>
+      {/* Desktop Sidebar (hidden on mobile) */}
+      <aside
+        className={cn(
+          "bg-background border-border/50 fixed top-14 left-0 z-40 hidden h-[calc(100dvh-3.5rem)] flex-col overflow-y-auto border-r transition-all duration-300 md:flex",
+          isExpanded ? "w-64" : "w-[4.5rem]"
+        )}
+      >
+        <div className="flex flex-1 flex-col space-y-2 px-3 py-6">
           {tabs.map((tab) => {
             const isActive = activeHref === tab.href
             return (
-              <div
+              <Link
                 key={tab.href}
-                className="flex-shrink-0 flex-1 px-0.5"
+                href={tab.href}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-2xl px-3 py-3 transition-all",
+                  isActive
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground font-medium",
+                  !isExpanded && "justify-center px-0"
+                )}
+                title={!isExpanded ? tab.label : undefined}
               >
-                <Link
-                  href={tab.href}
-                  onClick={() => haptic()}
-                  className={`relative flex flex-col items-center justify-center w-full py-1.5 rounded-2xl transition-all ${isActive
-                      ? "text-primary"
-                      : "text-muted-foreground hover:bg-muted/30 hover:text-foreground active:opacity-70"
-                    }`}
-                >
-                  {isActive && (
-                    <m.span
-                      layoutId="dashboard-tab-bubble"
-                      className="absolute inset-0 z-0 bg-primary/10 rounded-2xl"
-                      transition={{
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 30,
-                      }}
-                    />
-                  )}
-                  <tab.icon className={`relative z-10 w-5 h-5 mb-0.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className={`relative z-10 text-[10px] leading-tight ${isActive ? "font-bold" : "font-medium"}`}>{tab.label}</span>
-                </Link>
-              </div>
+                {isActive && (
+                  <m.span
+                    layoutId="dashboard-sidebar-bubble"
+                    className="bg-primary/10 border-primary/10 absolute inset-0 z-0 rounded-2xl border"
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 30,
+                    }}
+                  />
+                )}
+                <tab.icon
+                  className={cn("relative z-10 h-5 w-5 shrink-0", isActive ? "text-primary" : "text-muted-foreground")}
+                />
+                {isExpanded && <span className="relative z-10 text-sm">{tab.label}</span>}
+              </Link>
             )
           })}
         </div>
 
-      </nav>
-    </div>
+        {/* Sidebar Toggle Button */}
+        {onToggle && (
+          <div className="border-border/30 border-t p-3">
+            <button
+              onClick={() => {
+                haptic()
+                onToggle()
+              }}
+              className={cn(
+                "text-muted-foreground hover:bg-muted/50 hover:text-foreground flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-all",
+                !isExpanded && "justify-center px-0"
+              )}
+              title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+            >
+              {isExpanded ? (
+                <>
+                  <PanelLeftClose className="h-5 w-5 shrink-0" />
+                  <span className="text-sm font-medium">Collapse</span>
+                </>
+              ) : (
+                <PanelLeftOpen className="h-5 w-5 shrink-0" />
+              )}
+            </button>
+          </div>
+        )}
+      </aside>
+
+      {/* Mobile Bottom Navigation (hidden on desktop) */}
+      <div className="pointer-events-none fixed bottom-4 left-0 z-50 flex w-full justify-center px-4 sm:bottom-6 md:hidden">
+        <nav className="bg-card/85 border-border/30 pointer-events-auto flex w-full flex-col items-center gap-1.5 overflow-hidden rounded-[28px] border p-2 shadow-lg shadow-black/5 backdrop-blur-2xl sm:max-w-lg dark:shadow-black/20">
+          <div className="flex w-full scrollbar-none items-center justify-around gap-1 overflow-x-auto">
+            {tabs.map((tab) => {
+              const isActive = activeHref === tab.href
+              return (
+                <div key={tab.href} className="flex-1 flex-shrink-0 px-0.5">
+                  <Link
+                    href={tab.href}
+                    onClick={() => haptic()}
+                    className={`relative flex w-full flex-col items-center justify-center rounded-2xl py-1.5 transition-all ${
+                      isActive
+                        ? "text-primary"
+                        : "text-muted-foreground hover:bg-muted/30 hover:text-foreground active:opacity-70"
+                    }`}
+                  >
+                    {isActive && (
+                      <m.span
+                        layoutId="dashboard-tab-bubble"
+                        className="bg-primary/10 absolute inset-0 z-0 rounded-2xl"
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 30,
+                        }}
+                      />
+                    )}
+                    <tab.icon
+                      className={`relative z-10 mb-0.5 h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                    />
+                    <span
+                      className={`relative z-10 text-[10px] leading-tight ${isActive ? "font-bold" : "font-medium"}`}
+                    >
+                      {tab.label}
+                    </span>
+                  </Link>
+                </div>
+              )
+            })}
+          </div>
+        </nav>
+      </div>
+    </>
   )
 }

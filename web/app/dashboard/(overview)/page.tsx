@@ -1,47 +1,41 @@
 // app/dashboard/page.tsx — protected server component (session via proxy.ts)
 
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { createClient } from '@supabase/supabase-js'
-import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { PlusCircle, FolderOpen } from 'lucide-react'
-import { UserProfile } from '@/components/dashboard/profile-context'
+import { cookies } from "next/headers"
+import { redirect } from "next/navigation"
+import Link from "next/link"
+import { createClient } from "@supabase/supabase-js"
+import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { PlusCircle, FolderOpen } from "lucide-react"
+import { UserProfile } from "@/components/dashboard/profile-context"
 import { OverviewContent } from "./overview-content"
 
 export default async function DashboardPage() {
   const cookieStore = await cookies()
-  const accessToken = cookieStore.get('sb-access-token')?.value
-  if (!accessToken) redirect('/login')
+  const accessToken = cookieStore.get("sb-access-token")?.value
+  if (!accessToken) redirect("/login")
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        fetch: (url, options) => fetch(url, { ...options, cache: 'no-store' })
-      },
-    }
-  )
+  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+    global: {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+    },
+  })
 
   // Fetch fresh profile data
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .single()
+  const { data: profile, error } = await supabase.from("profiles").select("*").single()
 
   if (error || !profile) {
-    redirect('/setup')
+    redirect("/setup")
   }
 
   // Check if account setup is complete
-  const isSetup = (profile.academics_enabled !== null || profile.personal_enabled !== null) && 
-                  (!profile.academics_enabled || !!profile.current_semester_id);
+  const isSetup =
+    (profile.academics_enabled !== null || profile.personal_enabled !== null) &&
+    (!profile.academics_enabled || !!profile.current_semester_id)
 
   if (!isSetup) {
-    redirect('/setup')
+    redirect("/setup")
   }
 
   const displayName = profile.display_name
@@ -54,46 +48,43 @@ export default async function DashboardPage() {
     { data: pendingTasks },
     { data: timersData },
     { data: gradesData },
-    { data: categoriesData }
+    { data: categoriesData },
   ] = await Promise.all([
     supabase
-      .from('subjects')
-      .select('id, name, instructor_name, color_hex, type, is_active, label, expected_total_lectures, category_id, source_course_id(*)')
-      .eq('is_active', true)
-      .order('name'),
+      .from("subjects")
+      .select(
+        "id, name, instructor_name, color_hex, type, is_active, label, expected_total_lectures, category_id, source_course_id(*)"
+      )
+      .eq("is_active", true)
+      .order("name"),
     supabase
-      .from('attendance_logs')
-      .select('subject_id, status, lecture_date')
-      .eq('profile_id', profile?.id)
-      .in('status', ['present', 'absent', 'deemed']),
+      .from("attendance_logs")
+      .select("subject_id, status, lecture_date")
+      .eq("profile_id", profile?.id)
+      .in("status", ["present", "absent", "deemed"]),
     supabase
-      .from('tasks')
-      .select('id, subject_id, due_date, subjects(type)')
-      .eq('profile_id', profile?.id)
-      .eq('is_completed', false),
+      .from("tasks")
+      .select("id, subject_id, due_date, subjects(type)")
+      .eq("profile_id", profile?.id)
+      .eq("is_completed", false),
     supabase
-      .from('study_timers')
-      .select('started_at, ended_at, total_pause_seconds, timer_type, subject_id, subjects(type)')
-      .eq('profile_id', profile?.id)
-      .not('ended_at', 'is', null),
-    supabase
-      .from('grades')
-      .select('marks, max_marks, subject_id, subjects!inner(type)')
-      .eq('profile_id', profile?.id),
-    supabase
-      .from('subject_categories')
-      .select('*')
-      .eq('profile_id', profile?.id)
+      .from("study_timers")
+      .select("started_at, ended_at, total_pause_seconds, timer_type, subject_id, subjects(type)")
+      .eq("profile_id", profile?.id)
+      .not("ended_at", "is", null),
+    supabase.from("grades").select("marks, max_marks, subject_id, subjects!inner(type)").eq("profile_id", profile?.id),
+    supabase.from("subject_categories").select("*").eq("profile_id", profile?.id),
   ])
 
   // Filter subjects by the current academic hierarchy (Semester)
-  const subjectsData = rawSubjectsData?.filter((s) => {
-    if (s.type === 'personal') return true
-    const semesterId = Array.isArray(s.source_course_id) 
-      ? (s.source_course_id as Array<{semester_id?: string}>)[0]?.semester_id 
-      : (s.source_course_id as {semester_id?: string})?.semester_id
-    return semesterId === profile?.current_semester_id
-  }) || []
+  const subjectsData =
+    rawSubjectsData?.filter((s) => {
+      if (s.type === "personal") return true
+      const semesterId = Array.isArray(s.source_course_id)
+        ? (s.source_course_id as Array<{ semester_id?: string }>)[0]?.semester_id
+        : (s.source_course_id as { semester_id?: string })?.semester_id
+      return semesterId === profile?.current_semester_id
+    }) || []
 
   const categories = categoriesData || []
   const hasNoTracks = !profile?.academics_enabled && !profile?.personal_enabled
@@ -101,27 +92,31 @@ export default async function DashboardPage() {
 
   if (hasNoTracks) {
     return (
-      <div className="min-h-screen bg-background text-foreground pb-20">
-        <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <div className="bg-background text-foreground min-h-dvh pb-20">
+        <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
           <div className="flex items-center justify-between space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="font-serif text-3xl font-bold tracking-tight sm:text-5xl">
               Namaste, <span className="text-primary">{displayName}</span>
             </h2>
           </div>
-          
-          <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg rounded-3xl">
-            <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
-              <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center">
-                <FolderOpen className="w-10 h-10 text-muted-foreground/60" />
+
+          <Card className="bg-card/60 rounded-3xl border-none shadow-lg backdrop-blur-2xl">
+            <CardContent className="flex flex-col items-center justify-center space-y-6 py-20 text-center">
+              <div className="bg-muted flex h-20 w-20 items-center justify-center rounded-full">
+                <FolderOpen className="text-muted-foreground/60 h-10 w-10" />
               </div>
-              <div className="space-y-2 max-w-sm">
+              <div className="max-w-sm space-y-2">
                 <CardTitle className="text-2xl font-semibold tracking-tight">Tracks Disabled</CardTitle>
-                <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
-                  Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to start tracking your progress.
+                <CardDescription className="text-muted-foreground/80 text-base leading-relaxed font-medium">
+                  Both Academic and Personal tracking are currently disabled. Enable at least one track in Settings to
+                  start tracking your progress.
                 </CardDescription>
               </div>
               <Link href="/dashboard/profile">
-                <Button size="lg" className="font-semibold h-12 px-8 text-base rounded-2xl bg-primary text-primary-foreground hover:opacity-90 active:opacity-70 transition-opacity">
+                <Button
+                  size="lg"
+                  className="bg-primary text-primary-foreground h-12 rounded-2xl px-8 text-base font-semibold transition-opacity hover:opacity-90 active:opacity-70"
+                >
                   Go to Settings
                 </Button>
               </Link>
@@ -134,33 +129,37 @@ export default async function DashboardPage() {
 
   if (!hasSubjects) {
     return (
-      <div className="min-h-screen bg-background text-foreground pb-20">
-        <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
+      <div className="bg-background text-foreground min-h-dvh pb-20">
+        <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
           <div className="flex items-center justify-between space-y-2">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="font-serif text-3xl font-bold tracking-tight sm:text-5xl">
               Namaste, <span className="text-primary">{displayName}</span>
             </h2>
           </div>
-          
-          <Card className="border-none bg-card/60 backdrop-blur-2xl shadow-lg shadow-black/5 dark:shadow-black/20 rounded-3xl overflow-hidden">
-            <CardContent className="flex flex-col items-center justify-center py-20 text-center space-y-6">
+
+          <Card className="bg-card/60 overflow-hidden rounded-3xl border-none shadow-lg shadow-black/5 backdrop-blur-2xl dark:shadow-black/20">
+            <CardContent className="flex flex-col items-center justify-center space-y-6 py-20 text-center">
               <div className="relative">
-                <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center shadow-inner">
-                  <PlusCircle className="w-10 h-10 text-muted-foreground/60" />
+                <div className="bg-muted flex h-20 w-20 items-center justify-center rounded-full shadow-inner">
+                  <PlusCircle className="text-muted-foreground/60 h-10 w-10" />
                 </div>
               </div>
-              <div className="space-y-2 max-w-sm">
+              <div className="max-w-sm space-y-2">
                 <CardTitle className="text-2xl font-semibold tracking-tight">Your journey starts here</CardTitle>
-                <CardDescription className="text-base text-muted-foreground/80 leading-relaxed font-medium">
-                  You haven&apos;t added any subjects yet. Add your first subject to start tracking your attendance, tasks, and progress.
+                <CardDescription className="text-muted-foreground/80 text-base leading-relaxed font-medium">
+                  You haven&apos;t added any subjects yet. Add your first subject to start tracking your attendance,
+                  tasks, and progress.
                 </CardDescription>
               </div>
               <Link href="/dashboard/subjects">
-                <Button size="lg" className="font-semibold h-12 px-8 text-base rounded-2xl bg-primary text-primary-foreground hover:opacity-90 active:opacity-70 transition-opacity">
+                <Button
+                  size="lg"
+                  className="bg-primary text-primary-foreground h-12 rounded-2xl px-8 text-base font-semibold transition-opacity hover:opacity-90 active:opacity-70"
+                >
                   <PlusCircle className="mr-2 h-5 w-5" /> Add First Subject
                 </Button>
               </Link>
-              <p className="text-xs text-muted-foreground/60 font-medium pt-4">
+              <p className="text-muted-foreground/60 pt-4 text-xs font-medium">
                 Tip: Use the bot or Subjects tab to populate your dashboard.
               </p>
             </CardContent>
@@ -172,33 +171,34 @@ export default async function DashboardPage() {
 
   // Derived calculations (moved from original code)
   const targetPct = profile?.target_attendance_pct || 70
-  const attendanceData = subjectsData?.filter(s => s.type === 'academic').map(sub => {
-    const subjectLogs = attendanceLogs?.filter(log => log.subject_id === sub.id) || []
-    const logPresent = subjectLogs.filter(log => log.status === 'present').length
-    const logAbsent = subjectLogs.filter(log => log.status === 'absent').length
-    const logDeemed = subjectLogs.filter(log => log.status === 'deemed').length
+  const attendanceData =
+    subjectsData
+      ?.filter((s) => s.type === "academic")
+      .map((sub) => {
+        const subjectLogs = attendanceLogs?.filter((log) => log.subject_id === sub.id) || []
+        const logPresent = subjectLogs.filter((log) => log.status === "present").length
+        const logAbsent = subjectLogs.filter((log) => log.status === "absent").length
+        const logDeemed = subjectLogs.filter((log) => log.status === "deemed").length
 
-    return {
-      subject_id: sub.id,
-      subject_name: sub.name,
-      total_present: logPresent,
-      total_absent: logAbsent,
-      total_deemed: logDeemed,
-      attendance_percentage: 0 // Will be calculated by InteractiveAttendanceGrid
-    }
-  }) || []
+        return {
+          subject_id: sub.id,
+          subject_name: sub.name,
+          total_present: logPresent,
+          total_absent: logAbsent,
+          total_deemed: logDeemed,
+          attendance_percentage: 0, // Will be calculated by InteractiveAttendanceGrid
+        }
+      }) || []
 
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: profile?.timezone || 'Asia/Kolkata' })
+  const todayStr = new Date().toLocaleDateString("en-CA", { timeZone: profile?.timezone || "Asia/Kolkata" })
   let academicPendingTasks = 0
   let personalPendingTasks = 0
   let academicPendingTasksToday = 0
   let personalPendingTasksToday = 0
-  
-  pendingTasks?.forEach(t => {
+
+  pendingTasks?.forEach((t) => {
     const subjectsObj = t.subjects
-    const type = Array.isArray(subjectsObj) 
-      ? subjectsObj[0]?.type 
-      : (subjectsObj as {type?: string})?.type
+    const type = Array.isArray(subjectsObj) ? subjectsObj[0]?.type : (subjectsObj as { type?: string })?.type
 
     const subId = t.subject_id
     const isUnlinked = !subId || !type
@@ -206,51 +206,50 @@ export default async function DashboardPage() {
     if (isUnlinked) {
       academicPendingTasks++
       personalPendingTasks++
-    } else if (type === 'academic') {
+    } else if (type === "academic") {
       academicPendingTasks++
-    } else if (type === 'personal') {
+    } else if (type === "personal") {
       personalPendingTasks++
     }
 
     if (t.due_date) {
-      const taskDueStr = new Date(t.due_date).toLocaleDateString('en-CA', { timeZone: profile?.timezone || 'Asia/Kolkata' })
+      const taskDueStr = new Date(t.due_date).toLocaleDateString("en-CA", {
+        timeZone: profile?.timezone || "Asia/Kolkata",
+      })
       if (taskDueStr === todayStr) {
         if (isUnlinked) {
           academicPendingTasksToday++
           personalPendingTasksToday++
-        } else if (type === 'academic') {
+        } else if (type === "academic") {
           academicPendingTasksToday++
-        } else if (type === 'personal') {
+        } else if (type === "personal") {
           personalPendingTasksToday++
         }
       }
     }
   })
 
-  const academicSubjects = subjectsData?.filter(s => s.type === 'academic') || []
-  const personalSubjects = subjectsData?.filter(s => s.type === 'personal') || []
-  const unmarkedAcademicSubjects = academicSubjects.filter(sub => {
-    return !attendanceLogs?.some(log => 
-      log.subject_id === sub.id && 
-      log.lecture_date === todayStr
-    )
+  const academicSubjects = subjectsData?.filter((s) => s.type === "academic") || []
+  const personalSubjects = subjectsData?.filter((s) => s.type === "personal") || []
+  const unmarkedAcademicSubjects = academicSubjects.filter((sub) => {
+    return !attendanceLogs?.some((log) => log.subject_id === sub.id && log.lecture_date === todayStr)
   })
   const unmarkedSubjectsToday = unmarkedAcademicSubjects.length
 
   let academicStudySecs = 0
   let personalStudySecs = 0
-  timersData?.forEach(t => {
+  timersData?.forEach((t) => {
     // @ts-expect-error — Supabase join returns subjects as object
     const type = t.subjects?.type
-    
+
     // Manual JS-based calculation: (End - Start) - Pause
     const start = new Date(t.started_at).getTime()
     const end = new Date(t.ended_at).getTime()
     const grossSecs = Math.floor((end - start) / 1000)
     const netSecs = Math.max(0, grossSecs - (t.total_pause_seconds || 0))
 
-    if (type === 'academic') academicStudySecs += netSecs
-    else if (type === 'personal') personalStudySecs += netSecs
+    if (type === "academic") academicStudySecs += netSecs
+    else if (type === "personal") personalStudySecs += netSecs
   })
 
   const formatStudyTime = (secs: number) => {
@@ -271,13 +270,13 @@ export default async function DashboardPage() {
   let personalScore = 0
   let personalMax = 0
 
-  gradesData?.forEach(g => {
+  gradesData?.forEach((g) => {
     // @ts-expect-error — Supabase join returns subjects as object
     const type = g.subjects?.type
-    if (type === 'academic') {
+    if (type === "academic") {
       academicScore += Number(g.marks)
       academicMax += Number(g.max_marks)
-    } else if (type === 'personal') {
+    } else if (type === "personal") {
       personalScore += Number(g.marks)
       personalMax += Number(g.max_marks)
     }
@@ -289,15 +288,15 @@ export default async function DashboardPage() {
   const totalPresent = attendanceData?.reduce((s, r) => s + (r.total_present ?? 0), 0) ?? 0
   const totalAbsent = attendanceData?.reduce((s, r) => s + (r.total_absent ?? 0), 0) ?? 0
   const totalDeemed = attendanceData?.reduce((s, r) => s + (r.total_deemed ?? 0), 0) ?? 0
-  const overallAttendancePct = totalPresent + totalAbsent + totalDeemed > 0
-    ? Math.round(((totalPresent + totalDeemed) / (totalPresent + totalAbsent + totalDeemed)) * 100)
-    : null
-
+  const overallAttendancePct =
+    totalPresent + totalAbsent + totalDeemed > 0
+      ? Math.round(((totalPresent + totalDeemed) / (totalPresent + totalAbsent + totalDeemed)) * 100)
+      : null
 
   return (
-    <div className="min-h-screen bg-background text-foreground pb-20">
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        <OverviewContent 
+    <div className="bg-background text-foreground min-h-dvh pb-20">
+      <main className="mx-auto max-w-7xl space-y-8 px-6 py-8">
+        <OverviewContent
           profile={fullProfile}
           academicOverviewData={{
             overallAttendancePct,
@@ -312,10 +311,10 @@ export default async function DashboardPage() {
             unmarkedAcademicSubjects,
             unmarkedSubjectsToday,
             pendingTasksToday: academicPendingTasksToday,
-            timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'academic') || [],
+            timersSessionData: timersData?.filter((t) => (t.subjects as { type?: string })?.type === "academic") || [],
             token: accessToken,
             profileId: profile?.id,
-            targetPct
+            targetPct,
           }}
           personalOverviewData={{
             personalScorePct,
@@ -323,8 +322,8 @@ export default async function DashboardPage() {
             personalPendingTasksToday,
             personalStudyTimeFormatted,
             personalSubjects,
-            timersSessionData: timersData?.filter(t => (t.subjects as {type?: string})?.type === 'personal') || [],
-            categories
+            timersSessionData: timersData?.filter((t) => (t.subjects as { type?: string })?.type === "personal") || [],
+            categories,
           }}
         />
       </main>

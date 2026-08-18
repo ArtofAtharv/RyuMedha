@@ -1,3 +1,4 @@
+import React from "react"
 import { m } from "motion/react"
 import { LucideIcon } from "lucide-react"
 
@@ -11,28 +12,42 @@ interface SegmentedControlProps {
   segments: Segment[]
   activeSegment: string
   onChange: (id: string) => void
+  fullWidth?: boolean
+  layoutIdPrefix?: string
 }
 
-export function SegmentedControl({ segments, activeSegment, onChange }: Readonly<SegmentedControlProps>) {
+export function SegmentedControl({
+  segments,
+  activeSegment,
+  onChange,
+  fullWidth,
+  layoutIdPrefix = "global-segmented",
+}: Readonly<SegmentedControlProps>) {
   return (
-    <div className="relative flex gap-1 bg-muted/40 rounded-full border border-border/50 shrink-0">
+    <div
+      className={`relative flex shrink-0 rounded-full border border-black/5 bg-black/5 p-1 shadow-inner backdrop-blur-md dark:border-white/5 dark:bg-white/5 ${fullWidth ? "w-full" : ""}`}
+    >
       {segments.map((segment) => {
         const isActive = activeSegment === segment.id
         return (
           <button
             key={segment.id}
             onClick={() => onChange(segment.id)}
-            className="relative flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold transition-colors focus:outline-none shrink-0"
+            className={`relative flex shrink-0 items-center justify-center gap-1.5 rounded-full px-6 py-2.5 text-sm transition-colors focus:outline-none ${fullWidth ? "flex-1" : ""}`}
           >
             {isActive && (
               <m.div
-                layoutId="global-segmented-control"
-                transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.3 }}
-                className="absolute inset-0 bg-background shadow-sm rounded-full border border-border/50"
+                layoutId={`${layoutIdPrefix}-bg`}
+                layout
+                initial={false}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="bg-primary absolute inset-0 rounded-full shadow-md"
               />
             )}
-            <span className={`relative z-10 flex items-center gap-1.5 ${isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/80'}`}>
-              {segment.icon && <segment.icon className="w-3.5 h-3.5" />}
+            <span
+              className={`relative z-10 flex items-center gap-1.5 ${isActive ? "text-primary-foreground font-bold" : "text-muted-foreground hover:text-foreground/80 font-medium"}`}
+            >
+              {segment.icon && <segment.icon className="h-3.5 w-3.5" />}
               {segment.label}
             </span>
           </button>

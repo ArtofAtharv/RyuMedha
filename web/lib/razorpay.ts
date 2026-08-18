@@ -1,4 +1,4 @@
-import Razorpay from 'razorpay'
+import Razorpay from "razorpay"
 
 /**
  * Returns an instance of the Razorpay SDK or null if credentials are not configured.
@@ -8,7 +8,7 @@ export function getRazorpayClient(): Razorpay | null {
   const keySecret = process.env.RAZORPAY_KEY_SECRET
 
   if (!keyId || !keySecret) {
-    console.warn('[Razorpay] Credentials missing (KEY_ID / KEY_SECRET)')
+    console.warn("[Razorpay] Credentials missing (KEY_ID / KEY_SECRET)")
     return null
   }
 
@@ -32,7 +32,7 @@ export async function cancelUserRazorpaySubscriptions(
   let canceledCount = 0
 
   // 1. Cancel the currently assigned Razorpay subscription ID if it starts with 'sub_'
-  if (currentRazorpaySubId && currentRazorpaySubId.startsWith('sub_')) {
+  if (currentRazorpaySubId && currentRazorpaySubId.startsWith("sub_")) {
     try {
       await razorpay.subscriptions.cancel(currentRazorpaySubId, false)
       canceledCount++
@@ -50,7 +50,7 @@ export async function cancelUserRazorpaySubscriptions(
       for (const item of allSubs.items) {
         const itemNotes = (item.notes as Record<string, string> | undefined) || {}
         const itemProfileId = itemNotes.profile_id
-        const isActiveOrAuth = item.status === 'active' || item.status === 'authenticated'
+        const isActiveOrAuth = item.status === "active" || item.status === "authenticated"
 
         if (itemProfileId === profileId && isActiveOrAuth && item.id !== currentRazorpaySubId) {
           try {

@@ -3,21 +3,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Plus,
-  
-  
   Search,
   CheckCircle,
   Circle,
-  Calendar as CalendarIcon,
   Trash2,
   Edit2,
   RefreshCw,
-  Clock,
   Menu,
   Check,
   Loader2,
   ListTodo,
-  Bell
+  Bell,
 } from "lucide-react"
 import { useProfile } from "@/components/dashboard/profile-context"
 import { toast } from "sonner"
@@ -31,7 +27,7 @@ import {
   updateTaskList,
   deleteTaskList,
   type Reminder,
-  type TaskList
+  type TaskList,
 } from "@/app/actions/google-tasks"
 
 import { Button } from "@/components/ui/button"
@@ -42,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getAppClient } from "@/lib/supabase-client"
 
 export default function TasksPage() {
-  const { } = useProfile()
+  const {} = useProfile()
   const [reminders, setReminders] = useState<Reminder[]>([])
   const [taskLists, setTaskLists] = useState<TaskList[]>([])
   const [subjects, setSubjects] = useState<any /* eslint-disable-line @typescript-eslint/no-explicit-any */[]>([])
@@ -51,12 +47,12 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
-  
+
   // New task modal states
   const [title, setTitle] = useState("")
   const [notes, setNotes] = useState("")
@@ -83,18 +79,21 @@ export default function TasksPage() {
   const [listSaving, setListSaving] = useState(false)
 
   // Sync reminders with server
-  const handleSync = useCallback(async (listId = activeListId) => {
-    setIsSyncing(true)
-    try {
-      const fresh = await fetchReminders(listId)
-      setReminders(fresh)
-    } catch (error) {
-      console.error("Sync error:", error)
-      toast.error("Failed to sync with Google Tasks.")
-    } finally {
-      setIsSyncing(false)
-    }
-  }, [activeListId])
+  const handleSync = useCallback(
+    async (listId = activeListId) => {
+      setIsSyncing(true)
+      try {
+        const fresh = await fetchReminders(listId)
+        setReminders(fresh)
+      } catch (error) {
+        console.error("Sync error:", error)
+        toast.error("Failed to sync with Google Tasks.")
+      } finally {
+        setIsSyncing(false)
+      }
+    },
+    [activeListId]
+  )
 
   const handleOpenCreateListModal = () => {
     setEditingList(null)
@@ -116,13 +115,13 @@ export default function TasksPage() {
       if (editingList) {
         const updated = await updateTaskList(editingList.id, listTitle.trim())
         if (updated) {
-          setTaskLists(prev => prev.map(l => l.id === editingList.id ? updated : l))
+          setTaskLists((prev) => prev.map((l) => (l.id === editingList.id ? updated : l)))
           toast.success("List renamed.")
         }
       } else {
         const created = await createTaskList(listTitle.trim())
         if (created) {
-          setTaskLists(prev => [...prev, created])
+          setTaskLists((prev) => [...prev, created])
           setActiveListId(created.id)
           await handleSync(created.id)
           toast.success("List created.")
@@ -142,9 +141,9 @@ export default function TasksPage() {
     try {
       const success = await deleteTaskList(listId)
       if (success) {
-        setTaskLists(prev => prev.filter(l => l.id !== listId))
+        setTaskLists((prev) => prev.filter((l) => l.id !== listId))
         if (activeListId === listId) {
-          const remaining = taskLists.filter(l => l.id !== listId)
+          const remaining = taskLists.filter((l) => l.id !== listId)
           if (remaining.length > 0) {
             setActiveListId(remaining[0].id)
             await handleSync(remaining[0].id)
@@ -170,7 +169,7 @@ export default function TasksPage() {
     if (typeof window !== "undefined" && "Notification" in window) {
       setTimeout(() => setNotificationPermission(Notification.permission), 0)
       const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
-      
+
       if (Notification.permission === "denied") {
         setTimeout(() => setNotificationsEnabled(false), 0)
         localStorage.setItem("tasks_notifications_enabled", "false")
@@ -182,11 +181,9 @@ export default function TasksPage() {
 
   // Initialize sidebar state based on screen size on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (window.innerWidth < 768) {
-        setTimeout(() => setSidebarOpen(false), 0)
-      }
-    }
+    // Sidebar starts closed by default for a cleaner look.
+    // If we wanted to auto-open on very large screens, we could do it here:
+    // if (window.innerWidth >= 1280) setSidebarOpen(true)
   }, [])
 
   // Auto-register service worker on mount if notifications are enabled
@@ -196,7 +193,7 @@ export default function TasksPage() {
         const stored = localStorage.getItem("tasks_notifications_enabled") === "true"
         if (stored && Notification.permission === "granted") {
           try {
-            await navigator.serviceWorker.register('/sw.js')
+            await navigator.serviceWorker.register("/sw.js")
           } catch (e) {
             console.error("Failed to re-register service worker on mount:", e)
           }
@@ -250,10 +247,7 @@ export default function TasksPage() {
     async function init() {
       try {
         const supabase = getAppClient()
-        const { data: subs } = await supabase
-          .from('subjects')
-          .select('id, name, type')
-          .eq('is_active', true)
+        const { data: subs } = await supabase.from("subjects").select("id, name, type").eq("is_active", true)
         setSubjects(subs || [])
 
         const lists = await fetchTaskLists()
@@ -281,11 +275,7 @@ export default function TasksPage() {
   const handleToggleComplete = async (reminder: Reminder) => {
     const nextCompleted = !reminder.completed
     // Optimistic UI update
-    setReminders(prev =>
-      prev.map(r =>
-        r.id === reminder.id ? { ...r, completed: nextCompleted } : r
-      )
-    )
+    setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, completed: nextCompleted } : r)))
 
     try {
       await updateReminder(reminder.id, { completed: nextCompleted }, activeListId)
@@ -294,11 +284,7 @@ export default function TasksPage() {
       console.error(err)
       toast.error("Failed to update task.")
       // Revert on error
-      setReminders(prev =>
-        prev.map(r =>
-          r.id === reminder.id ? { ...r, completed: !nextCompleted } : r
-        )
-      )
+      setReminders((prev) => prev.map((r) => (r.id === reminder.id ? { ...r, completed: !nextCompleted } : r)))
     }
   }
 
@@ -306,7 +292,7 @@ export default function TasksPage() {
     if (!confirm("Are you sure you want to delete this task?")) return
 
     const previousReminders = [...reminders]
-    setReminders(prev => prev.filter(r => r.id !== id))
+    setReminders((prev) => prev.filter((r) => r.id !== id))
 
     try {
       const success = await deleteReminder(id, activeListId)
@@ -344,16 +330,16 @@ export default function TasksPage() {
     setTitle(reminder.title)
     setNotes(reminder.notes || "")
     setSelectedSubjectId(reminder.subjectId || "none")
-    
+
     if (reminder.due) {
       const dateObj = new Date(reminder.due)
       const datePart = dateObj.toISOString().split("T")[0]
       const todayStr = new Date().toISOString().split("T")[0]
-      
+
       const tomorrow = new Date()
       tomorrow.setDate(tomorrow.getDate() + 1)
       const tomorrowStr = tomorrow.toISOString().split("T")[0]
-      
+
       const nextWeek = new Date()
       nextWeek.setDate(nextWeek.getDate() + 7)
       const nextWeekStr = nextWeek.toISOString().split("T")[0]
@@ -368,7 +354,7 @@ export default function TasksPage() {
 
       const hours = dateObj.getHours()
       const minutes = dateObj.getMinutes()
-      
+
       if (hours === 0 && minutes === 0 && reminder.due.endsWith("T00:00:00.000Z")) {
         setTimePreset("all-day")
       } else {
@@ -388,7 +374,10 @@ export default function TasksPage() {
       setReminder2Weeks(reminder.reminderSettings.twoWeeksPrior)
       setReminderCustom(reminder.reminderSettings.customPrior)
       setCustomReminderValue(reminder.reminderSettings.customValue || 3)
-      setCustomReminderUnit((reminder.reminderSettings.customUnit as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ ) || "hours")
+      setCustomReminderUnit(
+        (reminder.reminderSettings.customUnit as any) /* eslint-disable-line @typescript-eslint/no-explicit-any */ ||
+          "hours"
+      )
     } else {
       setReminderDueTime(true)
       setReminder1Day(true)
@@ -399,7 +388,7 @@ export default function TasksPage() {
       setCustomReminderValue(3)
       setCustomReminderUnit("hours")
     }
-    
+
     setIsModalOpen(true)
   }
 
@@ -439,7 +428,7 @@ export default function TasksPage() {
             else if (timePreset === "custom" && customTime) {
               timePart = customTime
             }
-            
+
             const [hours, mins] = timePart.split(":")
             const combined = new Date(datePart)
             combined.setHours(parseInt(hours), parseInt(mins), 0, 0)
@@ -456,24 +445,24 @@ export default function TasksPage() {
         twoWeeksPrior: reminder2Weeks,
         customPrior: reminderCustom,
         customValue: customReminderValue,
-        customUnit: customReminderUnit
+        customUnit: customReminderUnit,
       }
 
       if (editingReminder) {
         // Edit mode
         const updated = await updateReminder(
           editingReminder.id,
-          { 
-            title, 
-            notes, 
-            due: finalDue, 
+          {
+            title,
+            notes,
+            due: finalDue,
             reminderSettings,
-            subjectId: selectedSubjectId === "none" ? null : selectedSubjectId 
+            subjectId: selectedSubjectId === "none" ? null : selectedSubjectId,
           },
           activeListId
         )
         if (updated) {
-          setReminders(prev => prev.map(r => (r.id === editingReminder.id ? updated : r)))
+          setReminders((prev) => prev.map((r) => (r.id === editingReminder.id ? updated : r)))
           toast.success("Task updated.")
         }
       } else {
@@ -484,10 +473,10 @@ export default function TasksPage() {
           due: finalDue,
           listId: activeListId,
           reminderSettings,
-          subjectId: selectedSubjectId === "none" ? undefined : selectedSubjectId
+          subjectId: selectedSubjectId === "none" ? undefined : selectedSubjectId,
         })
         if (created) {
-          setReminders(prev => [created, ...prev])
+          setReminders((prev) => [created, ...prev])
           toast.success("Task created.")
         }
       }
@@ -506,21 +495,16 @@ export default function TasksPage() {
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
-      list = list.filter(
-        r =>
-          r.title.toLowerCase().includes(query) ||
-          r.notes?.toLowerCase().includes(query)
-      )
+      list = list.filter((r) => r.title.toLowerCase().includes(query) || r.notes?.toLowerCase().includes(query))
     }
     return list
   }, [reminders, searchQuery])
-
 
   // Sorting
   const groups = useMemo(() => {
     const now = new Date()
     const todayStr = now.toISOString().split("T")[0]
-    
+
     const tomorrow = new Date()
     tomorrow.setDate(now.getDate() + 1)
     const tomorrowStr = tomorrow.toISOString().split("T")[0]
@@ -538,7 +522,7 @@ export default function TasksPage() {
       completed: [] as Reminder[],
     }
 
-    filteredReminders.forEach(r => {
+    filteredReminders.forEach((r) => {
       if (r.completed) {
         result.completed.push(r)
         return
@@ -579,14 +563,14 @@ export default function TasksPage() {
     if (!isoStr) return ""
     const date = new Date(isoStr)
     const isAllDay = isoStr.endsWith("T00:00:00.000Z")
-    
+
     const options: Intl.DateTimeFormatOptions = {
       month: "short",
       day: "numeric",
     }
-    
+
     let formatted = date.toLocaleDateString("en-US", options)
-    
+
     if (!isAllDay) {
       const timeOptions: Intl.DateTimeFormatOptions = {
         hour: "numeric",
@@ -595,106 +579,99 @@ export default function TasksPage() {
       }
       formatted += `, ${date.toLocaleTimeString("en-US", timeOptions)}`
     }
-    
+
     return formatted
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex min-h-[60dvh] items-center justify-center">
+        <Loader2 className="text-primary h-8 w-8 animate-spin" />
       </div>
     )
   }
 
   return (
-    <div className="relative flex h-[80vh] border rounded-3xl overflow-hidden bg-card/60 backdrop-blur-md shadow-xl border-border/50 max-w-6xl mx-auto px-2 mt-4 md:px-4 md:mt-6">
-      {/* Mobile Drawer Backdrop */}
+    <div className="relative mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-[1600px]">
+      {/* Mobile/Tablet Drawer Backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-35 bg-black/40 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-35 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setTimeout(() => setSidebarOpen(false), 0)}
         />
       )}
 
       {/* Sidebar Task Lists */}
       <aside
-        className={`
-          fixed inset-y-0 left-0 z-40 md:z-auto md:relative
-          bg-background md:bg-transparent h-full
-          ${sidebarOpen ? "w-64 translate-x-0 border-r" : "w-0 -translate-x-full md:translate-x-0 md:w-0"}
-          transition-all duration-300 flex-shrink-0 border-border/50 flex flex-col overflow-hidden
-        `}
+        className={`bg-background fixed inset-y-0 left-0 z-40 h-full lg:relative lg:z-auto ${sidebarOpen ? "w-64 translate-x-0 border-r" : "w-0 -translate-x-full lg:w-0 lg:translate-x-0"} border-border/40 flex flex-shrink-0 flex-col overflow-hidden transition-all duration-300`}
       >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-border/50">
-          <div className="flex items-center space-x-2">
-            <div className="bg-primary/10 text-primary p-2 rounded-xl flex items-center justify-center shadow-sm">
-              <ListTodo className="w-5 h-5" />
+        <div className="border-border/40 flex items-center justify-between border-b px-4 py-4">
+          <div className="flex items-center space-x-2.5">
+            <div className="text-primary flex items-center justify-center">
+              <ListTodo className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="font-bold text-base leading-tight">My Tasks</h1>
-              <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                Google Account Sync
-              </span>
+              <h1 className="text-sm leading-tight font-semibold">My Tasks</h1>
+              <span className="text-muted-foreground text-[10px] font-medium uppercase">Google Tasks Sync</span>
             </div>
           </div>
           <button
             onClick={() => setTimeout(() => setSidebarOpen(false), 0)}
-            className="md:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+            className="hover:bg-muted text-muted-foreground rounded-lg p-1.5 lg:hidden"
             aria-label="Close sidebar"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex items-center justify-between px-6 py-2 mt-4 shrink-0">
-          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Lists</span>
+        <div className="mt-2 flex shrink-0 items-center justify-between px-4 py-2">
+          <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">Lists</span>
           <button
             onClick={handleOpenCreateListModal}
-            className="p-1 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
             title="Create New List"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <nav className="flex-1 py-2 overflow-y-auto px-3 space-y-1">
-          {taskLists.map(list => (
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-1">
+          {taskLists.map((list) => (
             <div
               key={list.id}
-              className={`group/list w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-all text-left ${
+              className={`group/list flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm font-medium transition-all ${
                 activeListId === list.id
-                  ? "bg-primary/10 text-primary font-semibold"
-                  : "hover:bg-muted/50 text-muted-foreground"
+                  ? "bg-muted text-foreground"
+                  : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
               }`}
             >
               <button
                 onClick={() => {
                   handleListSelect(list.id)
-                  if (window.innerWidth < 768) {
+                  if (window.innerWidth < 1024) {
                     setTimeout(() => setSidebarOpen(false), 0)
                   }
                 }}
-                className="flex-1 flex items-center space-x-3 truncate py-0.5"
+                className="flex flex-1 items-center space-x-2.5 truncate py-0.5"
               >
                 <div
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    activeListId === list.id ? "bg-primary" : "bg-muted-foreground/30"
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                    activeListId === list.id ? "bg-primary" : "border-muted-foreground/40 border bg-transparent"
                   }`}
                 />
                 <span className="truncate">{list.title}</span>
               </button>
-              
-              <div className="flex items-center space-x-0.5 opacity-0 group-hover/list:opacity-100 transition-opacity">
+
+              <div className="flex items-center space-x-0.5 opacity-0 transition-opacity group-hover/list:opacity-100">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     handleOpenEditListModal(list)
                   }}
-                  className="p-1 rounded hover:bg-primary/20 text-muted-foreground hover:text-foreground"
+                  className="hover:bg-primary/20 text-muted-foreground hover:text-foreground rounded p-1"
                   title="Rename List"
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
+                  <Edit2 className="h-3.5 w-3.5" />
                 </button>
                 {taskLists.length > 1 && (
                   <button
@@ -702,10 +679,10 @@ export default function TasksPage() {
                       e.stopPropagation()
                       handleDeleteList(list.id)
                     }}
-                    className="p-1 rounded hover:bg-destructive/15 text-muted-foreground hover:text-destructive"
+                    className="hover:bg-destructive/15 text-muted-foreground hover:text-destructive rounded p-1"
                     title="Delete List"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
@@ -714,92 +691,88 @@ export default function TasksPage() {
         </nav>
 
         {/* Notifications Toggle */}
-        <div className="p-4 border-t border-border/50 bg-muted/20 flex flex-col space-y-2 text-xs text-muted-foreground">
+        <div className="border-border/40 flex flex-col space-y-2 border-t px-4 py-3 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-foreground flex items-center gap-1.5">
-              <Bell className="w-3.5 h-3.5 text-primary" /> Desktop Reminders
+            <span className="text-foreground flex items-center gap-2 font-medium">
+              <Bell className="text-muted-foreground h-3.5 w-3.5" /> Reminders
             </span>
             <button
               type="button"
               onClick={handleToggleNotifications}
               disabled={togglingNotifications}
-              className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                notificationsEnabled ? "bg-primary" : "bg-muted-foreground/30"
-              } ${togglingNotifications ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                notificationsEnabled ? "bg-primary" : "bg-muted"
+              } ${togglingNotifications ? "cursor-not-allowed opacity-50" : ""}`}
             >
               <span
-                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow ring-0 transition duration-200 ease-in-out ${
-                  notificationsEnabled ? "translate-x-4" : "translate-x-0"
+                className={`bg-background pointer-events-none inline-block h-3 w-3 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                  notificationsEnabled ? "translate-x-3" : "translate-x-0"
                 }`}
               />
             </button>
           </div>
           {notificationPermission === "denied" && (
-            <p className="text-[10px] text-destructive leading-tight font-medium">
-              Notifications blocked. Enable them in site settings.
-            </p>
+            <p className="text-destructive text-[10px] leading-tight font-medium">Blocked in site settings.</p>
           )}
         </div>
 
-        <div className="p-4 border-t border-border/50 bg-muted/20 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Google Sync Status</span>
+        <div className="border-border/40 text-muted-foreground flex items-center justify-between border-t px-4 py-3 text-xs">
+          <span>Sync Status</span>
           <button
             onClick={() => handleSync(activeListId)}
             disabled={isSyncing}
-            className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
             title="Sync Tasks"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary" : ""}`} />
+            <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "text-primary animate-spin" : ""}`} />
           </button>
         </div>
       </aside>
 
       {/* Main Task List */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      <div className="flex h-full flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 border-b border-border/50 flex items-center justify-between px-4 sm:px-6 z-10 flex-shrink-0 gap-3 sm:gap-4">
-          <div className="flex items-center space-x-2 sm:space-x-4 flex-1">
+        <header className="border-border/40 z-10 flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b px-4 sm:gap-4 sm:px-6">
+          <div className="flex flex-1 items-center space-x-2 sm:space-x-4">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground"
+              className="hover:bg-muted text-muted-foreground rounded-md p-1.5"
               aria-label="Toggle sidebar"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="h-4 w-4" />
             </button>
 
             {/* Search */}
-            <div className="relative max-w-sm w-full">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-muted-foreground">
-                <Search className="w-4 h-4" />
+            <div className="relative w-full max-w-sm">
+              <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+                <Search className="h-3.5 w-3.5" />
               </span>
               <Input
                 type="text"
                 placeholder="Search tasks..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-muted/40 border-border/50 rounded-xl pl-10 pr-4 text-sm h-9"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="placeholder:text-muted-foreground/60 h-9 w-full rounded-none border-0 bg-transparent pr-4 pl-8 text-sm shadow-none focus-visible:ring-0"
               />
             </div>
           </div>
 
-          <Button onClick={handleOpenAddModal} size="sm" className="gap-1.5 rounded-xl font-bold h-9 px-3 sm:px-4">
-            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Add Task</span>
+          <Button onClick={handleOpenAddModal} size="sm" className="h-8 gap-1.5 rounded-md px-3 text-xs font-medium">
+            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Add Task</span>
           </Button>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        <main className="flex-1 space-y-6 overflow-y-auto px-6 py-6 pb-24">
           {/* Overdue */}
           {groups.overdue.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-destructive flex items-center space-x-1.5">
+              <h3 className="text-destructive border-border/40 flex items-center space-x-1.5 border-b py-2 text-xs font-semibold tracking-wider uppercase">
                 <span>Overdue</span>
-                <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-[10px]">
-                  {groups.overdue.length}
-                </span>
+                <span className="bg-destructive/10 rounded px-1.5 py-0.5 text-[10px]">{groups.overdue.length}</span>
               </h3>
-              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
-                {groups.overdue.map(r => (
+              <div className="flex flex-col">
+                {groups.overdue.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -818,11 +791,11 @@ export default function TasksPage() {
           {/* Today */}
           {groups.today.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-primary">
+              <h3 className="text-primary border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
                 Today
               </h3>
-              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
-                {groups.today.map(r => (
+              <div className="flex flex-col">
+                {groups.today.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -840,11 +813,11 @@ export default function TasksPage() {
           {/* Tomorrow */}
           {groups.tomorrow.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
                 Tomorrow
               </h3>
-              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
-                {groups.tomorrow.map(r => (
+              <div className="flex flex-col">
+                {groups.tomorrow.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -862,11 +835,11 @@ export default function TasksPage() {
           {/* Upcoming */}
           {groups.upcoming.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Upcoming (Next 7 Days)
+              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                Upcoming
               </h3>
-              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
-                {groups.upcoming.map(r => (
+              <div className="flex flex-col">
+                {groups.upcoming.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -884,11 +857,11 @@ export default function TasksPage() {
           {/* Later / Future */}
           {groups.later.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Later / Future
+              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                Later
               </h3>
-              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
-                {groups.later.map(r => (
+              <div className="flex flex-col">
+                {groups.later.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -906,11 +879,11 @@ export default function TasksPage() {
           {/* No Date */}
           {groups.noDate.length > 0 && (
             <section className="space-y-2">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                No Date / Later
+              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                No Date
               </h3>
-              <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border/50 divide-y divide-border/50">
-                {groups.noDate.map(r => (
+              <div className="flex flex-col">
+                {groups.noDate.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -927,15 +900,13 @@ export default function TasksPage() {
 
           {/* Empty State */}
           {filteredReminders.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                <Check className="w-8 h-8" />
+            <div className="flex flex-col items-center justify-center space-y-4 py-20 text-center">
+              <div className="bg-primary/10 text-primary flex h-16 w-16 items-center justify-center rounded-full shadow-inner">
+                <Check className="h-8 w-8" />
               </div>
               <div>
-                <h4 className="text-base font-semibold text-foreground">
-                  All caught up!
-                </h4>
-                <p className="text-sm text-muted-foreground max-w-xs">
+                <h4 className="text-foreground text-base font-semibold">All caught up!</h4>
+                <p className="text-muted-foreground max-w-xs text-sm">
                   No active tasks in this list. Tap Add Task to create a reminder.
                 </p>
               </div>
@@ -944,12 +915,13 @@ export default function TasksPage() {
 
           {/* Completed */}
           {groups.completed.length > 0 && (
-            <section className="space-y-2 pt-6 border-t border-border/50">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Completed ({groups.completed.length})
+            <section className="border-border/50 space-y-2 border-t pt-6">
+              <h3 className="text-muted-foreground border-border/40 flex items-center space-x-1.5 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                <span>Completed</span>
+                <span className="bg-muted rounded px-1.5 py-0.5 text-[10px]">{groups.completed.length}</span>
               </h3>
-              <div className="bg-card/40 rounded-2xl overflow-hidden shadow-sm border border-border/55 divide-y divide-border/50 opacity-70">
-                {groups.completed.map(r => (
+              <div className="flex flex-col opacity-60 transition-opacity hover:opacity-100">
+                {groups.completed.map((r) => (
                   <ReminderRow
                     key={r.id}
                     reminder={r}
@@ -968,47 +940,53 @@ export default function TasksPage() {
 
       {/* Add / Edit Task Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50 max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-4 border-b border-border/50">
-            <DialogTitle>{editingReminder ? "Edit Task" : "Add Task"}</DialogTitle>
+        <DialogContent className="border-border/40 max-h-[90dvh] gap-0 overflow-y-auto rounded-lg p-0 outline-none sm:max-w-md">
+          <DialogHeader className="border-border/30 border-b px-5 py-4">
+            <DialogTitle className="text-base font-semibold">{editingReminder ? "Edit Task" : "Add Task"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveReminder} className="space-y-4 pt-4">
-            <div className="space-y-1">
-              <Label htmlFor="title" className="text-xs font-bold text-muted-foreground uppercase">What needs doing?</Label>
+          <form onSubmit={handleSaveReminder} className="space-y-5 p-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="title" className="text-muted-foreground text-xs font-medium">
+                What needs doing?
+              </Label>
               <Input
                 id="title"
                 type="text"
                 placeholder="Remind me to..."
                 value={title}
-                onChange={e => setTitle(e.target.value)}
+                onChange={(e) => setTitle(e.target.value)}
                 required
-                className="bg-muted/40 border-border/50 h-10"
+                className="border-border/40 focus-visible:ring-primary/50 h-9 bg-transparent shadow-none focus-visible:ring-1"
               />
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="notes" className="text-xs font-bold text-muted-foreground uppercase">Details</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="notes" className="text-muted-foreground text-xs font-medium">
+                Details
+              </Label>
               <textarea
                 id="notes"
                 placeholder="Add notes..."
                 value={notes}
-                onChange={e => setNotes(e.target.value)}
+                onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                className="w-full bg-muted/40 border border-border/50 rounded-xl p-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary outline-none resize-none placeholder-muted-foreground/60 text-foreground"
+                className="border-border/40 focus-visible:ring-primary/50 placeholder-muted-foreground/50 text-foreground w-full resize-none rounded-md border bg-transparent p-2 text-sm outline-none focus-visible:ring-1 focus-visible:outline-none"
               />
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="subject" className="text-xs font-bold text-muted-foreground uppercase">Link to Subject (Optional)</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="subject" className="text-muted-foreground text-xs font-medium">
+                Link to Subject
+              </Label>
               <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-                <SelectTrigger className="w-full h-10 bg-muted/40 border-border/50">
+                <SelectTrigger className="border-border/40 focus:ring-primary/50 h-9 w-full bg-transparent shadow-none focus:ring-1">
                   <SelectValue placeholder="None (General Task)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None (General Task)</SelectItem>
-                  {subjects.map(sub => (
+                  {subjects.map((sub) => (
                     <SelectItem key={sub.id} value={sub.id}>
-                      {sub.name} ({sub.type === 'academic' ? 'Academic' : 'Personal'})
+                      {sub.name} ({sub.type === "academic" ? "Academic" : "Personal"})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1016,22 +994,24 @@ export default function TasksPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold text-muted-foreground uppercase block">Due Date</Label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Label className="text-muted-foreground block text-xs font-medium">Due Date</Label>
+              <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
                 {[
                   { id: "none", label: "No Date" },
                   { id: "today", label: "Today" },
                   { id: "tomorrow", label: "Tomorrow" },
                   { id: "next-week", label: "Next Week" },
-                ].map(item => (
+                ].map((item) => (
                   <button
                     type="button"
                     key={item.id}
-                    onClick={() => setDateType(item.id as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ )}
-                    className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
+                    onClick={() =>
+                      setDateType(item.id as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)
+                    }
+                    className={`rounded-md border px-2 py-1.5 text-[11px] font-medium transition-all ${
                       dateType === item.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 hover:bg-muted text-muted-foreground"
+                        ? "border-primary/30 bg-primary/5 text-primary shadow-sm"
+                        : "border-border/40 hover:bg-muted text-muted-foreground bg-transparent"
                     }`}
                   >
                     {item.label}
@@ -1039,7 +1019,7 @@ export default function TasksPage() {
                 ))}
               </div>
 
-              <div className="pt-1">
+              <div className="pt-0.5">
                 <button
                   type="button"
                   onClick={() => {
@@ -1048,21 +1028,21 @@ export default function TasksPage() {
                       setCustomDate(new Date().toISOString().split("T")[0])
                     }
                   }}
-                  className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
+                  className={`rounded-md border px-2 py-1.5 text-[11px] font-medium transition-all ${
                     dateType === "custom"
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border/60 hover:bg-muted text-muted-foreground"
+                      ? "border-primary/30 bg-primary/5 text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground border-transparent"
                   }`}
                 >
-                  Choose Custom Date
+                  Custom Date
                 </button>
                 {dateType === "custom" && (
-                  <div className="mt-3 p-3 bg-muted/20 border border-border/50 rounded-xl space-y-2">
+                  <div className="bg-muted/20 border-border/40 mt-2 rounded-md border p-2">
                     <Input
                       type="date"
                       value={customDate}
-                      onChange={e => setCustomDate(e.target.value)}
-                      className="bg-card border-border/50"
+                      onChange={(e) => setCustomDate(e.target.value)}
+                      className="border-border/40 h-8 bg-transparent text-xs shadow-none"
                     />
                   </div>
                 )}
@@ -1070,22 +1050,24 @@ export default function TasksPage() {
             </div>
 
             {dateType !== "none" && (
-              <div className="space-y-2 pt-2 border-t border-border/50">
-                <Label className="text-xs font-bold text-muted-foreground uppercase block">Time</Label>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="border-border/30 space-y-2 border-t pt-4">
+                <Label className="text-muted-foreground block text-xs font-medium">Time</Label>
+                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                   {[
                     { id: "all-day", label: "All Day" },
-                    { id: "morning", label: "Morning (8 AM)" },
-                    { id: "evening", label: "Evening (6 PM)" },
-                  ].map(item => (
+                    { id: "morning", label: "Morning" },
+                    { id: "evening", label: "Evening" },
+                  ].map((item) => (
                     <button
                       type="button"
                       key={item.id}
-                      onClick={() => setTimePreset(item.id as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ )}
-                      className={`py-1.5 px-2 text-xs font-medium rounded-lg border transition-all ${
+                      onClick={() =>
+                        setTimePreset(item.id as any /* eslint-disable-line @typescript-eslint/no-explicit-any */)
+                      }
+                      className={`rounded-md border px-2 py-1.5 text-[11px] font-medium transition-all ${
                         timePreset === item.id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border/60 hover:bg-muted text-muted-foreground"
+                          ? "border-primary/30 bg-primary/5 text-primary shadow-sm"
+                          : "border-border/40 hover:bg-muted text-muted-foreground bg-transparent"
                       }`}
                     >
                       {item.label}
@@ -1093,28 +1075,28 @@ export default function TasksPage() {
                   ))}
                 </div>
 
-                <div className="pt-1">
+                <div className="pt-0.5">
                   <button
                     type="button"
                     onClick={() => {
                       setTimePreset("custom")
                       if (!customTime) setCustomTime("12:00")
                     }}
-                    className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
+                    className={`rounded-md border px-2 py-1.5 text-[11px] font-medium transition-all ${
                       timePreset === "custom"
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 hover:bg-muted text-muted-foreground"
+                        ? "border-primary/30 bg-primary/5 text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground border-transparent"
                     }`}
                   >
-                    Choose Custom Time
+                    Custom Time
                   </button>
                   {timePreset === "custom" && (
-                    <div className="mt-3 p-3 bg-muted/20 border border-border/50 rounded-xl">
+                    <div className="bg-muted/20 border-border/40 mt-2 rounded-md border p-2">
                       <Input
                         type="time"
                         value={customTime}
-                        onChange={e => setCustomTime(e.target.value)}
-                        className="bg-card border-border/50"
+                        onChange={(e) => setCustomTime(e.target.value)}
+                        className="border-border/40 h-8 bg-transparent text-xs shadow-none"
                       />
                     </div>
                   )}
@@ -1123,111 +1105,115 @@ export default function TasksPage() {
             )}
 
             {dateType !== "none" && (
-              <div className="space-y-3 pt-3 border-t border-border/50">
-                <Label className="text-xs font-bold text-muted-foreground uppercase block">Reminders</Label>
-                
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+              <div className="border-border/30 space-y-3 border-t pt-4">
+                <Label className="text-muted-foreground block text-xs font-medium">Reminders</Label>
+
+                <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                  <label className="text-foreground flex cursor-pointer items-center space-x-2 text-sm select-none">
                     <input
                       type="checkbox"
                       checked={reminderDueTime}
-                      onChange={e => setReminderDueTime(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                      onChange={(e) => setReminderDueTime(e.target.checked)}
+                      className="border-border text-primary focus:ring-primary h-3.5 w-3.5 rounded-sm bg-transparent"
                     />
-                    <span>At due time</span>
+                    <span className="text-[13px]">At due time</span>
                   </label>
-                  
-                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+
+                  <label className="text-foreground flex cursor-pointer items-center space-x-2 text-sm select-none">
                     <input
                       type="checkbox"
                       checked={reminder1Day}
-                      onChange={e => setReminder1Day(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                      onChange={(e) => setReminder1Day(e.target.checked)}
+                      className="border-border text-primary focus:ring-primary h-3.5 w-3.5 rounded-sm bg-transparent"
                     />
-                    <span>1 day prior</span>
+                    <span className="text-[13px]">1 day prior</span>
                   </label>
 
-                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                  <label className="text-foreground flex cursor-pointer items-center space-x-2 text-sm select-none">
                     <input
                       type="checkbox"
                       checked={reminder2Days}
-                      onChange={e => setReminder2Days(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                      onChange={(e) => setReminder2Days(e.target.checked)}
+                      className="border-border text-primary focus:ring-primary h-3.5 w-3.5 rounded-sm bg-transparent"
                     />
-                    <span>2 days prior</span>
+                    <span className="text-[13px]">2 days prior</span>
                   </label>
 
-                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none">
+                  <label className="text-foreground flex cursor-pointer items-center space-x-2 text-sm select-none">
                     <input
                       type="checkbox"
                       checked={reminder1Week}
-                      onChange={e => setReminder1Week(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                      onChange={(e) => setReminder1Week(e.target.checked)}
+                      className="border-border text-primary focus:ring-primary h-3.5 w-3.5 rounded-sm bg-transparent"
                     />
-                    <span>1 week prior</span>
+                    <span className="text-[13px]">1 week prior</span>
                   </label>
 
-                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none col-span-2">
+                  <label className="text-foreground col-span-2 flex cursor-pointer items-center space-x-2 text-sm select-none">
                     <input
                       type="checkbox"
                       checked={reminder2Weeks}
-                      onChange={e => setReminder2Weeks(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                      onChange={(e) => setReminder2Weeks(e.target.checked)}
+                      className="border-border text-primary focus:ring-primary h-3.5 w-3.5 rounded-sm bg-transparent"
                     />
-                    <span>2 weeks prior</span>
+                    <span className="text-[13px]">2 weeks prior</span>
                   </label>
                 </div>
 
-                <div className="pt-2 border-t border-border/30">
-                  <label className="flex items-center space-x-2 text-sm text-foreground cursor-pointer select-none mb-2">
+                <div className="border-border/20 border-t pt-2">
+                  <label className="text-foreground flex cursor-pointer items-center space-x-2 text-sm select-none">
                     <input
                       type="checkbox"
                       checked={reminderCustom}
-                      onChange={e => setReminderCustom(e.target.checked)}
-                      className="rounded border-border text-primary focus:ring-primary h-4 w-4 bg-muted/40"
+                      onChange={(e) => setReminderCustom(e.target.checked)}
+                      className="border-border text-primary focus:ring-primary h-3.5 w-3.5 rounded-sm bg-transparent"
                     />
-                    <span className="font-medium">Custom prior reminder</span>
+                    <span className="text-[13px] font-medium">Custom prior reminder</span>
                   </label>
-                  
+
                   {reminderCustom && (
-                    <div className="flex items-center space-x-2 mt-2 p-2.5 bg-muted/20 border border-border/50 rounded-xl">
+                    <div className="mt-2 flex items-center space-x-2">
                       <Input
                         type="number"
                         min={1}
                         value={customReminderValue}
-                        onChange={e => setCustomReminderValue(parseInt(e.target.value) || 1)}
-                        className="w-20 bg-card border-border/50 h-8 text-sm"
+                        onChange={(e) => setCustomReminderValue(parseInt(e.target.value) || 1)}
+                        className="border-border/40 h-8 w-16 bg-transparent px-2 text-xs shadow-none"
                       />
                       <select
                         value={customReminderUnit}
-                        onChange={e => setCustomReminderUnit(e.target.value as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ )}
-                        className="bg-card border border-border/50 rounded-lg text-sm p-1.5 focus:ring-1 focus:ring-primary outline-none text-foreground h-8"
+                        onChange={(e) =>
+                          setCustomReminderUnit(
+                            e.target.value as any /* eslint-disable-line @typescript-eslint/no-explicit-any */
+                          )
+                        }
+                        className="border-border/40 focus:ring-primary/50 text-foreground h-8 rounded-md border bg-transparent p-1 text-xs shadow-none outline-none focus:ring-1"
                       >
                         <option value="minutes">Minutes</option>
                         <option value="hours">Hours</option>
                         <option value="days">Days</option>
                         <option value="weeks">Weeks</option>
                       </select>
-                      <span className="text-xs text-muted-foreground">prior</span>
+                      <span className="text-muted-foreground text-[11px]">prior</span>
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/50">
+            <div className="border-border/30 mt-2 flex items-center justify-end space-x-2 border-t pt-4">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-xl h-9"
+                className="h-8 rounded-md px-3 text-xs"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={saving || !title.trim()}
-                className="rounded-xl px-5 h-9 font-bold"
+                className="h-8 rounded-md px-4 text-xs font-semibold"
               >
                 {saving ? "Saving..." : "Save"}
               </Button>
@@ -1238,36 +1224,38 @@ export default function TasksPage() {
 
       {/* Add / Edit Task List Modal */}
       <Dialog open={isListModalOpen} onOpenChange={setIsListModalOpen}>
-        <DialogContent className="sm:max-w-md p-6 outline-none border-border/50">
-          <DialogHeader className="pb-4 border-b border-border/50">
-            <DialogTitle>{editingList ? "Rename List" : "Create List"}</DialogTitle>
+        <DialogContent className="border-border/40 rounded-lg p-0 outline-none sm:max-w-sm">
+          <DialogHeader className="border-border/30 border-b px-5 py-4">
+            <DialogTitle className="text-base font-semibold">{editingList ? "Rename List" : "Create List"}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSaveList} className="space-y-4 pt-4">
-            <div className="space-y-1">
-              <Label htmlFor="listTitle" className="text-xs font-bold text-muted-foreground uppercase">List Title</Label>
+          <form onSubmit={handleSaveList} className="space-y-4 p-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="listTitle" className="text-muted-foreground text-xs font-medium">
+                List Title
+              </Label>
               <Input
                 id="listTitle"
                 type="text"
-                placeholder="e.g. Shopping List, Work, Homework..."
+                placeholder="e.g. Work, Groceries..."
                 value={listTitle}
-                onChange={e => setListTitle(e.target.value)}
+                onChange={(e) => setListTitle(e.target.value)}
                 required
-                className="bg-muted/40 border-border/50 h-10"
+                className="border-border/40 focus-visible:ring-primary/50 h-9 bg-transparent shadow-none focus-visible:ring-1"
               />
             </div>
-            <div className="flex items-center justify-end space-x-3 pt-4 border-t border-border/50">
+            <div className="flex items-center justify-end space-x-2 pt-2">
               <Button
                 type="button"
                 variant="ghost"
                 onClick={() => setIsListModalOpen(false)}
-                className="rounded-xl h-9"
+                className="h-8 rounded-md px-3 text-xs"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={listSaving || !listTitle.trim()}
-                className="rounded-xl px-5 h-9 font-bold"
+                className="h-8 rounded-md px-4 text-xs font-semibold"
               >
                 {listSaving ? "Saving..." : "Save"}
               </Button>
@@ -1286,109 +1274,107 @@ interface ReminderRowProps {
   onEdit: (reminder: Reminder) => void
   onDelete: (id: string) => void
   formatDate: (isoStr?: string) => string
-  subjects: any /* eslint-disable-line @typescript-eslint/no-explicit-any */ []
+  subjects: any /* eslint-disable-line @typescript-eslint/no-explicit-any */[]
   isOverdue?: boolean
 }
 
-function ReminderRow({
-  reminder,
-  onToggle,
-  onEdit,
-  onDelete,
-  formatDate,
-  subjects,
-  isOverdue,
-}: ReminderRowProps) {
+function ReminderRow({ reminder, onToggle, onEdit, onDelete, formatDate, subjects, isOverdue }: ReminderRowProps) {
   const isExam = reminder.title.startsWith("[Exam]")
   const cleanTitle = isExam ? reminder.title.replace("[Exam] ", "") : reminder.title
-  const linkedSub = reminder.subjectId ? subjects.find(s => s.id === reminder.subjectId) : null
+  const linkedSub = reminder.subjectId ? subjects.find((s) => s.id === reminder.subjectId) : null
 
   return (
-    <div className="group flex items-center justify-between px-3 py-3 sm:px-5 sm:py-3.5 hover:bg-muted/40 transition-colors">
-      <div className="flex items-start space-x-2.5 sm:space-x-3.5 flex-1 min-w-0">
-        <button
-          onClick={() => onToggle(reminder)}
-          className="mt-0.5 text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
-        >
-          {reminder.completed ? (
-            <CheckCircle className="w-5 h-5 text-primary fill-primary/10" />
-          ) : (
-            <Circle className="w-5 h-5" />
-          )}
-        </button>
+    <div className="group hover:bg-muted/40 border-border/20 mx-0 flex items-center rounded-lg border-b px-2 py-2 transition-colors last:border-0 sm:-mx-1 sm:rounded-xl sm:px-3 sm:py-2.5">
+      {/* Checkbox */}
+      <button
+        onClick={() => onToggle(reminder)}
+        className="text-muted-foreground hover:text-primary mr-3 flex-shrink-0 transition-colors focus:outline-none"
+      >
+        {reminder.completed ? (
+          <CheckCircle className="text-primary fill-primary/10 h-4 w-4" />
+        ) : (
+          <Circle className="h-4 w-4" />
+        )}
+      </button>
 
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onEdit(reminder)}>
-          <div className="flex items-center flex-wrap gap-2">
-            <span
-              className={`text-sm font-medium truncate text-foreground ${
-                reminder.completed ? "line-through text-muted-foreground" : ""
-              }`}
-            >
-              {cleanTitle}
+      {/* Main Content (Title & Badges) */}
+      <div
+        className="flex min-w-0 flex-1 cursor-pointer flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-3"
+        onClick={() => onEdit(reminder)}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <span
+            className={`truncate text-sm font-medium ${
+              reminder.completed ? "text-muted-foreground line-through" : "text-foreground"
+            }`}
+          >
+            {cleanTitle}
+          </span>
+          {isExam && (
+            <span className="border-destructive/30 text-destructive/90 inline-flex flex-shrink-0 items-center rounded border px-1.5 py-0.5 text-[9px] font-bold select-none">
+              EXAM
             </span>
-            {isExam && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-bold border border-destructive/20 select-none">
-                EXAM
-              </span>
-            )}
-          </div>
-          
-          {reminder.notes && (
-            <p className="text-xs text-muted-foreground truncate mt-0.5 font-normal">
-              {reminder.notes}
-            </p>
           )}
-
-          {(reminder.due || linkedSub) && (
-            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-              {reminder.due && (
-                <>
-                  {isOverdue ? (
-                    <span className="inline-flex items-center text-[10px] font-semibold text-destructive space-x-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{formatDate(reminder.due)} (Overdue)</span>
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center text-[10px] font-medium text-primary space-x-1">
-                      <CalendarIcon className="w-3 h-3" />
-                      <span>{formatDate(reminder.due)}</span>
-                    </span>
-                  )}
-                </>
-              )}
-
-              {linkedSub && (
-                <span 
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border"
-                  style={{
-                    backgroundColor: `${linkedSub.color_hex}15`,
-                    borderColor: `${linkedSub.color_hex}30`,
-                    color: linkedSub.color_hex
-                  }}
-                >
-                  {linkedSub.name}
-                </span>
-              )}
-            </div>
+          {reminder.notes && (
+            <span className="text-muted-foreground hidden max-w-[200px] truncate text-[11px] font-normal sm:inline-block">
+              — {reminder.notes}
+            </span>
           )}
         </div>
+
+        {reminder.notes && (
+          <p className="text-muted-foreground truncate text-[11px] font-normal sm:hidden">{reminder.notes}</p>
+        )}
       </div>
 
-      <div className="flex items-center space-x-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity pl-2 sm:pl-4">
-        <button
-          onClick={() => onEdit(reminder)}
-          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="Edit"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => onDelete(reminder.id)}
-          className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-          title="Delete"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+      {/* Right side Metadata & Actions */}
+      <div className="ml-auto flex flex-shrink-0 items-center gap-3 pl-3">
+        <div className="flex items-center gap-2">
+          {linkedSub && (
+            <span
+              className="inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-medium"
+              style={{
+                backgroundColor: `${linkedSub.color_hex}10`,
+                borderColor: `${linkedSub.color_hex}20`,
+                color: linkedSub.color_hex,
+              }}
+            >
+              {linkedSub.name}
+            </span>
+          )}
+
+          {reminder.due && (
+            <span
+              className={`inline-flex items-center text-[11px] ${isOverdue ? "text-destructive font-medium" : "text-muted-foreground"}`}
+            >
+              {formatDate(reminder.due)}
+            </span>
+          )}
+        </div>
+
+        {/* Actions (visible on hover) */}
+        <div className="flex items-center space-x-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(reminder)
+            }}
+            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
+            title="Edit"
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onDelete(reminder.id)
+            }}
+            className="hover:bg-destructive/10 text-muted-foreground hover:text-destructive rounded p-1 transition-colors"
+            title="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   )

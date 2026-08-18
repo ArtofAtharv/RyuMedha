@@ -2,24 +2,24 @@
 // NextAuth v4 — WhatsApp OTP CredentialsProvider
 // Sensitive verification delegated to the Supabase edge function
 
-import NextAuth, { NextAuthOptions } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
+import NextAuth, { NextAuthOptions } from "next-auth"
+import CredentialsProvider from "next-auth/providers/credentials"
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      id: 'whatsapp-otp',
-      name: 'WhatsApp OTP',
+      id: "whatsapp-otp",
+      name: "WhatsApp OTP",
       credentials: {
-        phone_number: { label: 'Phone Number', type: 'text' },
-        otp: { label: 'OTP', type: 'text' },
+        phone_number: { label: "Phone Number", type: "text" },
+        otp: { label: "OTP", type: "text" },
       },
       async authorize(credentials) {
         try {
           const { phone_number, otp } = credentials ?? {}
 
           if (!phone_number || !otp) {
-            throw new Error('Phone number and OTP are required')
+            throw new Error("Phone number and OTP are required")
           }
 
           // Guard against missing env var (fail fast with clear message)
@@ -28,19 +28,19 @@ export const authOptions: NextAuthOptions = {
 
           if (!supabaseUrl || !supabaseAnonKey) {
             throw new Error(
-              'Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set'
+              "Server misconfiguration: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is not set"
             )
           }
 
           // Normalize phone number (remove spaces) to match what request-otp does
-          const cleanPhone = phone_number.replace(/\s/g, '')
+          const cleanPhone = phone_number.replace(/\s/g, "")
 
           // Delegate verification to the Supabase edge function
           // (SERVICE_ROLE_KEY and JWT_SECRET live only in the edge runtime)
           const res = await fetch(`${supabaseUrl}/functions/v1/auth?action=verify`, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
               Authorization: `Bearer ${supabaseAnonKey}`,
               apikey: supabaseAnonKey,
             },
@@ -48,8 +48,8 @@ export const authOptions: NextAuthOptions = {
           })
 
           const text = await res.text()
-          console.log('[NextAuth] Edge Function Status:', res.status)
-          console.log('[NextAuth] Edge Function Response:', text)
+          console.log("[NextAuth] Edge Function Status:", res.status)
+          console.log("[NextAuth] Edge Function Response:", text)
 
           let data
           try {
@@ -59,8 +59,8 @@ export const authOptions: NextAuthOptions = {
           }
 
           if (!res.ok || !data.success) {
-            console.error('[NextAuth] Verification failed:', data)
-            throw new Error(data.error ?? 'Verification failed')
+            console.error("[NextAuth] Verification failed:", data)
+            throw new Error(data.error ?? "Verification failed")
           }
 
           return {
@@ -72,7 +72,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (err: unknown) {
           // Re-throw so the message is preserved in result.error on the client
-          const message = err instanceof Error ? err.message : 'Authentication failed'
+          const message = err instanceof Error ? err.message : "Authentication failed"
           throw new Error(message)
         }
       },
@@ -99,26 +99,24 @@ export const authOptions: NextAuthOptions = {
   },
 
   pages: {
-    signIn: '/login',
-    error: '/login',
+    signIn: "/login",
+    error: "/login",
   },
 
   session: {
-    strategy: 'jwt',
+    strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
 
   cookies: {
     sessionToken: {
-      name: process.env.NODE_ENV === 'production' 
-        ? '__Secure-next-auth.session-token' 
-        : 'next-auth.session-token',
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.ryumedha.in' : undefined,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NODE_ENV === "production" ? ".ryumedha.in" : undefined,
       },
     },
   },

@@ -4,13 +4,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { m, AnimatePresence } from "motion/react"
 import { Check, Loader2 } from "lucide-react"
 import { getAccentGradient } from "@/lib/gradient"
@@ -76,29 +70,29 @@ interface GradeRecord {
   max_marks: number
 }
 
-export function GradeSubjectCard({ 
-  subject, 
-  existingGrades, 
+export function GradeSubjectCard({
+  subject,
+  existingGrades,
   onSave,
   isPersonal = false,
-  maxGpa = 10
-}: { 
-  subject: SubjectRecord; 
-  existingGrades: GradeRecord[]; 
-  onSave: (subjectId: string, scoresToSave: GradeScores) => Promise<void>;
-  isPersonal?: boolean;
-  maxGpa?: number;
+  maxGpa = 10,
+}: {
+  readonly subject: SubjectRecord
+  readonly existingGrades: GradeRecord[]
+  readonly onSave: (subjectId: string, scoresToSave: GradeScores) => Promise<void>
+  readonly isPersonal?: boolean
+  readonly maxGpa?: number
 }) {
   const [isSaving, setIsSaving] = useState(false)
   const [success, setSuccess] = useState(false)
-  const [activeType, setActiveType] = useState('mid_sem')
+  const [activeType, setActiveType] = useState("mid_sem")
 
   const labels = isPersonal ? PERSONAL_LABELS : ACADEMIC_LABELS
 
   // Initialize state with existing grades from the DB
   const [scores, setScores] = useState<GradeScores>(() => {
-    const s = JSON.parse(JSON.stringify(DEFAULT_SCORES))
-    existingGrades.forEach(g => {
+    const s = structuredClone(DEFAULT_SCORES)
+    existingGrades.forEach((g) => {
       if (s[g.grade_type]) {
         s[g.grade_type].marks = g.marks.toString()
         s[g.grade_type].max_marks = g.max_marks.toString()
@@ -110,19 +104,17 @@ export function GradeSubjectCard({
   // Has anything changed from what's currently saved?
   const hasChanges = useMemo(() => {
     let changed = false
-    Object.keys(DEFAULT_SCORES).forEach(type => {
-      const existing = existingGrades.find(g => g.grade_type === type)
+    Object.keys(DEFAULT_SCORES).forEach((type) => {
+      const existing = existingGrades.find((g) => g.grade_type === type)
       const currentMarks = scores[type].marks
       const currentMax = scores[type].max_marks
-      
+
       if (existing) {
         if (currentMarks !== existing.marks.toString() || currentMax !== existing.max_marks.toString()) {
           changed = true
         }
-      } else {
-        if (currentMarks !== "" || currentMax !== "") {
-          changed = true
-        }
+      } else if (currentMarks !== "" || currentMax !== "") {
+        changed = true
       }
     })
     return changed
@@ -132,11 +124,11 @@ export function GradeSubjectCard({
   const { totalObtained, totalMax, gradeInfo } = useMemo(() => {
     let obtained = 0
     let max = 0
-    
-    Object.values(scores).forEach(s => {
-      const m = parseFloat(s.marks)
-      const mx = parseFloat(s.max_marks)
-      if (!isNaN(m) && !isNaN(mx) && mx > 0) {
+
+    Object.values(scores).forEach((s) => {
+      const m = Number.parseFloat(s.marks)
+      const mx = Number.parseFloat(s.max_marks)
+      if (!Number.isNaN(m) && !Number.isNaN(mx) && mx > 0) {
         obtained += m
         max += mx
       }
@@ -147,14 +139,14 @@ export function GradeSubjectCard({
       totalObtained: obtained,
       totalMax: max,
       percentage: pct,
-      gradeInfo: getGradeDetails(pct, maxGpa)
+      gradeInfo: getGradeDetails(pct, maxGpa),
     }
   }, [scores, maxGpa])
 
-  const handleScoreChange = (type: string, field: 'marks' | 'max_marks', value: string) => {
-    setScores(prev => ({
+  const handleScoreChange = (type: string, field: "marks" | "max_marks", value: string) => {
+    setScores((prev) => ({
       ...prev,
-      [type]: { ...prev[type], [field]: value }
+      [type]: { ...prev[type], [field]: value },
     }))
     setSuccess(false)
   }
@@ -169,18 +161,28 @@ export function GradeSubjectCard({
   }
 
   return (
-    <Card className="overflow-hidden border-2 shadow-sm transition-colors">
-      {/* Corner accent — hex gradient or theme gradient */}
-      {(() => { const g = getAccentGradient(subject.color_hex); return (
-        <div
-          className={`h-10 w-25 -mt-15 -rotate-45 -translate-x-1/2 translate-y-1/2 rounded-full ${g.className}`}
-          style={g.style}
-        />
-      )})()}
+    <Card className="border-border/40 bg-card/40 hover:border-border/60 group relative flex h-full flex-col overflow-hidden shadow-sm backdrop-blur-3xl transition-all duration-500 hover:shadow-lg">
+      {/* Premium Glow effect */}
+      {(() => {
+        const g = getAccentGradient(subject.color_hex)
+        return (
+          <>
+            <div
+              className={`pointer-events-none absolute top-0 right-0 h-64 w-64 rounded-full opacity-[0.08] blur-[60px] transition-opacity duration-500 group-hover:opacity-[0.12] dark:opacity-[0.05] ${g.className}`}
+              style={g.style}
+            />
+            <div
+              className={`pointer-events-none absolute top-0 right-0 h-32 w-32 rounded-full opacity-[0.15] blur-[40px] transition-opacity duration-500 group-hover:opacity-[0.25] dark:opacity-[0.1] ${g.className}`}
+              style={g.style}
+            />
+            <div className={`absolute top-0 left-0 h-[1px] w-full opacity-30 ${g.className}`} style={g.style} />
+          </>
+        )
+      })()}
 
       {/* Header */}
-      <div className="p-4 border-b flex items-center justify-between">
-        <h3 className="font-bold text-lg truncate pr-4">{subject.name}</h3>
+      <div className="border-border/30 relative z-10 flex items-center justify-between border-b p-5">
+        <h3 className="truncate pr-4 text-lg font-bold">{subject.name}</h3>
         {/* Animated Save Button */}
         <AnimatePresence mode="popLayout">
           {hasChanges && !success && (
@@ -190,9 +192,9 @@ export function GradeSubjectCard({
               exit={{ opacity: 0, scale: 0.8 }}
               onClick={handleSaveClick}
               disabled={isSaving}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-2 shadow-sm"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold shadow-sm"
             >
-              {isSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save Marks"}
+              {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : "Save Marks"}
             </m.button>
           )}
           {success && (
@@ -200,9 +202,9 @@ export function GradeSubjectCard({
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="text-emerald-600 bg-emerald-100 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1 shadow-sm"
+              className="flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-600 shadow-sm"
             >
-              <Check className="w-3 h-3" /> Saved
+              <Check className="h-3 w-3" /> Saved
             </m.div>
           )}
         </AnimatePresence>
@@ -210,19 +212,21 @@ export function GradeSubjectCard({
 
       <CardContent className="p-0">
         {/* Live Summary Bar */}
-        <div className={`flex items-center justify-between p-4 border-b ${totalMax > 0 ? gradeInfo.bg : 'bg-muted/30'}`}>
+        <div
+          className={`flex items-center justify-between border-b p-4 ${totalMax > 0 ? gradeInfo.bg : "bg-muted/30"}`}
+        >
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-0.5">Total Score</p>
-            <p className="font-mono font-bold text-lg">
+            <p className="text-muted-foreground mb-0.5 text-xs font-bold tracking-wider uppercase">Total Score</p>
+            <p className="font-mono text-lg font-bold">
               {totalObtained} <span className="text-muted-foreground text-sm">/ {totalMax || 0}</span>
             </p>
           </div>
           {totalMax > 0 && (
             <div className="text-right">
-              <p className={`text-xs uppercase tracking-wider font-bold mb-0.5 ${gradeInfo.color}`}>Grade</p>
-              <div className="flex items-center gap-2 justify-end">
-                <span className={`text-2xl font-bold leading-none ${gradeInfo.color}`}>{gradeInfo.letter}</span>
-                <span className="text-xs bg-background/50 backdrop-blur-sm px-1.5 py-0.5 rounded font-mono border">
+              <p className={`mb-0.5 text-xs font-bold tracking-wider uppercase ${gradeInfo.color}`}>Grade</p>
+              <div className="flex items-center justify-end gap-2">
+                <span className={`text-2xl leading-none font-bold ${gradeInfo.color}`}>{gradeInfo.letter}</span>
+                <span className="bg-background/50 rounded border px-1.5 py-0.5 font-mono text-xs backdrop-blur-sm">
                   {gradeInfo.points} pts
                 </span>
               </div>
@@ -231,40 +235,42 @@ export function GradeSubjectCard({
         </div>
 
         {/* Dropdown & Input */}
-        <div className="p-4 space-y-4">
+        <div className="space-y-4 p-4">
           <div className="space-y-1.5">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Assessment Type</Label>
+            <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Assessment Type</Label>
             <Select value={activeType} onValueChange={setActiveType}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(labels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          
+
           <div className="flex gap-3">
-            <div className="space-y-1.5 flex-[1]">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Marks</Label>
-              <Input 
-                type="number" 
-                placeholder="Score" 
+            <div className="flex-[1] space-y-1.5">
+              <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Marks</Label>
+              <Input
+                type="number"
+                placeholder="Score"
                 className="h-9 font-mono text-sm"
                 value={scores[activeType].marks}
-                onChange={(e) => handleScoreChange(activeType, 'marks', e.target.value)}
+                onChange={(e) => handleScoreChange(activeType, "marks", e.target.value)}
               />
             </div>
-            <div className="space-y-1.5 flex-[1]">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground font-bold">Max Marks</Label>
-              <Input 
-                type="number" 
-                placeholder="Max" 
+            <div className="flex-[1] space-y-1.5">
+              <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Max Marks</Label>
+              <Input
+                type="number"
+                placeholder="Max"
                 className="h-9 font-mono text-sm"
                 value={scores[activeType].max_marks}
-                onChange={(e) => handleScoreChange(activeType, 'max_marks', e.target.value)}
+                onChange={(e) => handleScoreChange(activeType, "max_marks", e.target.value)}
               />
             </div>
           </div>

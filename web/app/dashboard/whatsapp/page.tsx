@@ -8,12 +8,12 @@ export default function WhatsAppRedirectPage() {
   const router = useRouter()
 
   useEffect(() => {
-    router.replace('/dashboard/admin')
+    router.replace("/dashboard/admin")
   }, [router])
 
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div className="flex min-h-[60dvh] items-center justify-center">
+      <Loader2 className="text-primary h-8 w-8 animate-spin" />
     </div>
   )
 }
