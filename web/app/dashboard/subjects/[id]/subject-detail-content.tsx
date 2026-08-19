@@ -13,6 +13,7 @@ import {
   eachDayOfInterval,
   isSameMonth,
   isToday,
+  isSameDay,
 } from "date-fns"
 import {
   ChevronLeft,
@@ -24,27 +25,19 @@ import {
   ArrowLeft,
   Info,
   Trophy,
-  Target,
   Clock,
   Trash2,
   CalendarDays,
   Pencil,
   Plus,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { DatePicker } from "@/components/ui/date-picker"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import Link from "next/link"
 import { m } from "motion/react"
@@ -345,67 +338,64 @@ export function SubjectDetailContent({
 
   return (
     <div className="animate-in fade-in space-y-8 duration-700">
-      {/* Header & Goal Section */}
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard/subjects"
-            className="bg-muted/50 hover:bg-muted group rounded-2xl p-3 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
-          </Link>
-          <div className="flex items-center gap-3">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
-              style={{ background: localSubject.color_hex }}
-            >
-              <CalIcon className="h-5 w-5" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight">{localSubject.name}</h1>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <div className="hidden lg:block" />
-          <div className="lg:col-span-2">
-            <Card className="border-border/50 bg-card/40 flex items-center justify-between rounded-[2.5rem] px-8 py-5 backdrop-blur-xl">
-              <div className="flex items-center gap-12">
-                <div className="flex items-center gap-3">
-                  <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Goal</p>
-                  <p className="text-primary text-xl font-bold">{profile.target_attendance_pct}%</p>
-                </div>
-
-                <div className="bg-border/40 h-6 w-px" />
-
-                <div className="flex items-center gap-3">
-                  <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Current</p>
-                  <p
-                    className={`text-xl font-bold ${stats.pct >= profile.target_attendance_pct ? "text-green-500" : "text-destructive"}`}
-                  >
-                    {stats.pct}%
-                  </p>
-                </div>
-              </div>
-
-              <Badge
-                variant="outline"
-                className={`rounded-full px-6 py-1.5 font-bold whitespace-nowrap shadow-sm ${stats.pct >= profile.target_attendance_pct ? "border-green-500/20 bg-green-500/10 text-green-600" : "bg-destructive/10 text-destructive border-destructive/20"}`}
-              >
-                {stats.pct >= profile.target_attendance_pct ? "SAFE" : "ACTION REQUIRED"}
-              </Badge>
-            </Card>
-          </div>
+      {/* Header Section */}
+      <div className="mb-8 flex items-center gap-4">
+        <Link href="/dashboard/subjects" className="bg-muted/50 hover:bg-muted group rounded-2xl p-3 transition-colors">
+          <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" />
+        </Link>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">{localSubject.name}</h1>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+      {/* Goal Banner */}
+      <Card className="border-border/50 from-card/60 to-muted/20 relative w-full overflow-hidden rounded-[2.5rem] bg-gradient-to-r p-6 backdrop-blur-xl sm:p-8">
+        <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+          <div className="space-y-1">
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">Attendance Status</h2>
+            <p className="text-muted-foreground text-sm font-medium">
+              Keep your attendance above your target to stay safe.
+            </p>
+          </div>
+
+          <div className="bg-background/50 border-border/50 flex w-full flex-wrap items-center justify-between gap-2 rounded-3xl border p-4 sm:w-auto sm:justify-start sm:gap-6 sm:px-6">
+            <div className="flex flex-col items-center">
+              <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Goal</span>
+              <span className="text-primary text-xl font-bold">{profile.target_attendance_pct}%</span>
+            </div>
+
+            <div className="bg-border/50 h-8 w-px" />
+
+            <div className="flex flex-col items-center">
+              <span className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Current</span>
+              <span
+                className={`text-xl font-bold ${stats.pct >= profile.target_attendance_pct ? "text-green-500 dark:text-green-400" : "text-destructive"}`}
+              >
+                {stats.pct}%
+              </span>
+            </div>
+
+            <div className="bg-border/50 h-8 w-px" />
+
+            <Badge
+              variant="outline"
+              className={`rounded-xl px-4 py-1.5 text-xs font-bold uppercase shadow-sm ${stats.pct >= profile.target_attendance_pct ? "border-green-500/20 bg-green-500/10 text-green-600 dark:text-green-400" : "border-destructive/20 bg-destructive/10 text-destructive"}`}
+            >
+              {stats.pct >= profile.target_attendance_pct ? "Safe" : "Action Required"}
+            </Badge>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
         {/* Left Column: Stats & Meta */}
-        <div className="space-y-6">
-          <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl backdrop-blur-xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg font-bold">
-                <Trophy className="text-primary h-5 w-5" /> Subject Mastery
-              </CardTitle>
+        <div className="space-y-6 lg:col-span-7">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-2">
+                <Trophy className="text-primary h-5 w-5" />
+                <h2 className="text-lg font-bold">Subject Mastery</h2>
+              </div>
               <Button
                 variant="ghost"
                 size="icon"
@@ -414,75 +404,80 @@ export function SubjectDetailContent({
               >
                 <Pencil className="h-4 w-4" />
               </Button>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-3 text-center">
-                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.present}</p>
-                  <p className="text-[10px] font-bold text-green-600/70 uppercase">Present</p>
+            </div>
+            <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl backdrop-blur-xl">
+              <CardContent className="space-y-6 p-5 sm:p-6">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                  <div className="rounded-2xl border border-green-500/20 bg-green-500/10 p-2 text-center sm:p-3">
+                    <p className="text-xl font-bold text-green-600 sm:text-2xl dark:text-green-400">{stats.present}</p>
+                    <p className="text-[8px] font-bold text-green-600/70 uppercase sm:text-[10px]">Present</p>
+                  </div>
+                  <div className="border-destructive/20 bg-destructive/10 rounded-2xl border p-2 text-center sm:p-3">
+                    <p className="text-destructive text-xl font-bold sm:text-2xl">{stats.absent}</p>
+                    <p className="text-destructive/70 text-[8px] font-bold uppercase sm:text-[10px]">Absent</p>
+                  </div>
+                  <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-2 text-center sm:p-3">
+                    <p className="text-xl font-bold text-blue-600 sm:text-2xl dark:text-blue-400">{stats.deemed}</p>
+                    <p className="text-[8px] font-bold text-blue-600/70 uppercase sm:text-[10px]">Deemed</p>
+                  </div>
                 </div>
-                <div className="bg-destructive/10 border-destructive/20 rounded-2xl border p-3 text-center">
-                  <p className="text-destructive text-2xl font-bold">{stats.absent}</p>
-                  <p className="text-destructive/70 text-[10px] font-bold uppercase">Absent</p>
-                </div>
-                <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-3 text-center">
-                  <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.deemed}</p>
-                  <p className="text-[10px] font-bold text-blue-600/70 uppercase">Deemed</p>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="text-muted-foreground flex justify-between text-xs font-bold tracking-wider uppercase">
-                  <span>Attendance Progress</span>
-                  <span>{stats.pct}%</span>
+                <div className="space-y-2">
+                  <div className="text-muted-foreground flex justify-between text-xs font-bold tracking-wider uppercase">
+                    <span>Attendance Progress</span>
+                    <span>{stats.pct}%</span>
+                  </div>
+                  <div className="bg-muted h-3 w-full overflow-hidden rounded-full p-0.5 shadow-inner">
+                    <m.div
+                      className="bg-primary h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${stats.pct}%` }}
+                      transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
+                    />
+                  </div>
+                  <p className="text-muted-foreground text-[10px] font-medium">*Based on logged lectures only</p>
                 </div>
-                <div className="bg-muted h-3 w-full overflow-hidden rounded-full p-0.5 shadow-inner">
-                  <m.div
-                    className="bg-primary h-full rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.pct}%` }}
-                    transition={{ type: "tween", ease: [0.32, 0.72, 0, 1], duration: 0.4 }}
-                  />
-                </div>
-                <p className="text-muted-foreground text-[10px] font-medium">*Based on logged lectures only</p>
-              </div>
 
-              <div className="border-border/50 space-y-4 border-t pt-4">
-                <div className="flex items-start gap-3">
-                  <div className="bg-muted rounded-xl p-2">
-                    <Info className="text-muted-foreground h-4 w-4" />
+                <div className="border-border/50 space-y-4 border-t pt-4">
+                  <div className="flex items-start gap-3">
+                    <div className="bg-muted rounded-xl p-2">
+                      <Info className="text-muted-foreground h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Instructor</p>
+                      <p className="text-muted-foreground text-sm">
+                        {localSubject.source_course_id?.instructor_name ||
+                          localSubject.instructor_name ||
+                          "Not assigned"}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-bold">Instructor</p>
-                    <p className="text-muted-foreground text-sm">
-                      {localSubject.source_course_id?.instructor_name || localSubject.instructor_name || "Not assigned"}
-                    </p>
+                  <div className="flex items-start gap-3">
+                    <div className="bg-muted rounded-xl p-2">
+                      <Clock className="text-muted-foreground h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">Expected / Total Lectures</p>
+                      <p className="text-muted-foreground text-sm">
+                        {localSubject.source_course_id?.expected_total_lectures ||
+                          localSubject.expected_total_lectures ||
+                          0}{" "}
+                        Expected / {stats.total} logged
+                      </p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="bg-muted rounded-xl p-2">
-                    <Clock className="text-muted-foreground h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold">Expected / Total Lectures</p>
-                    <p className="text-muted-foreground text-sm">
-                      {localSubject.source_course_id?.expected_total_lectures ||
-                        localSubject.expected_total_lectures ||
-                        0}{" "}
-                      Expected / {stats.total} logged
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Exams & Milestones Card */}
-          <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl backdrop-blur-xl">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg font-bold">
-                <CalIcon className="text-primary h-5 w-5" /> Exams & Dates
-              </CardTitle>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-2">
+                <CalIcon className="text-primary h-5 w-5" />
+                <h2 className="text-lg font-bold">Exams & Dates</h2>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -491,254 +486,153 @@ export function SubjectDetailContent({
               >
                 <Plus className="mr-1 h-3.5 w-3.5" /> Add
               </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {localExams.length === 0 ? (
-                <p className="text-muted-foreground py-4 text-center text-sm font-medium">No exams scheduled yet.</p>
-              ) : (
-                <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
-                  {localExams.map((ex) => (
-                    <div
-                      key={ex.id as string}
-                      className="border-border/50 bg-muted/20 flex items-center justify-between rounded-xl border p-3"
-                    >
-                      <div className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-bold">{String(ex.title).replace("[Exam] ", "")}</span>
-                        <span className="text-muted-foreground text-[10px] font-bold">
-                          {ex.due_date ? format(new Date(ex.due_date as string), "MMM do, yyyy") : "No date"}
-                        </span>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteExam(ex.id as string)}
-                        className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0 cursor-pointer rounded-lg"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-primary/20 bg-primary/5 overflow-hidden rounded-3xl p-6">
-            <h3 className="text-primary mb-2 flex items-center gap-2 text-sm font-bold tracking-wider uppercase">
-              <Target className="h-4 w-4" /> Calendar Legend
-            </h3>
-            <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-green-600">
-                <div className="h-4 w-4 rounded-md border border-green-500/30 bg-green-500/20" /> Present
-              </div>
-              <div className="text-destructive flex items-center gap-2 text-[10px] font-bold">
-                <div className="bg-destructive/20 border-destructive/30 h-4 w-4 rounded-md border" /> Absent
-              </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-blue-600">
-                <div className="h-4 w-4 rounded-md border border-blue-500/30 bg-blue-500/20" /> Deemed
-              </div>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600">
-                <div className="h-4 w-4 rounded-md border border-amber-500/30 bg-amber-500/20" /> Mixed Day
-              </div>
             </div>
-          </Card>
+            <Card className="border-border/50 bg-card/50 overflow-hidden rounded-3xl backdrop-blur-xl">
+              <CardContent className="space-y-3 p-6">
+                {localExams.length === 0 ? (
+                  <p className="text-muted-foreground py-4 text-center text-sm font-medium">No exams scheduled yet.</p>
+                ) : (
+                  <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                    {localExams.map((ex) => (
+                      <div
+                        key={ex.id as string}
+                        className="border-border/50 bg-muted/20 flex items-center justify-between rounded-xl border p-3"
+                      >
+                        <div className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm font-bold">{String(ex.title).replace("[Exam] ", "")}</span>
+                          <span className="text-muted-foreground text-[10px] font-bold">
+                            {ex.due_date ? format(new Date(ex.due_date as string), "MMM do, yyyy") : "No date"}
+                          </span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteExam(ex.id as string)}
+                          className="text-muted-foreground hover:text-destructive h-7 w-7 shrink-0 cursor-pointer rounded-lg"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* Right Column: Calendar */}
-        <div className="lg:col-span-2">
-          <Card className="border-border/50 bg-card/40 overflow-hidden rounded-[2.5rem] backdrop-blur-xl">
-            <CardHeader className="flex flex-row items-center justify-between p-6 pb-4 sm:p-8">
-              <div>
-                <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{format(currentDate, "MMMM yyyy")}</h2>
-                <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase sm:text-xs">
-                  Attendance History
-                </p>
-              </div>
-              <div className="flex gap-1 sm:gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={prevMonth}
-                  className="h-8 w-8 rounded-xl sm:h-10 sm:w-10"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={nextMonth}
-                  className="h-8 w-8 rounded-xl sm:h-10 sm:w-10"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
+        <div className="space-y-4 lg:col-span-5">
+          <div className="flex items-center gap-2 px-2">
+            <CalendarDays className="text-primary h-5 w-5" />
+            <h2 className="text-lg font-bold">Attendance History</h2>
+          </div>
+          <Card className="border-border/50 bg-card/40 w-full overflow-hidden rounded-[2rem] backdrop-blur-xl">
+            <CardHeader className="flex flex-row items-center justify-between p-5 pb-4 sm:p-6 sm:pb-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={prevMonth}
+                className="border-border/50 hover:bg-muted/20 h-8 w-8 rounded-full bg-transparent"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <h3 className="text-base font-bold tracking-tight sm:text-lg">{format(currentDate, "MMMM yyyy")}</h3>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={nextMonth}
+                className="border-border/50 hover:bg-muted/20 h-8 w-8 rounded-full bg-transparent"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </CardHeader>
-            <CardContent className="p-4 pt-4 sm:p-8">
-              {/* Desktop Calendar (7-Column Grid) */}
-              <div className="hidden sm:block">
-                <div className="mb-6 grid grid-cols-7 gap-6">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                    <div
-                      key={day}
-                      className="text-muted-foreground/30 text-center text-[10px] font-bold tracking-[0.3em] uppercase"
-                    >
+            <CardContent className="p-5 pt-0 sm:p-6 sm:pt-0">
+              {/* Calendar Grid */}
+              <div className="block">
+                <div className="mb-6 grid grid-cols-7 gap-1">
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((day) => (
+                    <div key={day} className="text-muted-foreground text-center text-[10px] font-medium sm:text-xs">
                       {day}
                     </div>
                   ))}
                 </div>
-                <div className="grid grid-cols-7 gap-6">
+                <div className="grid grid-cols-7 gap-x-1 gap-y-4">
                   {calendarDays.map((day) => {
                     const dateStr = format(day, "yyyy-MM-dd")
                     const dayLogsForGrid = logs.filter((l) => l.lecture_date === dateStr)
                     const isCurrentMonth = isSameMonth(day, monthStart)
                     const isTodayDate = isToday(day)
 
-                    let cellClasses = "bg-muted/5 border-border/20 text-muted-foreground/50"
-                    let textClasses = "text-foreground"
-                    let tagClasses = "text-muted-foreground/50"
+                    let cellClasses = "bg-transparent"
+                    let textClasses = isCurrentMonth
+                      ? "text-foreground font-bold"
+                      : "text-muted-foreground/30 font-bold"
 
-                    if (dayLogsForGrid.length > 0) {
+                    if (isTodayDate || (selectedDay && isSameDay(day, selectedDay))) {
+                      cellClasses = "bg-muted/50"
+                    }
+
+                    if (dayLogsForGrid.length > 0 && isCurrentMonth) {
                       const statuses = Array.from(new Set(dayLogsForGrid.map((l) => l.status)))
                       if (statuses.length > 1) {
-                        cellClasses = "bg-amber-500/10 border-amber-500/20"
-                        textClasses = "text-amber-600 dark:text-amber-400"
-                        tagClasses = "text-amber-600/70"
+                        textClasses = "text-amber-500 font-bold"
                       } else if (statuses[0] === "present") {
-                        cellClasses = "bg-green-500/10 border-green-500/20"
-                        textClasses = "text-green-600 dark:text-green-400"
-                        tagClasses = "text-green-600/70"
+                        textClasses = "text-green-500 font-bold"
                       } else if (statuses[0] === "absent") {
-                        cellClasses = "bg-destructive/10 border-destructive/20"
-                        textClasses = "text-destructive"
-                        tagClasses = "text-destructive/70"
+                        textClasses = "text-destructive font-bold"
                       } else {
-                        cellClasses = "bg-blue-500/10 border-blue-500/20"
-                        textClasses = "text-blue-600 dark:text-blue-400"
-                        tagClasses = "text-blue-600/70"
+                        textClasses = "text-blue-500 font-bold"
                       }
                     }
 
                     return (
-                      <m.button
-                        key={dateStr}
-                        onClick={() => {
-                          haptic()
-                          setSelectedDay(day)
-                        }}
-                        className={`relative flex aspect-square flex-col items-center justify-center rounded-2xl border transition-all duration-300 ${isCurrentMonth ? "opacity-100" : "pointer-events-none opacity-0"} ${cellClasses} ${isTodayDate ? "ring-primary ring-offset-background z-20 ring-2 ring-offset-2" : ""} `}
-                      >
-                        <p className={`text-2xl font-bold ${textClasses}`}>{format(day, "d")}</p>
-                        {dayLogsForGrid.length > 0 && (
-                          <p className={`text-[10px] font-bold tracking-widest uppercase ${tagClasses}`}>
-                            #L{dayLogsForGrid.length}
-                          </p>
-                        )}
-                        {isTodayDate && (
-                          <div className="absolute top-2 right-3 flex items-center gap-1.5">
-                            <span className="relative flex h-1.5 w-1.5">
-                              <span className="bg-primary absolute inline-flex h-full w-full rounded-full opacity-20"></span>
-                              <span className="bg-primary relative inline-flex h-1.5 w-1.5 rounded-full"></span>
-                            </span>
-                            <span className="text-primary text-[7px] font-bold tracking-[0.2em] uppercase">TODAY</span>
-                          </div>
-                        )}
-                      </m.button>
+                      <div key={dateStr} className="relative aspect-square w-full">
+                        <m.button
+                          onClick={() => {
+                            haptic()
+                            setSelectedDay(day)
+                          }}
+                          className={`hover:bg-muted/30 absolute inset-0 flex items-center justify-center rounded-2xl transition-all duration-300 sm:rounded-[1.25rem] ${cellClasses}`}
+                        >
+                          <span className={`text-sm leading-none sm:text-base ${textClasses}`}>{format(day, "d")}</span>
+                        </m.button>
+                      </div>
                     )
                   })}
                 </div>
               </div>
-
-              {/* Mobile Calendar (3-Column Vertical Grid -> Now 1 Column) */}
-              <div className="grid grid-cols-1 gap-4 sm:hidden">
-                {calendarDays.map((day) => {
-                  const dateStr = format(day, "yyyy-MM-dd")
-                  const dayLogsForGrid = logs.filter((l) => l.lecture_date === dateStr)
-                  const isTodayDate = isToday(day)
-                  const isCurrentMonth = isSameMonth(day, monthStart)
-
-                  if (!isCurrentMonth) return null
-
-                  let cellClasses = "bg-muted/5 border-border/20 text-muted-foreground/50"
-                  let textClasses = "text-foreground"
-                  let tagClasses = "text-muted-foreground/50"
-
-                  if (dayLogsForGrid.length > 0) {
-                    const statuses = Array.from(new Set(dayLogsForGrid.map((l) => l.status)))
-                    if (statuses.length > 1) {
-                      cellClasses = "bg-amber-500/10 border-amber-500/20"
-                      textClasses = "text-amber-600"
-                      tagClasses = "text-amber-600/70"
-                    } else if (statuses[0] === "present") {
-                      cellClasses = "bg-green-500/10 border-green-500/20"
-                      textClasses = "text-green-600"
-                      tagClasses = "text-green-600/70"
-                    } else if (statuses[0] === "absent") {
-                      cellClasses = "bg-destructive/10 border-destructive/20"
-                      textClasses = "text-destructive"
-                      tagClasses = "text-destructive/70"
-                    } else {
-                      cellClasses = "bg-blue-500/10 border-blue-500/20"
-                      textClasses = "text-blue-600"
-                      tagClasses = "text-blue-600/70"
-                    }
-                  }
-
-                  return (
-                    <m.button
-                      key={dateStr}
-                      onClick={() => {
-                        haptic()
-                        setSelectedDay(day)
-                      }}
-                      className={`relative flex aspect-square flex-col items-center justify-center rounded-2xl border transition-all duration-300 ${cellClasses} ${isTodayDate ? "ring-primary ring-offset-background z-20 ring-2 ring-offset-2" : ""} `}
-                    >
-                      <div className="flex flex-col items-center">
-                        <span className={`text-xl font-bold ${textClasses}`}>{format(day, "d")}</span>
-                        <span className="text-muted-foreground/50 -mt-1 text-[8px] font-bold tracking-widest uppercase">
-                          {format(day, "EEE")}
-                        </span>
-                      </div>
-
-                      {dayLogsForGrid.length > 0 && (
-                        <p className={`mt-1 text-[9px] font-bold tracking-widest uppercase ${tagClasses}`}>
-                          #L{dayLogsForGrid.length}
-                        </p>
-                      )}
-
-                      {isTodayDate && (
-                        <div className="absolute top-1.5 right-2 flex items-center gap-1">
-                          <span className="relative flex h-1 w-1">
-                            <span className="bg-primary absolute inline-flex h-full w-full rounded-full opacity-20"></span>
-                            <span className="bg-primary relative inline-flex h-1 w-1 rounded-full"></span>
-                          </span>
-                          <span className="text-primary text-[5px] font-bold tracking-[0.2em] uppercase">TODAY</span>
-                        </div>
-                      )}
-                    </m.button>
-                  )
-                })}
-              </div>
             </CardContent>
           </Card>
+
+          <div className="px-2 py-2 sm:px-4">
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-2 text-[10px] font-bold text-green-600 sm:text-xs dark:text-green-400">
+                <div className="h-3 w-3 rounded-full border border-green-500/30 bg-green-500/20" /> Present
+              </div>
+              <div className="text-destructive flex items-center gap-2 text-[10px] font-bold sm:text-xs">
+                <div className="bg-destructive/20 border-destructive/30 h-3 w-3 rounded-full border" /> Absent
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-bold text-blue-600 sm:text-xs dark:text-blue-400">
+                <div className="h-3 w-3 rounded-full border border-blue-500/30 bg-blue-500/20" /> Deemed
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-bold text-amber-600 sm:text-xs dark:text-amber-400">
+                <div className="h-3 w-3 rounded-full border border-amber-500/30 bg-amber-500/20" /> Mixed Day
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Day Detail Dialog */}
       <Dialog open={!!selectedDay} onOpenChange={(open) => !open && setSelectedDay(null)}>
-        <DialogContent className="overflow-hidden rounded-3xl border-none p-0 sm:max-w-md">
+        <DialogContent showCloseButton={false} className="overflow-hidden rounded-3xl border-none p-0 sm:max-w-md">
           <div className="bg-card p-6 pt-8">
-            <DialogHeader className="mb-6">
-              <div className="flex items-center gap-3">
-                <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-xl">
-                  <CalendarDays className="h-6 w-6" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl font-bold">
-                    {selectedDay ? format(selectedDay, "EEEE, MMM do") : ""}
-                  </DialogTitle>
-                  <DialogDescription className="font-medium">Manage lectures for this day</DialogDescription>
-                </div>
-              </div>
+            <DialogHeader className="mb-6 flex flex-col items-center text-center">
+              <DialogTitle className="text-xl font-bold">
+                {selectedDay ? format(selectedDay, "EEEE, MMM do") : ""}
+              </DialogTitle>
+              <DialogDescription className="font-medium">Manage lectures for this day</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4">
@@ -788,14 +682,14 @@ export function SubjectDetailContent({
                 <p className="text-muted-foreground mb-3 text-center text-[10px] font-bold tracking-widest uppercase">
                   Add New Lecture
                 </p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-3 gap-3">
                   <Button
                     onClick={() => {
                       haptic()
                       addAttendanceLog("present")
                     }}
                     disabled={isUpdating}
-                    className="flex h-16 flex-col gap-1 rounded-2xl bg-green-500 hover:bg-green-600"
+                    className="flex h-16 flex-col gap-1 rounded-2xl bg-green-500/10 text-green-600 hover:bg-green-500/20 dark:text-green-400"
                   >
                     <CheckCircle2 className="h-5 w-5" />
                     <span className="text-[10px] font-bold uppercase">Present</span>
@@ -806,7 +700,7 @@ export function SubjectDetailContent({
                       addAttendanceLog("absent")
                     }}
                     disabled={isUpdating}
-                    className="bg-destructive flex h-16 flex-col gap-1 rounded-2xl transition-colors hover:bg-red-600"
+                    className="bg-destructive/10 text-destructive hover:bg-destructive/20 flex h-16 flex-col gap-1 rounded-2xl"
                   >
                     <XCircle className="h-5 w-5" />
                     <span className="text-[10px] font-bold uppercase">Absent</span>
@@ -817,27 +711,28 @@ export function SubjectDetailContent({
                       addAttendanceLog("deemed")
                     }}
                     disabled={isUpdating}
-                    className="flex h-16 flex-col gap-1 rounded-2xl bg-blue-500 hover:bg-blue-600"
+                    className="flex h-16 flex-col gap-1 rounded-2xl bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 dark:text-blue-400"
                   >
                     <Fingerprint className="h-5 w-5" />
                     <span className="text-[10px] font-bold uppercase">Deemed</span>
                   </Button>
                 </div>
               </div>
+
+              <div className="border-border/50 pt-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    haptic()
+                    setSelectedDay(null)
+                  }}
+                  className="bg-muted/50 hover:bg-muted w-full font-bold"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
-          <DialogFooter className="bg-card/60 border-border/50 rounded-3xl border-t p-4 shadow-sm backdrop-blur-2xl">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                haptic()
-                setSelectedDay(null)
-              }}
-              className="w-full font-bold"
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

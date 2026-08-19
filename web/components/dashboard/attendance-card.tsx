@@ -1,5 +1,5 @@
 "use client"
-import { CheckCircle2, XCircle, User, Fingerprint, RotateCcw, Calendar } from "lucide-react"
+import { CheckCircle2, XCircle, User, Fingerprint, RotateCcw } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
@@ -106,38 +106,31 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
     <div className="h-full">
       <div
         onClick={handleCardClick}
-        className="group hover:shadow-primary/5 border-border/40 hover:border-primary/30 bg-card/60 relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[2rem] border backdrop-blur-3xl transition-all duration-500 ease-out hover:shadow-xl"
+        className="group hover:shadow-primary/10 border-border/40 hover:border-primary/30 bg-card/60 relative flex h-full cursor-pointer flex-col overflow-hidden rounded-[1.75rem] border backdrop-blur-3xl transition-all duration-500 ease-out hover:shadow-xl"
       >
-        <div className="relative z-10 flex flex-1 flex-col p-5">
+        <div className="relative z-10 flex flex-1 flex-col p-4 sm:p-5">
           {/* Top Section: Title & Percentage */}
           <div className="mb-4 flex items-start justify-between gap-4">
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <div className="mb-1.5 flex flex-wrap items-center gap-2">
                 <span className="text-muted-foreground flex items-center gap-1 text-[9px] font-bold tracking-[0.2em] uppercase">
                   <User className="h-3 w-3" />
                   {instructorName || "No Instructor"}
                 </span>
-
-                {subjectId && (
-                  <div className="bg-muted/40 hover:bg-primary/10 text-muted-foreground hover:text-primary border-border/30 flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold transition-colors">
-                    <Calendar className="h-3 w-3" />
-                    <span>Open</span>
-                  </div>
-                )}
               </div>
-              <h3 className="text-foreground line-clamp-2 font-serif text-3xl leading-[1.1] font-bold tracking-tight">
+              <h3 className="text-foreground truncate text-2xl leading-tight font-bold tracking-tight sm:text-3xl">
                 {subjectName}
               </h3>
             </div>
 
             <div className="flex flex-col items-end">
-              <span className={`font-serif text-5xl font-bold tracking-tighter tabular-nums ${health.colorClass}`}>
+              <span className={`text-4xl font-black tracking-tighter tabular-nums sm:text-5xl ${health.colorClass}`}>
                 {Math.round(pct)}%
               </span>
             </div>
           </div>
 
-          <div className="mt-auto space-y-4">
+          <div className="mt-auto space-y-3.5">
             {/* Elegant Progress Line */}
             <div className="bg-muted relative h-1.5 w-full overflow-hidden rounded-full border border-white/5 shadow-inner">
               <div
@@ -196,23 +189,23 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
 
             {/* Apple Health Style Rounded Squares */}
             {onLog ? (
-              <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2 pt-1 sm:gap-2.5">
                 {/* Present Block */}
                 <div
                   onClick={(e) => {
                     e.stopPropagation()
                     onLog(subjectId!, "present")
                   }}
-                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 py-3 shadow-sm transition-all hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:shadow-md"
+                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 py-2 shadow-sm transition-all hover:border-emerald-500/30 hover:bg-emerald-500/15 hover:shadow-md sm:py-2.5"
                   title="Mark Present (+1)"
                 >
-                  <div className="mb-1 flex items-center gap-1.5">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/80" />
                     <span className="text-[10px] font-bold tracking-wider text-emerald-700/80 uppercase dark:text-emerald-400/80">
                       Present
                     </span>
                   </div>
-                  <span className="font-serif text-3xl font-bold text-emerald-600 transition-transform group-hover/btn:scale-105 dark:text-emerald-400">
+                  <span className="text-2xl font-bold text-emerald-600 transition-transform group-hover/btn:scale-105 sm:text-3xl dark:text-emerald-400">
                     {present ?? 0}
                   </span>
 
@@ -221,10 +214,10 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
                       e.stopPropagation()
                       onLog(subjectId!, "undo_present")
                     }}
-                    className="absolute top-1.5 right-1.5 rounded-full p-1 text-emerald-600/0 transition-all outline-none group-hover/btn:text-emerald-600/50 hover:bg-emerald-500/20 active:scale-95 dark:group-hover/btn:text-emerald-400/50"
+                    className="absolute top-1 right-1 rounded-full p-1 text-emerald-600/0 transition-all outline-none group-hover/btn:text-emerald-600/50 hover:bg-emerald-500/20 active:scale-95 dark:group-hover/btn:text-emerald-400/50"
                     title="Undo Present"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
+                    <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </div>
 
@@ -234,16 +227,16 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
                     e.stopPropagation()
                     onLog(subjectId!, "absent")
                   }}
-                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 py-3 shadow-sm transition-all hover:border-rose-500/30 hover:bg-rose-500/15 hover:shadow-md"
+                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 py-2 shadow-sm transition-all hover:border-rose-500/30 hover:bg-rose-500/15 hover:shadow-md sm:py-2.5"
                   title="Mark Absent (+1)"
                 >
-                  <div className="mb-1 flex items-center gap-1.5">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <XCircle className="h-3.5 w-3.5 text-rose-500/80" />
                     <span className="text-[10px] font-bold tracking-wider text-rose-700/80 uppercase dark:text-rose-400/80">
                       Absent
                     </span>
                   </div>
-                  <span className="font-serif text-3xl font-bold text-rose-600 transition-transform group-hover/btn:scale-105 dark:text-rose-400">
+                  <span className="text-2xl font-bold text-rose-600 transition-transform group-hover/btn:scale-105 sm:text-3xl dark:text-rose-400">
                     {absent ?? 0}
                   </span>
 
@@ -252,10 +245,10 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
                       e.stopPropagation()
                       onLog(subjectId!, "undo_absent")
                     }}
-                    className="absolute top-1.5 right-1.5 rounded-full p-1 text-rose-600/0 transition-all outline-none group-hover/btn:text-rose-600/50 hover:bg-rose-500/20 active:scale-95 dark:group-hover/btn:text-rose-400/50"
+                    className="absolute top-1 right-1 rounded-full p-1 text-rose-600/0 transition-all outline-none group-hover/btn:text-rose-600/50 hover:bg-rose-500/20 active:scale-95 dark:group-hover/btn:text-rose-400/50"
                     title="Undo Absent"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
+                    <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </div>
 
@@ -265,16 +258,16 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
                     e.stopPropagation()
                     onLog(subjectId!, "deemed")
                   }}
-                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 py-3 shadow-sm transition-all hover:border-blue-500/30 hover:bg-blue-500/15 hover:shadow-md"
+                  className="group/btn relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 py-2 shadow-sm transition-all hover:border-blue-500/30 hover:bg-blue-500/15 hover:shadow-md sm:py-2.5"
                   title="Mark Deemed (+1)"
                 >
-                  <div className="mb-1 flex items-center gap-1.5">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <Fingerprint className="h-3.5 w-3.5 text-blue-500/80" />
                     <span className="text-[10px] font-bold tracking-wider text-blue-700/80 uppercase dark:text-blue-400/80">
                       Deemed
                     </span>
                   </div>
-                  <span className="font-serif text-3xl font-bold text-blue-600 transition-transform group-hover/btn:scale-105 dark:text-blue-400">
+                  <span className="text-2xl font-bold text-blue-600 transition-transform group-hover/btn:scale-105 sm:text-3xl dark:text-blue-400">
                     {deemed ?? 0}
                   </span>
 
@@ -283,43 +276,43 @@ export function AttendanceCard(props: Readonly<AttendanceCardProps>) {
                       e.stopPropagation()
                       onLog(subjectId!, "undo_deemed")
                     }}
-                    className="absolute top-1.5 right-1.5 rounded-full p-1 text-blue-600/0 transition-all outline-none group-hover/btn:text-blue-600/50 hover:bg-blue-500/20 active:scale-95 dark:group-hover/btn:text-blue-400/50"
+                    className="absolute top-1 right-1 rounded-full p-1 text-blue-600/0 transition-all outline-none group-hover/btn:text-blue-600/50 hover:bg-blue-500/20 active:scale-95 dark:group-hover/btn:text-blue-400/50"
                     title="Undo Deemed"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" />
+                    <RotateCcw className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-2.5 pt-1 sm:grid-cols-3">
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 py-3 shadow-sm">
-                  <div className="mb-1 flex items-center gap-1.5">
+              <div className="grid grid-cols-3 gap-2 pt-1 sm:gap-2.5">
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10 py-2 shadow-sm sm:py-2.5">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500/80" />
                     <span className="text-[10px] font-bold tracking-wider text-emerald-700/80 uppercase dark:text-emerald-400/80">
                       Present
                     </span>
                   </div>
-                  <span className="font-serif text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-2xl font-bold text-emerald-600 sm:text-3xl dark:text-emerald-400">
                     {present ?? 0}
                   </span>
                 </div>
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 py-3 shadow-sm">
-                  <div className="mb-1 flex items-center gap-1.5">
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10 py-2 shadow-sm sm:py-2.5">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <XCircle className="h-3.5 w-3.5 text-rose-500/80" />
                     <span className="text-[10px] font-bold tracking-wider text-rose-700/80 uppercase dark:text-rose-400/80">
                       Absent
                     </span>
                   </div>
-                  <span className="font-serif text-3xl font-bold text-rose-600 dark:text-rose-400">{absent ?? 0}</span>
+                  <span className="text-2xl font-bold text-rose-600 sm:text-3xl dark:text-rose-400">{absent ?? 0}</span>
                 </div>
-                <div className="flex flex-col items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 py-3 shadow-sm">
-                  <div className="mb-1 flex items-center gap-1.5">
+                <div className="flex flex-col items-center justify-center rounded-2xl border border-blue-500/20 bg-blue-500/10 py-2 shadow-sm sm:py-2.5">
+                  <div className="mb-0.5 flex items-center gap-1.5">
                     <Fingerprint className="h-3.5 w-3.5 text-blue-500/80" />
                     <span className="text-[10px] font-bold tracking-wider text-blue-700/80 uppercase dark:text-blue-400/80">
                       Deemed
                     </span>
                   </div>
-                  <span className="font-serif text-3xl font-bold text-blue-600 dark:text-blue-400">{deemed ?? 0}</span>
+                  <span className="text-2xl font-bold text-blue-600 sm:text-3xl dark:text-blue-400">{deemed ?? 0}</span>
                 </div>
               </div>
             )}

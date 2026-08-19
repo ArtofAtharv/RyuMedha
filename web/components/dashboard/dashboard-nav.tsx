@@ -10,7 +10,6 @@ import {
   CheckSquare,
   Clock,
   GraduationCap,
-  CreditCard,
   ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
@@ -30,7 +29,6 @@ export function DashboardNav({ isExpanded = true, onToggle }: { isExpanded?: boo
     { label: "Tasks", href: "/dashboard/tasks", icon: CheckSquare },
     { label: "Timers", href: "/dashboard/timers", icon: Clock },
     { label: "Grades", href: "/dashboard/grades", icon: GraduationCap },
-    { label: "Billing", href: "/dashboard/subscription", icon: CreditCard },
   ]
 
   if (isAdmin) {

@@ -380,7 +380,7 @@ export default function SubscriptionPage() {
                     Monthly Subscription
                   </p>
                   <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-foreground font-serif text-5xl font-bold tracking-tight">₹39</span>
+                    <span className="text-foreground text-5xl font-bold tracking-tight">₹39</span>
                     <span className="text-muted-foreground text-sm font-medium">/ month</span>
                   </div>
                   <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
@@ -421,7 +421,7 @@ export default function SubscriptionPage() {
                     Yearly Subscription
                   </p>
                   <div className="mt-2 flex items-baseline gap-1">
-                    <span className="text-foreground font-serif text-5xl font-bold tracking-tight">₹399</span>
+                    <span className="text-foreground text-5xl font-bold tracking-tight">₹399</span>
                     <span className="text-muted-foreground text-sm font-medium">/ year</span>
                   </div>
                   <p className="text-muted-foreground mt-2 text-xs leading-relaxed">

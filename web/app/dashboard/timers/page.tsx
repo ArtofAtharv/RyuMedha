@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -21,13 +22,13 @@ const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.12 },
+    transition: { staggerChildren: 0.05 },
   },
 }
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.4, ease: "easeOut" } },
 }
 
 // Type alias to avoid repeated union literals
@@ -85,6 +86,7 @@ function playAlarmBeep() {
 }
 
 export default function TimersPage() {
+  const router = useRouter()
   const { profile } = useProfile()
   const [activeTimer, setActiveTimer] = useState<StudyTimer | null>(null)
   const [history, setHistory] = useState<StudyTimer[]>([])
@@ -649,7 +651,7 @@ export default function TimersPage() {
               </CardDescription>
             </div>
             <Button
-              onClick={() => (window.location.href = "/dashboard/profile")}
+              onClick={() => router.push("/dashboard/profile")}
               className="h-12 cursor-pointer rounded-2xl px-8 text-base font-semibold"
             >
               Go to Settings
@@ -681,57 +683,89 @@ export default function TimersPage() {
               />
             </div>
 
-            <TabsContent value="stopwatch" className="mt-0">
-              <div className="grid gap-6 md:grid-cols-2">
-                <StopwatchCard
-                  activeTimer={activeTimer}
-                  elapsed={elapsed}
-                  selectedSubject={selectedSubject}
-                  setSelectedSubject={setSelectedSubject}
-                  availableSubjects={availableSubjects}
-                  startTimer={startTimer}
-                  pauseTimer={pauseTimer}
-                  resumeTimer={resumeTimer}
-                  stopTimer={stopTimer}
-                />
-                <m.div variants={itemVariants} initial="hidden" animate="show">
-                  <Card className="border-border/40 bg-card/40 h-full backdrop-blur-3xl">
-                    <CardHeader>
-                      <CardTitle className="text-muted-foreground flex items-center gap-2">
-                        <History className="h-5 w-5" /> Recent Sessions
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <HistoryList
-                        history={history}
-                        profile={profile}
-                        formatTime={formatTime}
-                        openEditModal={openEditModal}
-                        deleteTimer={deleteTimer}
+            <AnimatePresence mode="wait">
+              {activeTab === "stopwatch" && (
+                <m.div
+                  key="stopwatch-tab"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <TabsContent value="stopwatch" className="mt-0 outline-none" forceMount>
+                    <m.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="grid gap-6 md:grid-cols-2"
+                    >
+                      <StopwatchCard
+                        activeTimer={activeTimer}
+                        elapsed={elapsed}
+                        selectedSubject={selectedSubject}
+                        setSelectedSubject={setSelectedSubject}
+                        availableSubjects={availableSubjects}
+                        startTimer={startTimer}
+                        pauseTimer={pauseTimer}
+                        resumeTimer={resumeTimer}
+                        stopTimer={stopTimer}
                       />
-                    </CardContent>
-                  </Card>
+                      <m.div variants={itemVariants}>
+                        <Card className="border-border/40 bg-card/40 h-full backdrop-blur-3xl">
+                          <CardHeader>
+                            <CardTitle className="text-muted-foreground flex items-center gap-2">
+                              <History className="h-5 w-5" /> Recent Sessions
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <HistoryList
+                              history={history}
+                              profile={profile}
+                              formatTime={formatTime}
+                              openEditModal={openEditModal}
+                              deleteTimer={deleteTimer}
+                            />
+                          </CardContent>
+                        </Card>
+                      </m.div>
+                    </m.div>
+                  </TabsContent>
                 </m.div>
-              </div>
-            </TabsContent>
+              )}
 
-            <TabsContent value="pomodoro" className="mt-0 outline-none">
-              <div className="grid gap-6 md:grid-cols-2">
-                <PomodoroTrackerCard
-                  pomoMode={pomoMode}
-                  pomoTimeLeft={pomoTimeLeft}
-                  pomoIsActive={pomoIsActive}
-                  selectedSubject={selectedSubject}
-                  setSelectedSubject={setSelectedSubject}
-                  availableSubjects={availableSubjects}
-                  openPomoSettings={openPomoSettings}
-                  handlePomoModeSwitch={handlePomoModeSwitch}
-                  togglePomo={togglePomo}
-                  handlePomoSkip={handlePomoSkip}
-                />
-                <PomodoroHistoryCard history={history} openEditModal={openEditModal} deleteTimer={deleteTimer} />
-              </div>
-            </TabsContent>
+              {activeTab === "pomodoro" && (
+                <m.div
+                  key="pomodoro-tab"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <TabsContent value="pomodoro" className="mt-0 outline-none" forceMount>
+                    <m.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="grid gap-6 md:grid-cols-2"
+                    >
+                      <PomodoroTrackerCard
+                        pomoMode={pomoMode}
+                        pomoTimeLeft={pomoTimeLeft}
+                        pomoIsActive={pomoIsActive}
+                        selectedSubject={selectedSubject}
+                        setSelectedSubject={setSelectedSubject}
+                        availableSubjects={availableSubjects}
+                        openPomoSettings={openPomoSettings}
+                        handlePomoModeSwitch={handlePomoModeSwitch}
+                        togglePomo={togglePomo}
+                        handlePomoSkip={handlePomoSkip}
+                      />
+                      <PomodoroHistoryCard history={history} openEditModal={openEditModal} deleteTimer={deleteTimer} />
+                    </m.div>
+                  </TabsContent>
+                </m.div>
+              )}
+            </AnimatePresence>
           </Tabs>
         </m.div>
       )}
@@ -895,7 +929,7 @@ function StopwatchCard({
   stopTimer: () => void
 }>) {
   return (
-    <m.div variants={itemVariants} initial="hidden" animate="show" className="h-full">
+    <m.div variants={itemVariants} className="h-full">
       <Card className="border-border/40 bg-card/40 h-full shadow-sm backdrop-blur-3xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -996,7 +1030,7 @@ function PomodoroTrackerCard({
   handlePomoSkip: () => void
 }>) {
   return (
-    <div className="h-full">
+    <m.div variants={itemVariants} className="h-full">
       <Card
         className={`border-border/40 bg-card/40 relative flex h-full min-h-[400px] flex-col items-center justify-center overflow-hidden p-6 backdrop-blur-3xl transition-colors duration-700`}
       >
@@ -1099,7 +1133,7 @@ function PomodoroTrackerCard({
           )}
         </div>
       </Card>
-    </div>
+    </m.div>
   )
 }
 
@@ -1114,7 +1148,7 @@ function PomodoroHistoryCard({
 }>) {
   const pomoHistory = history.filter((h) => h.timer_type === "pomodoro")
   return (
-    <div className="h-full">
+    <m.div variants={itemVariants} className="h-full">
       <Card className="border-border/40 bg-card/40 h-full backdrop-blur-3xl">
         <CardHeader>
           <CardTitle className="text-muted-foreground flex items-center gap-2">
@@ -1167,7 +1201,7 @@ function PomodoroHistoryCard({
           )}
         </CardContent>
       </Card>
-    </div>
+    </m.div>
   )
 }
 

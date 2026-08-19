@@ -3,16 +3,18 @@
 import { UserProfile, useProfile } from "@/components/dashboard/profile-context"
 import { useGamification } from "@/components/dashboard/gamification-context"
 import { Card, CardContent } from "@/components/ui/card"
-import { Sparkles, Flame } from "lucide-react"
+import { Sparkles, Flame, BookOpen, FolderOpen } from "lucide-react"
 import { PageHeader } from "@/components/dashboard/page-header"
+import { SegmentedControl } from "@/components/dashboard/segmented-control"
+import { haptic } from "@/lib/haptic"
 import { AnimatePresence, m, Variants } from "motion/react"
 import { AcademicOverviewSection } from "@/components/dashboard/overview-academics"
 import { PersonalOverviewSection } from "@/components/dashboard/overview-personal"
 import type { AttendanceData, SubjectInfo } from "@/components/dashboard/interactive-attendance-grid"
 
 const item: Variants = {
-  hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
 }
 
 export interface CategoryInfo {
@@ -67,7 +69,7 @@ export function OverviewContent({
   academicOverviewData: AcademicOverviewData
   personalOverviewData: PersonalOverviewData
 }>) {
-  const { profile: contextProfile, activeTrack } = useProfile()
+  const { profile: contextProfile, activeTrack, setActiveTrack } = useProfile()
   const { xp, level, progress, combo } = useGamification()
   const activeProfile = contextProfile || profile
 
@@ -139,21 +141,37 @@ export function OverviewContent({
       {/* ─── HEADER ─── */}
       <PageHeader title="Overview" description="Your activity and progress across all tracks." />
 
-      {/* ─── ACADEMIC OVERVIEW ─── */}
-      <AnimatePresence initial={false} mode="sync">
+      {/* Track Switcher */}
+      {activeProfile?.academics_enabled && activeProfile?.personal_enabled && (
+        <div className="mx-auto mb-8 flex max-w-md justify-center">
+          <SegmentedControl
+            fullWidth
+            layoutIdPrefix="overview-mobile-track"
+            activeSegment={activeTrack}
+            onChange={(id) => {
+              haptic()
+              setActiveTrack(id as "academics" | "personal")
+            }}
+            segments={[
+              { id: "academics", label: "Academics", icon: BookOpen },
+              { id: "personal", label: "Personal", icon: FolderOpen },
+            ]}
+          />
+        </div>
+      )}
+
+      {/* ─── OVERVIEW CONTENT ─── */}
+      <AnimatePresence mode="wait">
         {activeProfile?.academics_enabled && activeTrack === "academics" && (
           <AcademicOverviewSection
+            key="academic-overview"
             data={academicOverviewData}
             unmarkedSubjectsText={unmarkedSubjectsText}
             pendingTasksText={pendingTasksText}
           />
         )}
-      </AnimatePresence>
-
-      {/* ─── PERSONAL OVERVIEW ─── */}
-      <AnimatePresence initial={false} mode="sync">
         {activeProfile?.personal_enabled && activeTrack === "personal" && (
-          <PersonalOverviewSection data={personalOverviewData} />
+          <PersonalOverviewSection key="personal-overview" data={personalOverviewData} />
         )}
       </AnimatePresence>
     </m.div>

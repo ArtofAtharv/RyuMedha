@@ -9,11 +9,10 @@ import {
   Trash2,
   Edit2,
   RefreshCw,
-  Menu,
-  Check,
   Loader2,
   ListTodo,
   Bell,
+  Settings,
 } from "lucide-react"
 import { useProfile } from "@/components/dashboard/profile-context"
 import { toast } from "sonner"
@@ -47,7 +46,7 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -179,11 +178,9 @@ export default function TasksPage() {
     }
   }, [])
 
-  // Initialize sidebar state based on screen size on mount
+  // Initialize modal state on mount
   useEffect(() => {
-    // Sidebar starts closed by default for a cleaner look.
-    // If we wanted to auto-open on very large screens, we could do it here:
-    // if (window.innerWidth >= 1280) setSidebarOpen(true)
+    // Modal starts closed by default.
   }, [])
 
   // Auto-register service worker on mount if notifications are enabled
@@ -593,348 +590,227 @@ export default function TasksPage() {
 
   return (
     <div className="relative mx-auto flex h-[calc(100dvh-3.5rem)] w-full max-w-[1600px]">
-      {/* Mobile/Tablet Drawer Backdrop */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-35 bg-black/40 backdrop-blur-sm lg:hidden"
-          onClick={() => setTimeout(() => setSidebarOpen(false), 0)}
-        />
-      )}
-
-      {/* Sidebar Task Lists */}
-      <aside
-        className={`bg-background fixed inset-y-0 left-0 z-40 h-full lg:relative lg:z-auto ${sidebarOpen ? "w-64 translate-x-0 border-r" : "w-0 -translate-x-full lg:w-0 lg:translate-x-0"} border-border/40 flex flex-shrink-0 flex-col overflow-hidden transition-all duration-300`}
-      >
-        <div className="border-border/40 flex items-center justify-between border-b px-4 py-4">
-          <div className="flex items-center space-x-2.5">
-            <div className="text-primary flex items-center justify-center">
-              <ListTodo className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-sm leading-tight font-semibold">My Tasks</h1>
-              <span className="text-muted-foreground text-[10px] font-medium uppercase">Google Tasks Sync</span>
-            </div>
-          </div>
-          <button
-            onClick={() => setTimeout(() => setSidebarOpen(false), 0)}
-            className="hover:bg-muted text-muted-foreground rounded-lg p-1.5 lg:hidden"
-            aria-label="Close sidebar"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="mt-2 flex shrink-0 items-center justify-between px-4 py-2">
-          <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">Lists</span>
-          <button
-            onClick={handleOpenCreateListModal}
-            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-            title="Create New List"
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-        </div>
-
-        <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 py-1">
-          {taskLists.map((list) => (
-            <div
-              key={list.id}
-              className={`group/list flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm font-medium transition-all ${
-                activeListId === list.id
-                  ? "bg-muted text-foreground"
-                  : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <button
-                onClick={() => {
-                  handleListSelect(list.id)
-                  if (window.innerWidth < 1024) {
-                    setTimeout(() => setSidebarOpen(false), 0)
-                  }
-                }}
-                className="flex flex-1 items-center space-x-2.5 truncate py-0.5"
-              >
-                <div
-                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                    activeListId === list.id ? "bg-primary" : "border-muted-foreground/40 border bg-transparent"
-                  }`}
-                />
-                <span className="truncate">{list.title}</span>
-              </button>
-
-              <div className="flex items-center space-x-0.5 opacity-0 transition-opacity group-hover/list:opacity-100">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    handleOpenEditListModal(list)
-                  }}
-                  className="hover:bg-primary/20 text-muted-foreground hover:text-foreground rounded p-1"
-                  title="Rename List"
-                >
-                  <Edit2 className="h-3.5 w-3.5" />
-                </button>
-                {taskLists.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteList(list.id)
-                    }}
-                    className="hover:bg-destructive/15 text-muted-foreground hover:text-destructive rounded p-1"
-                    title="Delete List"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        {/* Notifications Toggle */}
-        <div className="border-border/40 flex flex-col space-y-2 border-t px-4 py-3 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-foreground flex items-center gap-2 font-medium">
-              <Bell className="text-muted-foreground h-3.5 w-3.5" /> Reminders
-            </span>
-            <button
-              type="button"
-              onClick={handleToggleNotifications}
-              disabled={togglingNotifications}
-              className={`relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                notificationsEnabled ? "bg-primary" : "bg-muted"
-              } ${togglingNotifications ? "cursor-not-allowed opacity-50" : ""}`}
-            >
-              <span
-                className={`bg-background pointer-events-none inline-block h-3 w-3 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
-                  notificationsEnabled ? "translate-x-3" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
-          {notificationPermission === "denied" && (
-            <p className="text-destructive text-[10px] leading-tight font-medium">Blocked in site settings.</p>
-          )}
-        </div>
-
-        <div className="border-border/40 text-muted-foreground flex items-center justify-between border-t px-4 py-3 text-xs">
-          <span>Sync Status</span>
-          <button
-            onClick={() => handleSync(activeListId)}
-            disabled={isSyncing}
-            className="hover:bg-muted text-muted-foreground hover:text-foreground rounded p-1 transition-colors"
-            title="Sync Tasks"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "text-primary animate-spin" : ""}`} />
-          </button>
-        </div>
-      </aside>
-
       {/* Main Task List */}
       <div className="flex h-full flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="border-border/40 z-10 flex h-14 flex-shrink-0 items-center justify-between gap-3 border-b px-4 sm:gap-4 sm:px-6">
-          <div className="flex flex-1 items-center space-x-2 sm:space-x-4">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="hover:bg-muted text-muted-foreground rounded-md p-1.5"
-              aria-label="Toggle sidebar"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
+        <header className="border-border/40 z-10 flex h-16 flex-shrink-0 items-center border-b px-4 sm:px-8 md:px-12">
+          <div className="flex w-full items-center justify-between gap-3 sm:gap-4">
+            {/* Left: Settings */}
+            <div className="flex flex-1 justify-start">
+              <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="hover:bg-muted text-muted-foreground rounded-full p-2 transition-colors"
+                aria-label="Open settings"
+              >
+                <Settings className="h-5 w-5" />
+              </button>
+            </div>
 
-            {/* Search */}
-            <div className="relative w-full max-w-sm">
-              <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
-                <Search className="h-3.5 w-3.5" />
-              </span>
-              <Input
-                type="text"
-                placeholder="Search tasks..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="placeholder:text-muted-foreground/60 h-9 w-full rounded-none border-0 bg-transparent pr-4 pl-8 text-sm shadow-none focus-visible:ring-0"
-              />
+            {/* Center: Search */}
+            <div className="flex flex-1 justify-center">
+              <div className="relative w-full max-w-sm sm:max-w-md">
+                <span className="text-muted-foreground pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                  <Search className="h-4 w-4" />
+                </span>
+                <Input
+                  type="text"
+                  placeholder="Search tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-muted/40 placeholder:text-muted-foreground/60 focus-visible:ring-primary/50 h-9 w-full rounded-full border-0 pr-4 pl-9 text-sm shadow-none focus-visible:ring-1"
+                />
+              </div>
+            </div>
+
+            {/* Right: Add Task */}
+            <div className="flex flex-1 justify-end">
+              <Button
+                onClick={handleOpenAddModal}
+                size="sm"
+                className="hover:shadow-primary/20 h-9 gap-1.5 rounded-full px-4 text-sm font-medium shadow-sm transition-all hover:shadow-md"
+              >
+                <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add Task</span>
+              </Button>
             </div>
           </div>
-
-          <Button onClick={handleOpenAddModal} size="sm" className="h-8 gap-1.5 rounded-md px-3 text-xs font-medium">
-            <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Add Task</span>
-          </Button>
         </header>
 
         {/* Content Area */}
-        <main className="flex-1 space-y-6 overflow-y-auto px-6 py-6 pb-24">
-          {/* Overdue */}
-          {groups.overdue.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-destructive border-border/40 flex items-center space-x-1.5 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                <span>Overdue</span>
-                <span className="bg-destructive/10 rounded px-1.5 py-0.5 text-[10px]">{groups.overdue.length}</span>
-              </h3>
-              <div className="flex flex-col">
-                {groups.overdue.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                    isOverdue
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+        <main className="flex-1 overflow-y-auto px-4 py-8 pb-32 sm:px-8 md:px-12">
+          <div className="mx-auto w-full max-w-5xl space-y-10">
+            {/* Overdue */}
+            {groups.overdue.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-destructive border-border/40 flex items-center space-x-1.5 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  <span>Overdue</span>
+                  <span className="bg-destructive/10 rounded px-1.5 py-0.5 text-[10px]">{groups.overdue.length}</span>
+                </h3>
+                <div className="flex flex-col">
+                  {groups.overdue.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                      isOverdue
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Today */}
-          {groups.today.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-primary border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                Today
-              </h3>
-              <div className="flex flex-col">
-                {groups.today.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Today */}
+            {groups.today.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-primary border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  Today
+                </h3>
+                <div className="flex flex-col">
+                  {groups.today.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Tomorrow */}
-          {groups.tomorrow.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                Tomorrow
-              </h3>
-              <div className="flex flex-col">
-                {groups.tomorrow.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Tomorrow */}
+            {groups.tomorrow.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  Tomorrow
+                </h3>
+                <div className="flex flex-col">
+                  {groups.tomorrow.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Upcoming */}
-          {groups.upcoming.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                Upcoming
-              </h3>
-              <div className="flex flex-col">
-                {groups.upcoming.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Upcoming */}
+            {groups.upcoming.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  Upcoming
+                </h3>
+                <div className="flex flex-col">
+                  {groups.upcoming.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Later / Future */}
-          {groups.later.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                Later
-              </h3>
-              <div className="flex flex-col">
-                {groups.later.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Later / Future */}
+            {groups.later.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  Later
+                </h3>
+                <div className="flex flex-col">
+                  {groups.later.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* No Date */}
-          {groups.noDate.length > 0 && (
-            <section className="space-y-2">
-              <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                No Date
-              </h3>
-              <div className="flex flex-col">
-                {groups.noDate.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* No Date */}
+            {groups.noDate.length > 0 && (
+              <section className="space-y-2">
+                <h3 className="text-muted-foreground border-border/40 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  No Date
+                </h3>
+                <div className="flex flex-col">
+                  {groups.noDate.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-          {/* Empty State */}
-          {filteredReminders.length === 0 && (
-            <div className="flex flex-col items-center justify-center space-y-4 py-20 text-center">
-              <div className="bg-primary/10 text-primary flex h-16 w-16 items-center justify-center rounded-full shadow-inner">
-                <Check className="h-8 w-8" />
+            {/* Empty State */}
+            {filteredReminders.length === 0 && (
+              <div className="animate-in fade-in zoom-in-95 flex flex-col items-center justify-center space-y-6 py-28 text-center duration-500">
+                <div className="bg-primary/5 text-primary border-primary/10 flex h-24 w-24 items-center justify-center rounded-full border shadow-[0_0_40px_-10px_rgba(var(--primary),0.3)]">
+                  <CheckCircle className="h-10 w-10 opacity-80" />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-foreground text-2xl font-bold tracking-tight">All caught up!</h4>
+                  <p className="text-muted-foreground mx-auto max-w-sm text-sm leading-relaxed">
+                    You have no active tasks matching this view. Enjoy your free time or click{" "}
+                    <span className="text-foreground font-semibold">Add Task</span> to stay productive.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-foreground text-base font-semibold">All caught up!</h4>
-                <p className="text-muted-foreground max-w-xs text-sm">
-                  No active tasks in this list. Tap Add Task to create a reminder.
-                </p>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Completed */}
-          {groups.completed.length > 0 && (
-            <section className="border-border/50 space-y-2 border-t pt-6">
-              <h3 className="text-muted-foreground border-border/40 flex items-center space-x-1.5 border-b py-2 text-xs font-semibold tracking-wider uppercase">
-                <span>Completed</span>
-                <span className="bg-muted rounded px-1.5 py-0.5 text-[10px]">{groups.completed.length}</span>
-              </h3>
-              <div className="flex flex-col opacity-60 transition-opacity hover:opacity-100">
-                {groups.completed.map((r) => (
-                  <ReminderRow
-                    key={r.id}
-                    reminder={r}
-                    onToggle={handleToggleComplete}
-                    onEdit={handleOpenEditModal}
-                    onDelete={handleDelete}
-                    formatDate={formatReminderDate}
-                    subjects={subjects}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
+            {/* Completed */}
+            {groups.completed.length > 0 && (
+              <section className="border-border/50 space-y-2 border-t pt-6">
+                <h3 className="text-muted-foreground border-border/40 flex items-center space-x-1.5 border-b py-2 text-xs font-semibold tracking-wider uppercase">
+                  <span>Completed</span>
+                  <span className="bg-muted rounded px-1.5 py-0.5 text-[10px]">{groups.completed.length}</span>
+                </h3>
+                <div className="flex flex-col opacity-60 transition-opacity hover:opacity-100">
+                  {groups.completed.map((r) => (
+                    <ReminderRow
+                      key={r.id}
+                      reminder={r}
+                      onToggle={handleToggleComplete}
+                      onEdit={handleOpenEditModal}
+                      onDelete={handleDelete}
+                      formatDate={formatReminderDate}
+                      subjects={subjects}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
         </main>
       </div>
 
@@ -1261,6 +1137,134 @@ export default function TasksPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tasks Settings Modal */}
+      <Dialog open={isSettingsModalOpen} onOpenChange={setIsSettingsModalOpen}>
+        <DialogContent className="border-border/40 bg-background/95 gap-0 overflow-hidden p-0 backdrop-blur-xl sm:max-w-[425px]">
+          <DialogHeader className="border-border/40 border-b px-5 py-4">
+            <DialogTitle className="flex items-center gap-2">
+              <ListTodo className="text-primary h-5 w-5" />
+              <div>
+                <div className="text-left text-base font-semibold">My Tasks</div>
+                <div className="text-muted-foreground text-left text-[10px] font-medium uppercase">
+                  Google Tasks Sync
+                </div>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex max-h-[60vh] flex-col overflow-hidden">
+            <div className="border-border/40 flex shrink-0 items-center justify-between border-b px-5 py-3">
+              <span className="text-muted-foreground text-[10px] font-semibold tracking-wider uppercase">Lists</span>
+              <button
+                onClick={handleOpenCreateListModal}
+                className="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1 transition-colors"
+                title="Create New List"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+
+            <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
+              {taskLists.length === 0 ? (
+                <div className="animate-in fade-in flex flex-col items-center justify-center py-8 text-center duration-500">
+                  <div className="bg-muted/50 text-muted-foreground mb-3 flex h-12 w-12 items-center justify-center rounded-full">
+                    <ListTodo className="h-6 w-6 opacity-50" />
+                  </div>
+                  <p className="text-foreground text-sm font-medium">No lists yet</p>
+                  <p className="text-muted-foreground mt-1 text-xs">Create a list to organize tasks.</p>
+                </div>
+              ) : (
+                taskLists.map((list) => (
+                  <div
+                    key={list.id}
+                    className={`group/list flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium transition-all ${
+                      activeListId === list.id
+                        ? "bg-muted text-foreground"
+                        : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <button
+                      onClick={() => {
+                        handleListSelect(list.id)
+                        setIsSettingsModalOpen(false)
+                      }}
+                      className="flex flex-1 items-center space-x-3 truncate py-0.5 text-left"
+                    >
+                      <div
+                        className={`h-2 w-2 shrink-0 rounded-full ${
+                          activeListId === list.id ? "bg-primary" : "border-muted-foreground/40 border bg-transparent"
+                        }`}
+                      />
+                      <span className="truncate">{list.title}</span>
+                    </button>
+                    <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover/list:opacity-100">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleOpenEditListModal(list)
+                        }}
+                        className="text-muted-foreground hover:bg-primary/20 hover:text-foreground rounded p-1"
+                        title="Rename List"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      {taskLists.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteList(list.id)
+                          }}
+                          className="text-muted-foreground hover:bg-destructive/15 hover:text-destructive rounded p-1"
+                          title="Delete List"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </nav>
+
+            <div className="border-border/40 flex shrink-0 flex-col space-y-3 border-t px-5 py-4">
+              <div className="flex items-center justify-between">
+                <span className="text-foreground flex items-center gap-2 text-sm font-medium">
+                  <Bell className="text-muted-foreground h-4 w-4" /> Reminders
+                </span>
+                <button
+                  type="button"
+                  onClick={handleToggleNotifications}
+                  disabled={togglingNotifications}
+                  className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    notificationsEnabled ? "bg-primary" : "bg-muted"
+                  } ${togglingNotifications ? "cursor-not-allowed opacity-50" : ""}`}
+                >
+                  <span
+                    className={`bg-background pointer-events-none inline-block h-4 w-4 transform rounded-full shadow ring-0 transition duration-200 ease-in-out ${
+                      notificationsEnabled ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+              {notificationPermission === "denied" && (
+                <p className="text-destructive text-[11px] leading-tight font-medium">Blocked in site settings.</p>
+              )}
+            </div>
+
+            <div className="border-border/40 bg-muted/10 flex shrink-0 items-center justify-between border-t px-5 py-4">
+              <span className="text-muted-foreground text-sm font-medium">Sync Status</span>
+              <button
+                onClick={() => handleSync(activeListId)}
+                disabled={isSyncing}
+                className="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1.5 transition-colors"
+                title="Sync Tasks"
+              >
+                <RefreshCw className={`h-4 w-4 ${isSyncing ? "text-primary animate-spin" : ""}`} />
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

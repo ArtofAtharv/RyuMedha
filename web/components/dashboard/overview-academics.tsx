@@ -10,8 +10,8 @@ import { m, Variants } from "motion/react"
 import type { AcademicOverviewData } from "@/app/dashboard/(overview)/overview-content"
 
 const item: Variants = {
-  hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  hidden: { opacity: 0, y: 10 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
 }
 
 export function AcademicOverviewSection({
@@ -26,34 +26,34 @@ export function AcademicOverviewSection({
   return (
     <m.section
       key="academics"
-      initial={{ opacity: 0, y: 10, filter: "blur(4px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      exit={{ opacity: 0, filter: "blur(4px)" }}
-      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className="space-y-6"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-4">
         <m.div variants={item}>
-          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative h-full overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl">
-            <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-2">
+          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative flex aspect-square h-full flex-col justify-between overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl md:aspect-auto">
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-3 pb-0 sm:p-4 sm:pb-2">
               <span className="flex items-center space-x-2">
-                <div className="bg-primary/10 text-primary rounded-xl p-2 transition-transform duration-500">
-                  <ChartColumn className="h-4 w-4" />
+                <div className="bg-primary/10 text-primary rounded-lg p-1.5 transition-transform duration-500 sm:rounded-xl sm:p-2">
+                  <ChartColumn className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
-                <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                <CardTitle className="text-muted-foreground truncate text-[9px] font-semibold tracking-wider uppercase sm:text-xs">
                   Attendance
                 </CardTitle>
               </span>
             </CardHeader>
-            <CardContent className="px-4 pt-0 pb-4">
-              <p className="mt-2 font-serif text-4xl font-bold">
+            <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+              <p className="mt-0 text-2xl font-bold sm:mt-2 sm:text-4xl">
                 {data.overallAttendancePct === null ? (
                   <span className="text-primary">0%</span>
                 ) : (
                   <span className="text-primary">{data.overallAttendancePct}%</span>
                 )}
               </p>
-              <p className="text-muted-foreground mt-1 text-xs font-medium">
+              <p className="text-muted-foreground mt-0 truncate text-[9px] font-medium sm:mt-1 sm:text-xs">
                 {data.totalPresent + (data.totalDeemed || 0)} /{" "}
                 {data.totalPresent + data.totalAbsent + (data.totalDeemed || 0)} attended
               </p>
@@ -62,62 +62,66 @@ export function AcademicOverviewSection({
         </m.div>
 
         <m.div variants={item}>
-          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative h-full overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl">
-            <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-2">
+          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative flex aspect-square h-full flex-col justify-between overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl md:aspect-auto">
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-3 pb-0 sm:p-4 sm:pb-2">
               <span className="flex items-center space-x-2">
-                <div className="rounded-xl bg-purple-500/10 p-2 text-purple-500 transition-transform duration-500">
-                  <GraduationCap className="h-4 w-4" />
+                <div className="rounded-lg bg-purple-500/10 p-1.5 text-purple-500 transition-transform duration-500 sm:rounded-xl sm:p-2">
+                  <GraduationCap className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
-                <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                <CardTitle className="text-muted-foreground truncate text-[9px] font-semibold tracking-wider uppercase sm:text-xs">
                   Grades
                 </CardTitle>
               </span>
             </CardHeader>
-            <CardContent className="px-4 pt-0 pb-4">
-              <p className="mt-2 font-serif text-4xl font-bold">
+            <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+              <p className="mt-0 text-2xl font-bold sm:mt-2 sm:text-4xl">
                 {data.academicGradePct === null ? "0%" : `${data.academicGradePct}%`}
               </p>
-              <p className="text-muted-foreground mt-1 text-xs font-medium">cumulative average</p>
+              <p className="text-muted-foreground mt-0 truncate text-[9px] font-medium sm:mt-1 sm:text-xs">
+                cumulative average
+              </p>
             </CardContent>
           </Card>
         </m.div>
 
         <m.div variants={item}>
-          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative h-full overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl">
-            <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-2">
+          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative flex aspect-square h-full flex-col justify-between overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl md:aspect-auto">
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-3 pb-0 sm:p-4 sm:pb-2">
               <span className="flex items-center space-x-2">
-                <div className="rounded-xl bg-orange-500/10 p-2 text-orange-500 transition-transform duration-500">
-                  <ListTodo className="h-4 w-4" />
+                <div className="rounded-lg bg-orange-500/10 p-1.5 text-orange-500 transition-transform duration-500 sm:rounded-xl sm:p-2">
+                  <ListTodo className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
-                <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                <CardTitle className="text-muted-foreground truncate text-[9px] font-semibold tracking-wider uppercase sm:text-xs">
                   Tasks
                 </CardTitle>
               </span>
             </CardHeader>
-            <CardContent className="px-4 pt-0 pb-4">
-              <p className="mt-2 font-serif text-4xl font-bold">{data.academicPendingTasks}</p>
-              <p className="text-muted-foreground mt-1 text-xs font-medium">academic to-dos</p>
+            <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+              <p className="mt-0 text-2xl font-bold sm:mt-2 sm:text-4xl">{data.academicPendingTasks}</p>
+              <p className="text-muted-foreground mt-0 truncate text-[9px] font-medium sm:mt-1 sm:text-xs">
+                academic to-dos
+              </p>
             </CardContent>
           </Card>
         </m.div>
 
         <m.div variants={item}>
-          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative h-full overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl">
-            <CardHeader className="flex-row items-center justify-between space-y-0 px-4 pt-4 pb-2">
+          <Card className="bg-card/60 border-border/40 hover:bg-card hover:border-primary/30 hover:shadow-primary/5 group relative flex aspect-square h-full flex-col justify-between overflow-hidden backdrop-blur-2xl transition-all duration-500 ease-out hover:shadow-xl md:aspect-auto">
+            <CardHeader className="flex-row items-center justify-between space-y-0 p-3 pb-0 sm:p-4 sm:pb-2">
               <span className="flex items-center space-x-2">
-                <div className="rounded-xl bg-blue-500/10 p-2 text-blue-500 transition-transform duration-500">
-                  <Clock className="h-4 w-4" />
+                <div className="rounded-lg bg-blue-500/10 p-1.5 text-blue-500 transition-transform duration-500 sm:rounded-xl sm:p-2">
+                  <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
-                <CardTitle className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+                <CardTitle className="text-muted-foreground truncate text-[9px] font-semibold tracking-wider uppercase sm:text-xs">
                   Study Time
                 </CardTitle>
               </span>
             </CardHeader>
-            <CardContent className="px-4 pt-0 pb-4">
-              <p className="mt-2 font-serif text-4xl font-bold">
-                {data.academicStudyTimeFormatted ? data.academicStudyTimeFormatted : "0m"}
+            <CardContent className="p-3 pt-0 sm:p-4 sm:pt-0">
+              <p className="mt-0 text-2xl font-bold sm:mt-2 sm:text-4xl">{data.academicStudyTimeFormatted || "0m"}</p>
+              <p className="text-muted-foreground mt-0 truncate text-[9px] font-medium sm:mt-1 sm:text-xs">
+                logged this week
               </p>
-              <p className="text-muted-foreground mt-1 text-xs font-medium">invested time</p>
             </CardContent>
           </Card>
         </m.div>
@@ -137,7 +141,7 @@ export function AcademicOverviewSection({
         )}
       </m.div>
 
-      <div className="w-full">
+      <div className="w-full space-y-8">
         <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
           <m.div
             variants={item}

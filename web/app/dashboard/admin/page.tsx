@@ -544,13 +544,13 @@ export default function AdminPage() {
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-bold tracking-wider uppercase">
             <Users className="text-primary h-4 w-4" /> Total Users
           </div>
-          <p className="text-foreground mt-2 font-serif text-4xl font-bold">{stats.totalUsers}</p>
+          <p className="text-foreground mt-2 text-4xl font-bold">{stats.totalUsers}</p>
         </div>
         <div className="bg-card/60 border-border/50 relative overflow-hidden rounded-2xl border p-4 shadow-sm">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-purple-600 uppercase dark:text-purple-400">
             <Sparkles className="h-4 w-4 text-purple-500" /> Free Access
           </div>
-          <p className="mt-2 font-serif text-4xl font-bold text-purple-600 dark:text-purple-400">
+          <p className="mt-2 text-4xl font-bold text-purple-600 dark:text-purple-400">
             {stats.freeLifetimeCount +
               stats.free1YearCount +
               (stats.free6MonthsCount || 0) +
@@ -565,13 +565,13 @@ export default function AdminPage() {
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-green-600 uppercase dark:text-green-400">
             <CheckCircle2 className="h-4 w-4 text-green-500" /> Active Auto-Pay
           </div>
-          <p className="text-foreground mt-2 font-serif text-4xl font-bold">{stats.activeAutopayCount}</p>
+          <p className="text-foreground mt-2 text-4xl font-bold">{stats.activeAutopayCount}</p>
         </div>
         <div className="bg-card/60 border-border/50 relative overflow-hidden rounded-2xl border p-4 shadow-sm">
           <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-amber-600 uppercase dark:text-amber-400">
             <Clock className="h-4 w-4 text-amber-500" /> Free Trialing
           </div>
-          <p className="text-foreground mt-2 font-serif text-4xl font-bold">{stats.trialingCount}</p>
+          <p className="text-foreground mt-2 text-4xl font-bold">{stats.trialingCount}</p>
         </div>
       </div>
 

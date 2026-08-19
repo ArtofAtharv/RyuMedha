@@ -321,7 +321,7 @@ export default function ProfilePage() {
 
       // Sign out and redirect
       await supabaseClient.auth.signOut()
-      window.location.href = "/login"
+      router.push("/login")
     } catch (err: unknown) {
       console.error("Failed to call delete_current_user RPC:", err)
 
@@ -335,7 +335,7 @@ export default function ProfilePage() {
         await supabaseClient.from("profiles").delete().eq("id", profile.id)
 
         await supabaseClient.auth.signOut()
-        window.location.href = "/login"
+        router.push("/login")
       } catch (fallbackErr: unknown) {
         console.error("Deletion fallback failed:", fallbackErr)
         toast.error(
@@ -682,47 +682,51 @@ export default function ProfilePage() {
             onSave={() => saveField("display_name", editValue)}
           />
 
-          <div className="flex min-h-[44px] items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-3">
+          <div className="flex min-h-[44px] items-center justify-between gap-4 px-4 py-3">
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500">
                 <User className="h-4 w-4 text-white" />
               </div>
               <p className="text-sm font-medium">Email</p>
             </div>
-            <p className="text-muted-foreground mr-4 text-sm select-all">{profile.email ?? "Not Linked"}</p>
+            <p className="text-muted-foreground mr-4 min-w-0 truncate text-right text-sm select-all">
+              {profile.email ?? "Not Linked"}
+            </p>
           </div>
 
           <button
             type="button"
-            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors"
+            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 transition-colors"
             onClick={() => router.push("/dashboard/whatsapp-bot")}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-green-500">
                 <Phone className="h-4 w-4 text-white" />
               </div>
-              <p className="text-sm font-medium">WhatsApp Bot Connection</p>
+              <p className="text-sm font-medium">WhatsApp</p>
             </div>
-            <div className="mr-1 flex items-center gap-2">
-              <p className="text-muted-foreground text-sm">{profile.whatsapp_number ?? "Not Linked"}</p>
-              <ChevronRight className="text-muted-foreground/50 h-4 w-4" />
+            <div className="mr-1 flex min-w-0 items-center justify-end gap-2">
+              <p className="text-muted-foreground truncate text-right text-sm">
+                {profile.whatsapp_number ?? "Not Linked"}
+              </p>
+              <ChevronRight className="text-muted-foreground/50 h-4 w-4 shrink-0" />
             </div>
           </button>
 
           <button
             type="button"
-            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between px-4 py-3 transition-colors"
+            className="hover:bg-muted/30 flex w-full cursor-pointer items-center justify-between gap-4 px-4 py-3 transition-colors"
             onClick={() => router.push("/dashboard/subscription")}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3 whitespace-nowrap">
               <div className="bg-primary flex h-7 w-7 shrink-0 items-center justify-center rounded-lg">
                 <CreditCard className="text-primary-foreground h-4 w-4" />
               </div>
-              <p className="text-sm font-medium">Subscription & Billing</p>
+              <p className="text-sm font-medium">Subscription</p>
             </div>
-            <div className="mr-1 flex items-center gap-2">
-              <p className="text-muted-foreground text-sm">Manage Plan</p>
-              <ChevronRight className="text-muted-foreground/50 h-4 w-4" />
+            <div className="mr-1 flex min-w-0 items-center justify-end gap-2">
+              <p className="text-muted-foreground truncate text-right text-sm">Manage Plan</p>
+              <ChevronRight className="text-muted-foreground/50 h-4 w-4 shrink-0" />
             </div>
           </button>
         </div>
@@ -962,8 +966,8 @@ function ProfileRow({
   return (
     <div className="flex min-h-[44px] items-center gap-3 px-4 py-3">
       <div className={`h-7 w-7 rounded-lg ${iconBg} flex shrink-0 items-center justify-center`}>{icon}</div>
-      <div className="flex min-w-0 flex-1 items-center justify-between">
-        <p className="text-sm font-medium">{label}</p>
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 sm:gap-4">
+        <p className={`text-sm font-medium ${isEditing ? "truncate" : "shrink-0 whitespace-nowrap"}`}>{label}</p>
         <AnimatePresence mode="wait">
           {isEditing ? (
             <m.div
@@ -971,7 +975,7 @@ function ProfileRow({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5 sm:gap-2"
             >
               <input
                 type={inputType}
@@ -979,13 +983,13 @@ function ProfileRow({
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
                 autoFocus
-                className="bg-muted focus:ring-primary/30 h-7 w-[120px] rounded-md border px-2 text-right text-sm outline-none focus:ring-2"
+                className="bg-muted focus:ring-primary/30 h-7 w-[48px] min-w-0 rounded-md border px-2 text-right text-sm outline-none focus:ring-2 sm:w-[120px]"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") onSave()
                   if (e.key === "Escape") onCancel()
                 }}
               />
-              {suffix && <span className="text-muted-foreground text-sm font-medium">{suffix}</span>}
+              {suffix && <span className="text-muted-foreground shrink-0 text-sm font-medium">{suffix}</span>}
               <button
                 onClick={onSave}
                 disabled={saving}
@@ -1005,11 +1009,11 @@ function ProfileRow({
               key="display"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="group flex cursor-pointer items-center gap-2"
+              className="group flex min-w-0 cursor-pointer items-center justify-end gap-2"
               onClick={onEdit}
             >
-              <p className="text-muted-foreground text-sm">{value}</p>
-              <ChevronRight className="text-muted-foreground/50 group-hover:text-muted-foreground h-4 w-4 transition-colors" />
+              <p className="text-muted-foreground truncate text-right text-sm">{value}</p>
+              <ChevronRight className="text-muted-foreground/50 group-hover:text-muted-foreground h-4 w-4 shrink-0 transition-colors" />
             </m.div>
           )}
         </AnimatePresence>
@@ -1069,8 +1073,8 @@ function DropdownRow({
   return (
     <div className="flex min-h-[44px] items-center gap-3 px-4 py-3">
       <div className={`h-7 w-7 rounded-lg ${iconBg} flex shrink-0 items-center justify-center`}>{icon}</div>
-      <div className="flex min-w-0 flex-1 items-center justify-between">
-        <p className="text-sm font-medium">{label}</p>
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-4">
+        <p className="shrink-0 text-sm font-medium whitespace-nowrap">{label}</p>
         <AnimatePresence mode="wait">
           {disabled && (
             <m.div key="disabled" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -1129,7 +1133,12 @@ function DropdownRow({
             </m.div>
           )}
           {!disabled && !isAdding && (
-            <m.div key="display" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2">
+            <m.div
+              key="display"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex min-w-0 items-center justify-end gap-2"
+            >
               <Select
                 value={currentId || ""}
                 onValueChange={(val) => {
@@ -1137,17 +1146,27 @@ function DropdownRow({
                   else onChange(val)
                 }}
               >
-                <SelectTrigger className="text-muted-foreground h-7 w-auto justify-end gap-1 border-0 bg-transparent px-4 text-sm shadow-none hover:bg-transparent focus:ring-0">
-                  <SelectValue placeholder={placeholder || "Select"} />
+                <SelectTrigger className="text-muted-foreground h-7 max-w-full min-w-0 justify-end gap-1 border-0 bg-transparent pr-0 pl-4 text-right text-sm shadow-none hover:bg-transparent focus:ring-0 dark:bg-transparent dark:hover:bg-transparent">
+                  <span className="truncate">
+                    <SelectValue placeholder={placeholder || "Select"} />
+                  </span>
                 </SelectTrigger>
-                <SelectContent position="popper" align="end" alignOffset={-16} sideOffset={8}>
+                <SelectContent
+                  position="popper"
+                  align="end"
+                  alignOffset={-16}
+                  sideOffset={8}
+                  className="max-w-[85vw] sm:max-w-[400px]"
+                >
                   {options.map((opt) => (
                     <div
                       key={opt.id}
-                      className="group/item hover:bg-muted/50 flex items-center justify-between rounded-md px-2"
+                      className="group/item hover:bg-muted/50 flex items-center justify-between rounded-md px-1"
                     >
-                      <SelectItem value={opt.id} className="flex-1">
-                        {opt.name}
+                      <SelectItem value={opt.id} className="min-w-0 flex-1 pr-2">
+                        <span className="block max-w-[200px] truncate sm:max-w-[300px]" title={opt.name}>
+                          {opt.name}
+                        </span>
                       </SelectItem>
                       {opt.id !== currentId && (
                         <Button

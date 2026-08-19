@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import { GradeSubjectCard } from "@/components/dashboard/grade-subject-card"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { BookOpen, FolderOpen, Pencil, Check, Target } from "lucide-react"
@@ -80,6 +81,7 @@ function getCredits(sub?: SubjectRecord): number {
 }
 
 export default function GradesPage() {
+  const router = useRouter()
   const { profile } = useProfile()
   const [grades, setGrades] = useState<GradeRecord[]>([])
   const [subjects, setSubjects] = useState<SubjectRecord[]>([])
@@ -293,7 +295,7 @@ export default function GradesPage() {
               </CardDescription>
             </div>
             <Button
-              onClick={() => (window.location.href = "/dashboard/profile")}
+              onClick={() => router.push("/dashboard/profile")}
               className="h-12 cursor-pointer rounded-2xl px-8 text-base font-semibold"
             >
               Go to Settings
@@ -384,7 +386,7 @@ export default function GradesPage() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-between">
-                          <p className="text-primary font-serif text-5xl font-bold">
+                          <p className="text-primary text-5xl font-bold">
                             {sgpaValue}{" "}
                             <span className="text-muted-foreground font-sans text-2xl font-bold">/ {maxGpa}</span>
                           </p>
@@ -422,7 +424,7 @@ export default function GradesPage() {
                     </CardHeader>
                     <CardContent className="relative z-10">
                       <div className="flex items-center justify-between">
-                        <p className="text-primary font-serif text-5xl font-bold">
+                        <p className="text-primary text-5xl font-bold">
                           {cgpaValue}{" "}
                           <span className="text-muted-foreground font-sans text-2xl font-bold">/ {maxGpa}</span>
                         </p>
@@ -448,7 +450,7 @@ export default function GradesPage() {
                       <CardDescription>Semester academic grade</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-primary font-serif text-5xl font-bold">
+                      <p className="text-primary text-5xl font-bold">
                         {acadPct}
                         <span className="text-muted-foreground font-sans text-2xl font-bold">%</span>
                       </p>
@@ -509,7 +511,7 @@ export default function GradesPage() {
                       <CardDescription>Cumulative personal score</CardDescription>
                     </CardHeader>
                     <CardContent className="relative z-10">
-                      <p className="text-primary font-serif text-5xl font-bold">
+                      <p className="text-primary text-5xl font-bold">
                         {persPct}
                         <span className="text-muted-foreground font-sans text-2xl font-bold">%</span>
                       </p>

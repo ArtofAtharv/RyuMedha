@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { getAppClient, type AppSupabaseClient } from "@/lib/supabase-client"
 import { Card, CardContent, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -11,28 +12,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Trash2, FolderOpen, BookOpen, Plus, Folder, Check, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
-import { m, Variants } from "motion/react"
+import { AnimatePresence, m, Variants } from "motion/react"
 import { SubjectGridCard } from "@/components/dashboard/subject-grid-card"
 import { hexToGradient } from "@/lib/gradient"
 
 import type { DashboardSubject } from "@/lib/dashboard-types"
 import { getSourceCourse } from "@/lib/source-course"
-// import { SegmentedControl } from '@/components/dashboard/segmented-control'
+import { SegmentedControl } from "@/components/dashboard/segmented-control"
 import { PageHeader } from "@/components/dashboard/page-header"
 import { useProfile } from "@/components/dashboard/profile-context"
 import { createReminder } from "@/app/actions/google-tasks"
+import { haptic } from "@/lib/haptic"
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.12 },
+    transition: { staggerChildren: 0.05 },
   },
 }
 
 const itemVariants: Variants = {
   hidden: { opacity: 0, y: 15, filter: "blur(4px)" },
-  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.7, ease: [0.16, 1, 0.3, 1] } },
+  show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.4, ease: "easeOut" } },
 }
 
 type SubjectRecord = DashboardSubject
@@ -58,7 +60,8 @@ function formatOutputDate(d: Date) {
 }
 
 export default function SubjectsPage() {
-  const { profile, activeTrack } = useProfile()
+  const router = useRouter()
+  const { profile, activeTrack, setActiveTrack } = useProfile()
   const [profileId, setProfileId] = useState<string | null>(null)
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
 
@@ -674,7 +677,7 @@ export default function SubjectsPage() {
               </CardDescription>
             </div>
             <Button
-              onClick={() => (window.location.href = "/dashboard/profile")}
+              onClick={() => router.push("/dashboard/profile")}
               className="h-12 rounded-2xl px-8 text-base font-semibold"
             >
               Go to Settings
@@ -695,126 +698,162 @@ export default function SubjectsPage() {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => setIsAddSubjectModalOpen(true)}
-              className="h-9 cursor-pointer gap-2 rounded-full font-bold shadow-sm"
+              className="h-9 w-9 cursor-pointer rounded-full p-0 font-bold shadow-sm sm:w-auto sm:gap-2 sm:px-4"
             >
-              <Plus className="h-4 w-4" /> Add
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add</span>
             </Button>
           </div>
         }
       />
 
-      {/* --- ACADEMIC SUBJECTS --- */}
-      {profile?.academics_enabled && tab === "academics" && (
-        <section className="space-y-4">
-          <h2 className="flex items-center gap-2 text-xl font-bold">
-            <BookOpen className="text-primary h-5 w-5" /> Academic Track
-          </h2>
-          {academicSubjects.length === 0 ? (
-            <div className="bg-card/60 bg-card/60 rounded-2xl rounded-3xl border-none p-8 text-center shadow-sm backdrop-blur-2xl">
-              <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
-            </div>
-          ) : (
-            <m.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="show"
-              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
-            >
-              {academicSubjects.map((sub) => (
-                <m.div key={sub.id} variants={itemVariants}>
-                  <SubjectGridCard
-                    subject={sub}
-                    onEdit={() => {
-                      const sourceCourse = getSourceCourse(sub.source_course_id)
-                      setEditingSubject({
-                        ...sub,
-                        instructor_name: sourceCourse?.instructor_name || sub.instructor_name || "",
-                        expected_total_lectures:
-                          sourceCourse?.expected_total_lectures || sub.expected_total_lectures || 0,
-                      })
-                    }}
-                    onDelete={() => setSubjectToDelete(sub)}
-                    onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                  />
-                </m.div>
-              ))}
-            </m.div>
-          )}
-        </section>
+      {/* Track Switcher */}
+      {profile?.academics_enabled && profile?.personal_enabled && (
+        <div className="mx-auto mb-8 flex max-w-md justify-center">
+          <SegmentedControl
+            fullWidth
+            layoutIdPrefix="subjects-mobile-track"
+            activeSegment={activeTrack}
+            onChange={(id) => {
+              haptic()
+              setActiveTrack(id as "academics" | "personal")
+            }}
+            segments={[
+              { id: "academics", label: "Academics", icon: BookOpen },
+              { id: "personal", label: "Personal", icon: FolderOpen },
+            ]}
+          />
+        </div>
       )}
 
-      {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
-      {profile?.personal_enabled && tab === "personal" && (
-        <section className="space-y-6 border-t pt-4">
-          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+      {/* --- TAB CONTENT --- */}
+      <AnimatePresence mode="wait">
+        {profile?.academics_enabled && tab === "academics" && (
+          <m.section
+            key="academics-section"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="space-y-4"
+          >
             <h2 className="flex items-center gap-2 text-xl font-bold">
-              <FolderOpen className="text-primary h-5 w-5" /> Personal Learning
+              <BookOpen className="text-primary h-5 w-5" /> Academic Track
             </h2>
-
-            <div className="flex w-full items-center gap-2 sm:w-auto">
-              <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                <SelectTrigger className="bg-muted/20 h-8 w-full border-black/10 text-xs font-bold shadow-sm sm:w-45 dark:border-white/10">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="uncategorized">Uncategorized</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsCategoryModalOpen(true)}
-                className="h-8 shrink-0 border-black/10 px-2 text-xs font-bold shadow-sm sm:px-3 dark:border-white/10"
+            {academicSubjects.length === 0 ? (
+              <div className="bg-card/60 bg-card/60 rounded-2xl rounded-3xl border-none p-8 text-center shadow-sm backdrop-blur-2xl">
+                <p className="text-muted-foreground text-sm font-medium">No academic subjects defined yet.</p>
+              </div>
+            ) : (
+              <m.div
+                key="academic-grid"
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
               >
-                <Folder className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
-              </Button>
-            </div>
-          </div>
+                {academicSubjects.map((sub) => (
+                  <m.div key={sub.id} variants={itemVariants}>
+                    <SubjectGridCard
+                      subject={sub}
+                      onEdit={() => {
+                        const sourceCourse = getSourceCourse(sub.source_course_id)
+                        setEditingSubject({
+                          ...sub,
+                          instructor_name: sourceCourse?.instructor_name || sub.instructor_name || "",
+                          expected_total_lectures:
+                            sourceCourse?.expected_total_lectures || sub.expected_total_lectures || 0,
+                        })
+                      }}
+                      onDelete={() => setSubjectToDelete(sub)}
+                      onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                    />
+                  </m.div>
+                ))}
+              </m.div>
+            )}
+          </m.section>
+        )}
 
-          {personalSubjects.length === 0 ? (
-            <div className="bg-card/60 bg-card/60 rounded-2xl rounded-3xl border-none p-8 text-center shadow-sm backdrop-blur-2xl">
-              <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
+        {/* --- PERSONAL SUBJECTS (FILTERABLE) --- */}
+        {profile?.personal_enabled && tab === "personal" && (
+          <m.section
+            key="personal-section"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="space-y-6"
+          >
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <h2 className="flex items-center gap-2 text-xl font-bold">
+                <FolderOpen className="text-primary h-5 w-5" /> Personal Learning
+              </h2>
+
+              <div className="flex w-full items-center gap-2 sm:w-auto">
+                <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
+                  <SelectTrigger className="bg-muted/20 h-8 w-full border-black/10 text-xs font-bold shadow-sm sm:w-45 dark:border-white/10">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  className="h-8 shrink-0 border-black/10 px-2 text-xs font-bold shadow-sm sm:px-3 dark:border-white/10"
+                >
+                  <Folder className="h-3.5 w-3.5 sm:mr-1" /> <span className="hidden sm:inline">Manage</span>
+                </Button>
+              </div>
             </div>
-          ) : (
-            <m.div
-              variants={containerVariants}
-              initial="hidden"
-              animate="show"
-              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
-            >
-              {filteredSubjects
-                .filter((s) => s.type === "personal")
-                .map((sub) => {
-                  const subCategory = categories.find((c) => c.id === sub.category_id)
-                  return (
-                    <m.div key={sub.id} variants={itemVariants}>
-                      <SubjectGridCard
-                        subject={{ ...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex }}
-                        category={subCategory}
-                        onEdit={() =>
-                          setEditingSubject({
-                            ...sub,
-                            instructor_name: sub.instructor_name || "",
-                            expected_total_lectures: sub.expected_total_lectures || 0,
-                          })
-                        }
-                        onDelete={() => setSubjectToDelete(sub)}
-                        onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
-                      />
-                    </m.div>
-                  )
-                })}
-            </m.div>
-          )}
-        </section>
-      )}
+
+            {personalSubjects.length === 0 ? (
+              <div className="bg-card/60 bg-card/60 rounded-2xl rounded-3xl border-none p-8 text-center shadow-sm backdrop-blur-2xl">
+                <p className="text-muted-foreground text-sm font-medium">No personal learning tracks defined yet.</p>
+              </div>
+            ) : (
+              <m.div
+                key="personal-grid"
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3"
+              >
+                {filteredSubjects
+                  .filter((s) => s.type === "personal")
+                  .map((sub) => {
+                    const subCategory = categories.find((c) => c.id === sub.category_id)
+                    return (
+                      <m.div key={sub.id} variants={itemVariants}>
+                        <SubjectGridCard
+                          subject={{ ...sub, color_hex: subCategory ? subCategory.color_hex : sub.color_hex }}
+                          onEdit={() =>
+                            setEditingSubject({
+                              ...sub,
+                              instructor_name: sub.instructor_name || "",
+                              expected_total_lectures: sub.expected_total_lectures || 0,
+                            })
+                          }
+                          onDelete={() => setSubjectToDelete(sub)}
+                          onAddExamDate={(label, date) => handleAddExamDate(sub.id, label, date)}
+                        />
+                      </m.div>
+                    )
+                  })}
+              </m.div>
+            )}
+          </m.section>
+        )}
+      </AnimatePresence>
 
       {/* --- ADD SUBJECT MODAL --- */}
       <Dialog open={isAddSubjectModalOpen} onOpenChange={setIsAddSubjectModalOpen}>
@@ -1107,63 +1146,79 @@ export default function SubjectsPage() {
 
       {/* --- MANAGE CATEGORIES MODAL --- */}
       <Dialog open={isCategoryModalOpen} onOpenChange={setIsCategoryModalOpen}>
-        <DialogContent className="border-border/50 overflow-hidden p-0 outline-none sm:max-w-md">
-          <DialogHeader className="bg-card/60 rounded-3xl border-b px-6 pt-6 pb-2 shadow-sm backdrop-blur-2xl">
+        <DialogContent className="border-border/50 flex max-h-[90dvh] flex-col overflow-hidden p-0 outline-none sm:max-w-md">
+          <DialogHeader className="border-border/40 shrink-0 border-b px-6 pt-6 pb-4">
             <DialogTitle>Manage Categories</DialogTitle>
             <DialogDescription className="sr-only">Create and manage subject categories</DialogDescription>
           </DialogHeader>
-          <div className="space-y-6 px-6 pt-4 pb-6">
+          <div className="flex-1 space-y-6 overflow-y-auto px-6 pt-4 pb-6">
             {/* Add category form */}
-            <div className="bg-card flex items-end gap-2">
-              <div className="flex-1 space-y-1.5">
+            <div className="space-y-6">
+              <div className="space-y-1.5">
                 <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">New Category</Label>
                 <Input
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
                   placeholder="e.g. Competitive Exams"
-                  className="bg-card/60 rounded-3xl shadow-sm backdrop-blur-2xl"
+                  className="bg-background focus-visible:ring-primary/50 h-10 rounded-full px-4 shadow-sm focus-visible:ring-1"
                 />
               </div>
-              <div className="w-12.5 space-y-1.5">
+
+              <div className="space-y-2.5">
                 <Label className="text-muted-foreground text-xs font-bold tracking-wider uppercase">Color</Label>
-                <Input
-                  type="color"
-                  value={newCategoryColor}
-                  onChange={(e) => setNewCategoryColor(e.target.value)}
-                  className="h-10 w-full cursor-pointer p-1"
-                />
+                <div className="flex justify-between px-1">
+                  {["#ef4444", "#f97316", "#10b981", "#3b82f6", "#8b5cf6"].map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setNewCategoryColor(color)}
+                      className={`h-9 w-9 cursor-pointer rounded-full shadow-sm transition-transform hover:scale-110 ${
+                        newCategoryColor === color
+                          ? "ring-primary ring-offset-background scale-110 ring-2 ring-offset-2"
+                          : "ring-1 ring-black/10 dark:ring-white/10"
+                      }`}
+                      style={hexToGradient(color)}
+                      aria-label={`Select color ${color}`}
+                    />
+                  ))}
+                </div>
               </div>
-              <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} className="h-10 px-4 font-bold">
-                Add
+
+              <Button
+                onClick={handleCreateCategory}
+                disabled={!newCategoryName.trim()}
+                className="h-11 w-full rounded-full font-bold shadow-sm"
+              >
+                <Plus className="mr-1.5 h-5 w-5" />
+                Add Category
               </Button>
             </div>
 
             {/* List categories */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-muted-foreground border-b pb-1 text-xs font-bold tracking-widest uppercase">
+            <div className="space-y-4 pt-4">
+              <h3 className="text-muted-foreground border-border/40 border-b pb-2 text-xs font-bold tracking-widest uppercase">
                 Existing Categories
               </h3>
               {categories.length === 0 ? (
                 <p className="text-muted-foreground py-4 text-center text-sm font-medium">No categories created yet.</p>
               ) : (
-                <div className="max-h-[40dvh] space-y-2 overflow-y-auto pr-1">
+                <div className="max-h-[30dvh] overflow-y-auto pr-1 sm:max-h-[40dvh]">
                   {categories.map((cat) => (
                     <div
                       key={cat.id}
-                      className="border-border/50 bg-muted/20 flex items-center justify-between rounded-xl border p-3"
+                      className="border-border/40 hover:bg-muted/30 group flex items-center justify-between border-b p-3 transition-colors last:border-0"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3.5">
                         <div
-                          className="h-4 w-4 rounded-full shadow-sm"
+                          className="h-3.5 w-3.5 rounded-full shadow-sm ring-1 ring-black/10 dark:ring-white/10"
                           style={hexToGradient(cat.color_hex ?? "#8b5cf6")}
                         />
-                        <span className="text-sm font-bold tracking-tight">{cat.name}</span>
+                        <span className="text-sm font-medium">{cat.name}</span>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteCategory(cat.id)}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-7 w-7 rounded-lg"
+                        className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8 rounded-lg opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

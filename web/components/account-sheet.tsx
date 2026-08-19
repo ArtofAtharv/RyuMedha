@@ -21,6 +21,7 @@ import { useSupabaseSession } from "@/lib/supabase-auth"
 import { AnimatePresence, m } from "motion/react"
 import { Check, ChevronRight, Headphones, LogIn, LogOut, Moon, User, Palette, X } from "lucide-react"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { haptic } from "@/lib/haptic"
 import Link from "next/link"
@@ -208,6 +209,7 @@ function Backdrop({ onClick }: Readonly<{ onClick: () => void }>) {
 
 function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; displayName?: string }>) {
   const { session, isAuthenticated } = useSupabaseSession()
+  const router = useRouter()
   const user = session?.user as any /* eslint-disable-line @typescript-eslint/no-explicit-any */
 
   const name = displayName || user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email
@@ -334,7 +336,7 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
               const supabase = getAppClient()
               await supabase.auth.signOut()
               onClose()
-              window.location.href = "/login"
+              router.push("/login")
             }}
             className="text-destructive hover:bg-destructive/10 active:bg-destructive/15 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors"
           >
@@ -346,7 +348,7 @@ function SheetContent({ onClose, displayName }: Readonly<{ onClose: () => void; 
             onClick={() => {
               haptic()
               onClose()
-              window.location.href = "/login"
+              router.push("/login")
             }}
             className="text-foreground hover:bg-muted active:bg-muted/70 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors"
           >

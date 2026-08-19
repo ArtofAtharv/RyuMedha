@@ -1,0 +1,6 @@
+{
+  "onlyBuiltDependencies": ["msw", "sharp", "unrs-resolver"],
+  "auditConfig": {
+    "minimumReleaseAge": "0 seconds"
+  }
+}

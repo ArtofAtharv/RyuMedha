@@ -1,7 +1,7 @@
 "use client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { BookOpen, FolderOpen, Pencil, Trash2, User } from "lucide-react"
+import { Pencil, Trash2, User } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
@@ -31,20 +31,13 @@ interface SubjectRecord {
     | null
 }
 
-interface CategoryRecord {
-  id: string
-  name: string
-}
-
 export function SubjectGridCard({
   subject,
-  category,
   onEdit,
   onDelete,
   onAddExamDate,
 }: {
   subject: SubjectRecord
-  category?: CategoryRecord
   onEdit?: () => void
   onDelete?: () => void
   onAddExamDate?: (label: string, date: Date) => void
@@ -68,15 +61,6 @@ export function SubjectGridCard({
     }
   }
 
-  const typeLabel =
-    subject.type === "academic"
-      ? subject.source_course_id
-        ? "Academic"
-        : "Academic"
-      : category
-        ? category.name
-        : subject.label || "Personal"
-
   return (
     <div className="h-full">
       <Card
@@ -87,26 +71,13 @@ export function SubjectGridCard({
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100" />
 
         <CardContent className="relative z-10 flex flex-1 flex-col p-5">
-          <div className="mb-4 flex items-start justify-between">
-            {/* Rich Glassy Badge */}
-            <div>
-              <div
-                className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold tracking-widest uppercase shadow-sm"
-                style={{
-                  backgroundColor: `${subject.color_hex || "#8b5cf6"}15`,
-                  color: subject.color_hex || "#8b5cf6",
-                  borderColor: `${subject.color_hex || "#8b5cf6"}30`,
-                }}
-              >
-                {subject.type === "academic" ? <BookOpen className="h-3 w-3" /> : <FolderOpen className="h-3 w-3" />}
-                <span>{typeLabel}</span>
-              </div>
-            </div>
+          <div className="mb-2 flex items-start justify-between gap-4">
+            <h3 className="truncate text-2xl leading-tight font-bold tracking-tight sm:text-3xl">{subject.name}</h3>
 
             {/* Horizontal Options - Premium Glassy Buttons */}
             {(onEdit || onDelete || onAddExamDate) && (
               <div
-                className="flex translate-x-1 items-center gap-1.5 opacity-100 transition-all group-hover:opacity-100 sm:translate-x-0 sm:-translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0"
+                className="flex shrink-0 items-center gap-1.5 opacity-100 transition-all group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 {onAddExamDate && (
@@ -155,19 +126,18 @@ export function SubjectGridCard({
             )}
           </div>
 
-          <h3 className="text-foreground mb-1.5 line-clamp-2 font-serif text-[26px] leading-tight font-bold tracking-tight">
-            {subject.name}
-          </h3>
-
-          {/* Meta Row */}
-          <div className="text-muted-foreground mb-6 flex flex-1 items-center gap-2 text-sm font-medium">
-            <User className="h-4 w-4 shrink-0 opacity-70" />
-            <span className="truncate">
-              {sourceCourse?.instructor_name || subject.instructor_name || "No Instructor set"}
-            </span>
+          <div className="flex-1">
+            <div className="text-muted-foreground mb-6 flex flex-wrap items-center gap-4 text-sm font-medium">
+              <div className="flex items-center gap-1.5">
+                <User className="h-4 w-4" />
+                <span>
+                  {subject.type === "academic"
+                    ? sourceCourse?.instructor_name || subject.instructor_name || "No Instructor set"
+                    : subject.instructor_name || "No Instructor set"}
+                </span>
+              </div>
+            </div>
           </div>
-
-          {/* Exam Dates Section */}
           {subject.type === "academic" && sourceCourse?.exam_dates && (
             <div className="mb-4 space-y-1.5">
               <p className="text-muted-foreground text-[10px] font-bold tracking-widest uppercase">Upcoming Exams</p>

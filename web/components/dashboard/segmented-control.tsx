@@ -20,20 +20,17 @@ export function SegmentedControl({
   segments,
   activeSegment,
   onChange,
-  fullWidth,
   layoutIdPrefix = "global-segmented",
 }: Readonly<SegmentedControlProps>) {
   return (
-    <div
-      className={`relative flex shrink-0 rounded-full border border-black/5 bg-black/5 p-1 shadow-inner backdrop-blur-md dark:border-white/5 dark:bg-white/5 ${fullWidth ? "w-full" : ""}`}
-    >
+    <div className="relative mx-auto flex w-max shrink-0 rounded-full border border-black/5 bg-black/5 p-1 shadow-inner backdrop-blur-md sm:mx-0 dark:border-white/5 dark:bg-white/5">
       {segments.map((segment) => {
         const isActive = activeSegment === segment.id
         return (
           <button
             key={segment.id}
             onClick={() => onChange(segment.id)}
-            className={`relative flex shrink-0 items-center justify-center gap-1.5 rounded-full px-6 py-2.5 text-sm transition-colors focus:outline-none ${fullWidth ? "flex-1" : ""}`}
+            className="relative flex shrink-0 items-center justify-center gap-1.5 rounded-full px-5 py-1.5 text-sm transition-colors focus:outline-none"
           >
             {isActive && (
               <m.div
