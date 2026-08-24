@@ -40,19 +40,31 @@ export async function POST(_req: Request) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 })
     }
 
-    // Cancel active subscription on Razorpay
+    // Cancel active subscription on Razorpay so auto-debit stops
     await cancelUserRazorpaySubscriptions(profile.id, sub.razorpay_subscription_id)
 
-    // Update status in DB to canceled
-    const deletionDate = new Date()
+    const now = new Date()
+    const expiryDate = sub.current_period_end
+      ? new Date(sub.current_period_end)
+      : (sub.trial_end ? new Date(sub.trial_end) : now)
+
+    const baseExpiry = expiryDate > now ? expiryDate : now
+    const deletionDate = new Date(baseExpiry)
     deletionDate.setDate(deletionDate.getDate() + 60)
+
+    const isFutureExpiry = baseExpiry > now
+    const updatedStatus = isFutureExpiry ? (sub.status || 'active') : 'canceled'
+    const newSubId = sub.razorpay_subscription_id && !sub.razorpay_subscription_id.endsWith('_canceled')
+      ? `${sub.razorpay_subscription_id}_canceled`
+      : sub.razorpay_subscription_id
 
     const { error: updateErr } = await supabase
       .from('subscriptions')
       .update({
-        status: 'canceled',
+        status: updatedStatus,
+        razorpay_subscription_id: newSubId,
         scheduled_deletion_at: deletionDate.toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: now.toISOString()
       })
       .eq('profile_id', profile.id)
 
@@ -61,9 +73,10 @@ export async function POST(_req: Request) {
       return NextResponse.json({ error: 'Failed to cancel subscription' }, { status: 500 })
     }
 
+    const expiryStr = baseExpiry.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
     return NextResponse.json({
       success: true,
-      message: 'Subscription canceled successfully. Your data is retained for 60 days.'
+      message: `Auto-pay canceled. Your access remains active until ${expiryStr}.`
     })
   } catch (err: unknown) {
     console.error('Error canceling subscription:', err)

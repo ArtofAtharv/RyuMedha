@@ -73,10 +73,14 @@ export async function POST(req: Request) {
     // 1. Cancel any active Razorpay recurring subscription so Razorpay WILL NOT bill the bank account next month
     await cancelUserRazorpaySubscriptions(profile.id, existingSub?.razorpay_subscription_id)
 
-    // 2. Calculate subscription period (extending existing current_period_end if active in future)
+    // 2. Calculate subscription period (extending existing current_period_end or trial_end if active in future)
     const now = new Date()
-    const baseDate = (existingSub?.current_period_end && new Date(existingSub.current_period_end) > now)
+    const existingEnd = existingSub?.current_period_end
       ? new Date(existingSub.current_period_end)
+      : (existingSub?.trial_end ? new Date(existingSub.trial_end) : null)
+
+    const baseDate = (existingEnd && existingEnd > now)
+      ? existingEnd
       : now
 
     let periodEnd: string

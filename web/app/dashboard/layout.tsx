@@ -99,7 +99,12 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
     console.warn("Subscription fetch warning:", err)
   }
 
-  const isSubActive = subscription?.status === 'active' || 
+  const now = new Date()
+  const isSubActive = 
+    subscription?.status === 'active' || 
+    subscription?.status === 'trialing' ||
+    (subscription?.current_period_end && new Date(subscription.current_period_end) > now) ||
+    (subscription?.trial_end && new Date(subscription.trial_end) > now) ||
     Boolean(subscription?.razorpay_subscription_id?.startsWith('admin_free_')) || 
     Boolean(subscription?.razorpay_subscription_id?.startsWith('invite_'))
 
