@@ -128,18 +128,12 @@ export default function GradesPage() {
     const acadSubsAll = rawSubs?.filter((s: SubjectRecord) => s.type === 'academic') || []
     setAllAcademicSubjects(acadSubsAll)
 
-    const subs = rawSubs?.filter((s: SubjectRecord) => {
-      if (s.type === 'personal') return s.is_active
-      const semId = Array.isArray(s.source_course_id) 
-        ? s.source_course_id[0]?.semester_id 
-        : (s.source_course_id as {semester_id?: string})?.semester_id
-      return !semId || !profile?.current_semester_id || semId === profile?.current_semester_id
-    }) || []
+    const subs = rawSubs?.filter((s: SubjectRecord) => s.is_active !== false) || []
     setSubjects(subs)
 
     const validSubjectIds = new Set(rawSubs?.map((s: SubjectRecord) => s.id) || [])
     setGrades((g || []).filter((entry: GradeRecord) => validSubjectIds.has(entry.subject_id)))
-  }, [profile?.current_semester_id])
+  }, [])
 
   useEffect(() => {
     async function init() {
@@ -326,7 +320,7 @@ export default function GradesPage() {
       ) : (
         <m.div variants={container} initial="hidden" animate="show" className="space-y-6">
           {/* Academic Section */}
-          {profile?.academics_enabled && (
+          {(profile?.academics_enabled !== false) && (
             <m.section variants={item} className="space-y-4">
               <h2 className="text-xl font-bold flex items-center gap-2"><BookOpen className="w-5 h-5 text-primary"/> Academic Grades</h2>
           
@@ -427,7 +421,7 @@ export default function GradesPage() {
           )}
 
       {/* Personal Section */}
-      {profile?.personal_enabled && (
+      {(profile?.personal_enabled !== false) && (
         <m.section variants={item} className="space-y-4">
           <h2 className="text-xl font-bold flex items-center gap-2"><FolderOpen className="w-5 h-5 text-primary"/> Personal Track Scores</h2>
           
