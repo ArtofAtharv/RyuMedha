@@ -109,21 +109,21 @@ export default function GradesPage() {
     setIsEditingGpa(false)
   }
 
-  const fetchData = useCallback(async (supabase: AppSupabaseClient, pid: string | null) => {
-    if (!pid) return
-    
-    const { data: g } = await supabase
-      .from('grades')
-      .select('*, subjects(name)')
-      .eq('profile_id', pid)
-      .order('assessed_date', { ascending: false })
-      
+  const fetchData = useCallback(async (supabase: AppSupabaseClient, pid?: string | null) => {
+    const targetPid = pid || profile?.id || null
+
+    const gradeQuery = targetPid
+      ? supabase.from('grades').select('*, subjects(name)').eq('profile_id', targetPid).order('assessed_date', { ascending: false })
+      : supabase.from('grades').select('*, subjects(name)').order('assessed_date', { ascending: false })
+
+    const { data: g } = await gradeQuery
     setGrades(g || [])
 
-    const { data: rawSubs } = await supabase
-      .from('subjects')
-      .select('id, name, color_hex, type, label, is_active, source_course_id(*)')
-      .eq('profile_id', pid)
+    const subQuery = targetPid
+      ? supabase.from('subjects').select('id, name, color_hex, type, label, is_active, source_course_id(*)').eq('profile_id', targetPid).order('name')
+      : supabase.from('subjects').select('id, name, color_hex, type, label, is_active, source_course_id(*)').order('name')
+
+    const { data: rawSubs } = await subQuery
       
     const acadSubsAll = rawSubs?.filter((s: SubjectRecord) => s.type === 'academic') || []
     setAllAcademicSubjects(acadSubsAll)
@@ -133,7 +133,7 @@ export default function GradesPage() {
 
     const validSubjectIds = new Set(rawSubs?.map((s: SubjectRecord) => s.id) || [])
     setGrades((g || []).filter((entry: GradeRecord) => validSubjectIds.has(entry.subject_id)))
-  }, [])
+  }, [profile?.id])
 
   useEffect(() => {
     async function init() {
@@ -153,11 +153,11 @@ export default function GradesPage() {
         }
       }
 
-      await fetchData(supabase, pData?.id || null)
+      await fetchData(supabase, pData?.id || profile?.id || null)
       setIsLoading(false)
     }
     init()
-  }, [fetchData])
+  }, [fetchData, profile?.id])
 
   async function handleSaveGrades(subjectId: string, scores: ReturnType<typeof JSON.parse>) {
     if (!supabaseClient || !profileId) return
