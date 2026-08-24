@@ -80,7 +80,10 @@ function playAlarmBeep() {
   }
 }
 
+import { useRouter } from "next/navigation"
+
 export default function TimersPage() {
+  const router = useRouter()
   const { profile } = useProfile()
   const [activeTimer, setActiveTimer] = useState<StudyTimer | null>(null)
   const [history, setHistory] = useState<StudyTimer[]>([])
@@ -256,6 +259,7 @@ export default function TimersPage() {
       toast.success("Focus Session Complete! Data saved.")
       setActivePomodoroDB(null)
       fetchData(supabaseClient, profileId)
+      router.refresh()
     } catch (e) {
       console.error("Failed to save Pomodoro session", e)
       toast.error("Failed to save Pomodoro session")
@@ -459,6 +463,7 @@ export default function TimersPage() {
       setActiveTimer(null)
       setElapsed(0)
       await fetchData(supabaseClient, profileId)
+      router.refresh()
     } catch (e) {
       console.error(e)
       toast.error("An error occurred while stopping")
@@ -470,6 +475,7 @@ export default function TimersPage() {
     await supabaseClient.from('study_timers').delete().eq('id', id)
     toast.success("Timer deleted")
     fetchData(supabaseClient, profileId)
+    router.refresh()
   }
 
   const openEditModal = (timerId: string, currentSubjectId: string) => {
@@ -486,6 +492,7 @@ export default function TimersPage() {
       toast.success("Timer subject updated!")
       setIsEditModalOpen(false)
       fetchData(supabaseClient, profileId)
+      router.refresh()
     } catch(e) {
       console.error(e)
       toast.error("Failed to update timer")

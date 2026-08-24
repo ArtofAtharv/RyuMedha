@@ -57,7 +57,10 @@ function formatOutputDate(d: Date) {
   return offsetDate.toISOString().split('T')[0]
 }
 
+import { useRouter } from "next/navigation"
+
 export default function SubjectsPage() {
+  const router = useRouter()
   const { profile, activeTrack } = useProfile()
   const [profileId, setProfileId] = useState<string|null>(null)
   const [supabaseClient, setSupabaseClient] = useState<AppSupabaseClient | null>(null)
@@ -277,6 +280,7 @@ export default function SubjectsPage() {
       setNewCourseName("")
       setIsAddSubjectModalOpen(false)
       fetchSubjects(supabaseClient)
+      router.refresh()
     } catch (err: unknown) {
       const error = err as Error
       toast.error(`Failed to add subjects: ${error.message}`)
@@ -305,6 +309,7 @@ export default function SubjectsPage() {
       setCategoryId("none")
       setIsAddSubjectModalOpen(false)
       fetchSubjects(supabaseClient)
+      router.refresh()
     }
   }
 
@@ -336,6 +341,7 @@ export default function SubjectsPage() {
     await supabaseClient.from('subjects').delete().eq('id', subjectToDelete.id)
     setSubjectToDelete(null)
     fetchSubjects(supabaseClient)
+    router.refresh()
   }
 
   async function saveEdit() {
@@ -375,6 +381,7 @@ export default function SubjectsPage() {
 
     setEditingSubject(null)
     fetchSubjects(supabase)
+    router.refresh()
   }
 
   /* -------------------------------------------------------------------------- */
