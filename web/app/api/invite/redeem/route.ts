@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, display_name, email')
+      .select('id, display_name, email, created_at')
       .eq('id', user.id)
       .maybeSingle()
 
@@ -75,9 +75,13 @@ export async function POST(req: Request) {
 
     // 2. Calculate subscription period (extending existing current_period_end or trial_end if active in future)
     const now = new Date()
+    const profileCreatedAt = profile.created_at ? new Date(profile.created_at) : now
+    const defaultSignupTrialEnd = new Date(profileCreatedAt)
+    defaultSignupTrialEnd.setDate(defaultSignupTrialEnd.getDate() + 30)
+
     const existingEnd = existingSub?.current_period_end
       ? new Date(existingSub.current_period_end)
-      : (existingSub?.trial_end ? new Date(existingSub.trial_end) : null)
+      : (existingSub?.trial_end ? new Date(existingSub.trial_end) : defaultSignupTrialEnd)
 
     const baseDate = (existingEnd && existingEnd > now)
       ? existingEnd
