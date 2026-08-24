@@ -93,10 +93,18 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
       .from('subscriptions')
       .select('*')
       .eq('profile_id', profile.id)
-      .single()
+      .maybeSingle()
     subscription = subData
   } catch (err) {
     console.warn("Subscription fetch warning:", err)
+  }
+
+  const isSubActive = subscription?.status === 'active' || 
+    Boolean(subscription?.razorpay_subscription_id?.startsWith('admin_free_')) || 
+    Boolean(subscription?.razorpay_subscription_id?.startsWith('invite_'))
+
+  if (!isSubActive) {
+    redirect('/setup')
   }
 
   return (
