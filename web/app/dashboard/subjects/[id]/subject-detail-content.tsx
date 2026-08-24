@@ -44,6 +44,8 @@ import { m } from "motion/react"
 import { haptic } from "@/lib/haptic"
 import { createReminder, deleteReminder } from "@/app/actions/google-tasks"
 
+import { useRouter } from "next/navigation"
+
 interface SubjectCourse {
   id?: string
   instructor_name?: string
@@ -73,6 +75,7 @@ interface ProfileData {
 }
 
 export function SubjectDetailContent({ subject, attendanceLogs, exams = [], profile, token }: Readonly<{ subject: SubjectData, attendanceLogs: AttendanceLog[], exams: Record<string, unknown>[], profile: ProfileData, token: string }>) {
+  const router = useRouter()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [logs, setLogs] = useState(attendanceLogs)
   const [isUpdating, setIsUpdating] = useState(false)
@@ -291,6 +294,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
 
       if (error) throw error
       setLogs(prev => [...prev, newLog])
+      router.refresh()
       toast.success(`Added ${status} lecture`)
     } catch (e: unknown) {
       toast.error(e instanceof Error ? (e as Error).message : String(e))
@@ -311,6 +315,7 @@ export function SubjectDetailContent({ subject, attendanceLogs, exams = [], prof
 
       if (error) throw error
       setLogs(prev => prev.filter(l => l.id !== id))
+      router.refresh()
       toast.info("Lecture record removed")
     } catch (e: unknown) {
       toast.error(e instanceof Error ? (e as Error).message : String(e))

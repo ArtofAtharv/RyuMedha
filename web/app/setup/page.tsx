@@ -234,20 +234,13 @@ export default function SetupPage() {
 
   useEffect(() => {
     if (selectedProgId && supabaseClient) {
-      // Find the selected program to get its default target attendance
-      const prog = programs.find(p => p.id === selectedProgId)
-      if (prog?.default_target_attendance) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTargetAttendance(prog.default_target_attendance.toString())
-      }
-
       supabaseClient.from('semesters').select('id, name, semester_number').eq('program_id', selectedProgId).order('semester_number')
         .then(({ data }: { data: Semester[] | null }) => {
           setSemesters(data || [])
           setSelectedSemId("")
         })
     }
-  }, [selectedProgId, supabaseClient, programs])
+  }, [selectedProgId, supabaseClient])
 
   // Institutional Management Functions
   async function handleCreateUni() {
@@ -550,7 +543,7 @@ export default function SetupPage() {
             {step === 3 && <SetupStep3Card {...step3Bundle} />}
             {step === 4 && (
               <SetupStep4Card 
-                onComplete={() => router.push("/dashboard/whatsapp-bot")} 
+                onComplete={() => { window.location.href = "/dashboard" }} 
                 userEmail={userEmail}
                 displayName={displayName}
                 userPhone={userPhone}

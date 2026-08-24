@@ -133,7 +133,7 @@ export default function GradesPage() {
       const semId = Array.isArray(s.source_course_id) 
         ? s.source_course_id[0]?.semester_id 
         : (s.source_course_id as {semester_id?: string})?.semester_id
-      return semId === profile?.current_semester_id
+      return !semId || !profile?.current_semester_id || semId === profile?.current_semester_id
     }) || []
     setSubjects(subs)
 
@@ -146,20 +146,20 @@ export default function GradesPage() {
       const supabase = getAppClient()
       setSupabaseClient(supabase)
       
-      const { data: profile } = await supabase
+      const { data: pData } = await supabase
         .from('profiles')
-        .select('id, max_gpa')
+        .select('id, max_gpa, current_semester_id')
         .single()
         
-      if (profile) {
-        setProfileId(profile.id)
-        if (profile.max_gpa) {
-          setMaxGpa(profile.max_gpa)
-          setEditGpaValue(profile.max_gpa.toString())
+      if (pData) {
+        setProfileId(pData.id)
+        if (pData.max_gpa) {
+          setMaxGpa(pData.max_gpa)
+          setEditGpaValue(pData.max_gpa.toString())
         }
       }
 
-      await fetchData(supabase, profile?.id)
+      await fetchData(supabase, pData?.id || null)
       setIsLoading(false)
     }
     init()
