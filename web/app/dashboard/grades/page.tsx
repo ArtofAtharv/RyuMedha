@@ -122,7 +122,7 @@ export default function GradesPage() {
 
     const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, color_hex, type, label, is_active, source_course_id')
+      .select('id, name, color_hex, type, label, is_active, source_course_id(*)')
       .eq('profile_id', pid)
       
     const acadSubsAll = rawSubs?.filter((s: SubjectRecord) => s.type === 'academic') || []

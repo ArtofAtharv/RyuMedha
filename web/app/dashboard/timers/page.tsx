@@ -171,7 +171,7 @@ export default function TimersPage() {
     // Subjects
     const { data: rawSubs } = await supabase
       .from('subjects')
-      .select('id, name, type, source_course_id')
+      .select('id, name, type, source_course_id(*)')
       .eq('profile_id', pid)
       .eq('is_active', true)
       .order('name')

@@ -12,6 +12,14 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', 'framer-motion', 'motion', 'recharts']
   },
   allowedDevOrigins: ['10.100.230.144', '192.168.1.5', 'localhost'],
+  async rewrites() {
+    return [
+      {
+        source: '/supabase-proxy/:path*',
+        destination: 'https://tcrhnpknzbahxboheznm.supabase.co/:path*',
+      },
+    ]
+  },
 };
 
 export default nextConfig;
