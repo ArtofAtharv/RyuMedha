@@ -209,7 +209,7 @@ export default function SetupPage() {
 
         if (isProfileSetupDone) {
           if (isSubActive) {
-            router.push('/dashboard/whatsapp-bot')
+            window.location.href = '/dashboard'
           } else {
             setStep(4)
           }
