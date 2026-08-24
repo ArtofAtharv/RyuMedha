@@ -100,13 +100,18 @@ export default async function DashboardLayout({ children }: Readonly<{ children:
   }
 
   const now = new Date()
-  const isSubActive = 
+  const subId = subscription?.razorpay_subscription_id || ''
+
+  const hasAuthorizedPaymentOrInvite = 
+    subId.startsWith('sub_') || 
+    subId.startsWith('invite_') || 
+    subId.startsWith('admin_free_')
+
+  const isPeriodValid = 
     subscription?.status === 'active' || 
-    subscription?.status === 'trialing' ||
-    (subscription?.current_period_end && new Date(subscription.current_period_end) > now) ||
-    (subscription?.trial_end && new Date(subscription.trial_end) > now) ||
-    Boolean(subscription?.razorpay_subscription_id?.startsWith('admin_free_')) || 
-    Boolean(subscription?.razorpay_subscription_id?.startsWith('invite_'))
+    (subscription?.current_period_end && new Date(subscription.current_period_end) > now)
+
+  const isSubActive = Boolean(hasAuthorizedPaymentOrInvite && isPeriodValid)
 
   if (!isSubActive) {
     redirect('/setup')

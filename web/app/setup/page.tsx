@@ -203,14 +203,18 @@ export default function SetupPage() {
         }
 
         const now = new Date()
-        const isProfileSetupDone = profile && (profile.academics_enabled !== null || profile.personal_enabled !== null)
-        const isSubActive = 
+        const subId = subData?.razorpay_subscription_id || ''
+        const hasAuthorizedPaymentOrInvite = 
+          subId.startsWith('sub_') || 
+          subId.startsWith('invite_') || 
+          subId.startsWith('admin_free_')
+
+        const isPeriodValid = 
           subData?.status === 'active' || 
-          subData?.status === 'trialing' ||
-          (subData?.current_period_end && new Date(subData.current_period_end) > now) ||
-          (subData?.trial_end && new Date(subData.trial_end) > now) ||
-          Boolean(subData?.razorpay_subscription_id?.startsWith('admin_free_')) || 
-          Boolean(subData?.razorpay_subscription_id?.startsWith('invite_'))
+          (subData?.current_period_end && new Date(subData.current_period_end) > now)
+
+        const isProfileSetupDone = profile && (profile.academics_enabled !== null || profile.personal_enabled !== null)
+        const isSubActive = Boolean(hasAuthorizedPaymentOrInvite && isPeriodValid)
 
         if (isProfileSetupDone) {
           if (isSubActive) {
