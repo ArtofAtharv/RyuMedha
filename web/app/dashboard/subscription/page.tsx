@@ -230,9 +230,10 @@ export default function SubscriptionPage() {
     subscription?.razorpay_subscription_id?.endsWith('_canceled')
   )
 
-  const isActive = (subscription?.status === 'active' || isAutoPayCanceled) && !isExpired
   const periodEnd = subscription?.current_period_end ? new Date(subscription.current_period_end) : null
   const periodEndStr = periodEnd ? periodEnd.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
+  const isExpired = subscription?.status === 'canceled' && (!periodEnd || periodEnd <= now)
+  const isActive = (subscription?.status === 'active' || isAutoPayCanceled || Boolean(periodEnd && periodEnd > now)) && !isExpired
 
   const deletionDate = subscription?.scheduled_deletion_at ? new Date(subscription.scheduled_deletion_at) : null
   const deletionDateStr = deletionDate ? deletionDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
